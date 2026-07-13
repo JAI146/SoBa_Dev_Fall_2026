@@ -11,9 +11,9 @@ export default function HomePage() {
     const token = getToken();
     const user = getStoredUser();
     if (token && user) {
-      router.replace(getDashboardPath(user.userType));
+      router.replace(getDashboardPath());
     } else {
-      router.replace("/login");
+      router.replace("/dashboard");
     }
   }, [router]);
 

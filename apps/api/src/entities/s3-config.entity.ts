@@ -4,28 +4,28 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-} from "typeorm";
+} from 'typeorm';
 
-@Entity("s3_config")
+@Entity('s3_config')
 export class S3Config {
-  @PrimaryGeneratedColumn("uuid")
+  @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: "access_key_id", type: "varchar", length: 255 })
+  @Column({ name: 'access_key_id', type: 'varchar', length: 255 })
   accessKeyId!: string;
 
-  @Column({ name: "secret_access_key", type: "text" })
+  @Column({ name: 'secret_access_key', type: 'text' })
   secretAccessKey!: string;
 
-  @Column({ type: "varchar", length: 100 })
+  @Column({ type: 'varchar', length: 100 })
   region!: string;
 
-  @Column({ type: "varchar", length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   bucket!: string;
 
-  @CreateDateColumn({ name: "created_at" })
+  @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
-  @UpdateDateColumn({ name: "updated_at" })
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt!: Date;
 }

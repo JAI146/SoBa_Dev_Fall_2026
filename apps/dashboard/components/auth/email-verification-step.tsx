@@ -1,41 +1,40 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useI18n } from "@muakhah/i18n";
 import type { AuthResponse } from "@muakhah/contracts";
 import { OtpInput } from "@/components/auth/otp-input";
 import { apiRequest } from "@/lib/api-client";
 import styles from "../../app/auth.module.css";
 
-type EmailVerificationStepProps = {
-  email: string;
-  onVerified: (data: AuthResponse) => void;
-};
-
 export function EmailVerificationStep({
   email,
   onVerified,
-}: EmailVerificationStepProps) {
-  const { t } = useI18n();
+}: {
+  email: string;
+  onVerified: (data: AuthResponse) => void;
+}) {
   const [otp, setOtp] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
 
-  async function handleVerify(e: FormEvent) {
-    e.preventDefault();
+  async function handleVerify(event: FormEvent) {
+    event.preventDefault();
     setError(null);
     setLoading(true);
-
     try {
       const data = await apiRequest<AuthResponse>("/auth/verify-email", {
         method: "POST",
         body: JSON.stringify({ email, otp }),
       });
       onVerified(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("auth.verify.failed"));
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to verify your email. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -45,7 +44,6 @@ export function EmailVerificationStep({
     setError(null);
     setResent(false);
     setResending(true);
-
     try {
       await apiRequest("/auth/resend-otp", {
         method: "POST",
@@ -53,8 +51,12 @@ export function EmailVerificationStep({
       });
       setResent(true);
       setOtp("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("auth.verify.resendFailed"));
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to resend the code. Please try again.",
+      );
     } finally {
       setResending(false);
     }
@@ -65,38 +67,34 @@ export function EmailVerificationStep({
       <div className={styles["verify-icon"]} aria-hidden>
         ✉
       </div>
-      <h2 className={styles["verify-title"]}>{t("auth.verify.title")}</h2>
+      <h2 className={styles["verify-title"]}>Verify your email</h2>
       <p className={styles["verify-subtitle"]}>
-        {t("auth.verify.subtitle", { email })}
+        Enter the six-digit code sent to {email}.
       </p>
-
       {error && <div className={styles["error-banner"]}>{error}</div>}
       {resent && (
-        <div className={styles["success-banner"]}>{t("auth.verify.resent")}</div>
+        <div className={styles["success-banner"]}>A new code has been sent.</div>
       )}
-
       <form onSubmit={handleVerify}>
-        <label className={styles["verify-otp-label"]}>{t("auth.verify.codeLabel")}</label>
+        <label className={styles["verify-otp-label"]}>Verification code</label>
         <OtpInput value={otp} onChange={setOtp} disabled={loading} />
-
         <button
           type="submit"
           className={styles["btn-primary"]}
           disabled={loading || otp.length !== 6}
         >
-          {loading ? t("auth.verify.verifying") : t("auth.verify.submit")}
+          {loading ? "Verifying..." : "Verify email"}
         </button>
       </form>
-
       <p className={styles["verify-resend"]}>
-        {t("auth.verify.noCode")}{" "}
+        Did not receive a code?{" "}
         <button
           type="button"
           className={styles["policy-link"]}
           onClick={handleResend}
           disabled={resending}
         >
-          {resending ? t("auth.verify.resending") : t("auth.verify.resend")}
+          {resending ? "Sending..." : "Resend code"}
         </button>
       </p>
     </div>

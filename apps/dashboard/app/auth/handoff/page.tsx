@@ -7,12 +7,10 @@ import { apiRequest } from "@/lib/api-client";
 import { saveAuth } from "@/lib/auth";
 import styles from "../../auth.module.css";
 
-const DONOR_TYPES = new Set(["visitor", "sponsor"]);
-
-function safeDonorNext(value: string | null) {
-  return value?.startsWith("/dashboard/visitor") && !value.startsWith("//")
+function safeNext(value: string | null) {
+  return value?.startsWith("/dashboard") && !value.startsWith("//")
     ? value
-    : "/dashboard/visitor";
+    : "/dashboard";
 }
 
 function HandoffContent() {
@@ -25,17 +23,16 @@ function HandoffContent() {
     let cancelled = false;
     async function importSession() {
       const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-      const fragmentToken = hash.get("access_token");
-      if (fragmentToken) {
-        importedTokenRef.current = fragmentToken;
+      const token = hash.get("access_token");
+      if (token) {
+        importedTokenRef.current = token;
         window.history.replaceState(
           null,
           "",
-          `${window.location.pathname}${window.location.search}`,
+          window.location.pathname + window.location.search,
         );
       }
-      const token = importedTokenRef.current;
-      if (!token) {
+      if (!importedTokenRef.current) {
         setError("No login token was provided.");
         return;
       }
@@ -44,17 +41,21 @@ function HandoffContent() {
         const response = await apiRequest<{ user: AuthResponse["user"] }>(
           "/auth/me",
           {},
-          token,
+          importedTokenRef.current,
         );
-        if (!DONOR_TYPES.has(response.user.userType)) {
-          throw new Error("A sponsor account is required.");
-        }
         if (cancelled) return;
-        saveAuth({ user: response.user, accessToken: token }, true);
-        router.replace(safeDonorNext(searchParams.get("next")));
+        saveAuth(
+          { user: response.user, accessToken: importedTokenRef.current },
+          true,
+        );
+        router.replace(safeNext(searchParams.get("next")));
       } catch (cause) {
         if (!cancelled) {
-          setError(cause instanceof Error ? cause.message : "Unable to import this session.");
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "Unable to import this session.",
+          );
         }
       }
     }
@@ -65,19 +66,21 @@ function HandoffContent() {
   }, [router, searchParams]);
 
   return (
-    <div className={styles["auth-page"]}>
+    <main className={styles["auth-page"]}>
       <div className={styles["auth-card"]}>
-        <h1>Connecting your sponsor session</h1>
+        <h1>Connecting your session</h1>
         {error ? (
           <>
             <div className={styles["error-banner"]}>{error}</div>
-            <a href="/login" className={styles["btn-primary"]}>Sign in again</a>
+            <a href="/login" className={styles["btn-primary"]}>
+              Sign in again
+            </a>
           </>
         ) : (
           <p className={styles.subtitle}>Please wait while we open your dashboard.</p>
         )}
       </div>
-    </div>
+    </main>
   );
 }
 

@@ -1,8 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
-import * as nodemailer from "nodemailer";
-import { buildOtpEmailHtml } from "./templates/otp-email.template";
-import { buildPasswordResetEmailHtml } from "./templates/password-reset-email.template";
-import { SmtpConfigService } from "./smtp-config.service";
+import { Injectable, Logger } from '@nestjs/common';
+import * as nodemailer from 'nodemailer';
+import { buildOtpEmailHtml } from './templates/otp-email.template';
+import { buildPasswordResetEmailHtml } from './templates/password-reset-email.template';
+import { SmtpConfigService } from './smtp-config.service';
 
 const OTP_EXPIRES_MINUTES = 10;
 
@@ -12,48 +12,20 @@ export class MailService {
 
   constructor(private readonly smtpConfigService: SmtpConfigService) {}
 
-  async sendOtpEmail(params: {
-    to: string;
-    firstName: string;
-    otp: string;
-  }) {
-    const config = await this.smtpConfigService.getConfig();
-    if (!config || !config.smtpEnabled) {
-      throw new Error(
-        "SMTP is not configured or disabled. Configure it in admin Settings > Config > SMTP.",
-      );
-    }
-
-    const transporter = nodemailer.createTransport({
-      host: config.smtpServer,
-      port: config.smtpPort,
-      secure: config.smtpPort === 465,
-      auth: {
-        user: config.smtpEmailUser,
-        pass: config.smtpEmailPassword,
-      },
-    });
-
-    const html = buildOtpEmailHtml({
-      firstName: params.firstName,
-      otp: params.otp,
-      expiresMinutes: OTP_EXPIRES_MINUTES,
-    });
-
-    const mailOptions: nodemailer.SendMailOptions = {
-      from: `"Muakhah" <${config.smtpEmailUser}>`,
+  async sendOtpEmail(params: { to: string; firstName: string; otp: string }) {
+    await this.send({
       to: params.to,
-      subject: `${params.otp} is your Muakhah verification code`,
-      html,
-      text: `Your Muakhah verification code is ${params.otp}. It expires in ${OTP_EXPIRES_MINUTES} minutes.`,
-    };
-
-    if (config.smtpBcc) {
-      mailOptions.bcc = config.smtpBcc;
-    }
-
-    await transporter.sendMail(mailOptions);
-    this.logger.log(`OTP email sent to ${params.to}`);
+      subject: params.otp + ' is your PurposeMint verification code',
+      text:
+        'Your PurposeMint verification code is ' +
+        params.otp +
+        '. It expires in 10 minutes.',
+      html: buildOtpEmailHtml({
+        firstName: params.firstName,
+        otp: params.otp,
+        expiresMinutes: OTP_EXPIRES_MINUTES,
+      }),
+    });
   }
 
   async sendPasswordResetEmail(params: {
@@ -61,13 +33,31 @@ export class MailService {
     firstName: string;
     otp: string;
   }) {
+    await this.send({
+      to: params.to,
+      subject: params.otp + ' is your PurposeMint password reset code',
+      text:
+        'Your PurposeMint password reset code is ' +
+        params.otp +
+        '. It expires in 10 minutes.',
+      html: buildPasswordResetEmailHtml({
+        firstName: params.firstName,
+        otp: params.otp,
+        expiresMinutes: OTP_EXPIRES_MINUTES,
+      }),
+    });
+  }
+
+  private async send(message: {
+    to: string;
+    subject: string;
+    text: string;
+    html: string;
+  }) {
     const config = await this.smtpConfigService.getConfig();
     if (!config || !config.smtpEnabled) {
-      throw new Error(
-        "SMTP is not configured or disabled. Configure it in admin Settings > Config > SMTP.",
-      );
+      throw new Error('SMTP is not configured or is disabled');
     }
-
     const transporter = nodemailer.createTransport({
       host: config.smtpServer,
       port: config.smtpPort,
@@ -77,26 +67,14 @@ export class MailService {
         pass: config.smtpEmailPassword,
       },
     });
-
-    const html = buildPasswordResetEmailHtml({
-      firstName: params.firstName,
-      otp: params.otp,
-      expiresMinutes: OTP_EXPIRES_MINUTES,
+    await transporter.sendMail({
+      from: '"PurposeMint" <' + config.smtpEmailUser + '>',
+      to: message.to,
+      bcc: config.smtpBcc ?? undefined,
+      subject: message.subject,
+      text: message.text,
+      html: message.html,
     });
-
-    const mailOptions: nodemailer.SendMailOptions = {
-      from: `"Muakhah" <${config.smtpEmailUser}>`,
-      to: params.to,
-      subject: `${params.otp} is your Muakhah password reset code`,
-      html,
-      text: `Your Muakhah password reset code is ${params.otp}. It expires in ${OTP_EXPIRES_MINUTES} minutes.`,
-    };
-
-    if (config.smtpBcc) {
-      mailOptions.bcc = config.smtpBcc;
-    }
-
-    await transporter.sendMail(mailOptions);
-    this.logger.log(`Password reset email sent to ${params.to}`);
+    this.logger.log('Authentication email sent to ' + message.to);
   }
 }

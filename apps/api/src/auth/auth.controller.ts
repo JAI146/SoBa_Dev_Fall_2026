@@ -1,4 +1,4 @@
-import type { UploadedImageFile } from "../common/types/uploaded-file.type";
+import type { UploadedImageFile } from '../common/types/uploaded-file.type';
 import {
   BadRequestException,
   Body,
@@ -9,145 +9,130 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
-} from "@nestjs/common";
-import { FileInterceptor } from "@nestjs/platform-express";
-import { registerSchema, loginSchema, verifyEmailSchema, resendOtpSchema, forgotPasswordSchema, verifyResetOtpSchema, resetPasswordSchema, resendResetOtpSchema } from "@muakhah/contracts";
-import { AuthService } from "./auth.service";
-import { JwtAuthGuard } from "./jwt-auth.guard";
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { AuthService } from './auth.service';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
-@Controller("auth")
+function required(body: Record<string, string>, field: string) {
+  const value = body[field]?.trim();
+  if (!value) throw new BadRequestException(field + ' is required');
+  return value;
+}
+
+function email(body: Record<string, string>) {
+  const value = required(body, 'email').toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    throw new BadRequestException('Enter a valid email address');
+  }
+  return value;
+}
+
+function otp(body: Record<string, string>) {
+  const value = required(body, 'otp');
+  if (!/^\d{6}$/.test(value)) {
+    throw new BadRequestException('OTP must contain six digits');
+  }
+  return value;
+}
+
+function password(body: Record<string, string>, field = 'password') {
+  const value = required(body, field);
+  if (value.length < 8) {
+    throw new BadRequestException(
+      'Password must contain at least 8 characters',
+    );
+  }
+  return value;
+}
+
+function agreed(value: string | undefined) {
+  return value === 'on' || value === 'true' || value === '1';
+}
+
+@Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post("register")
+  @Post('register')
   @UseInterceptors(
-    FileInterceptor("profileImage", {
-      limits: { fileSize: 5 * 1024 * 1024 },
-    }),
+    FileInterceptor('profileImage', { limits: { fileSize: 5_242_880 } }),
   )
   async register(
     @Body() body: Record<string, string>,
     @UploadedFile() profileImage?: UploadedImageFile,
   ) {
-    const parsed = registerSchema.safeParse({
-      email: body.email,
-      password: body.password,
-      confirmPassword: body.confirmPassword,
-      firstName: body.firstName,
-      lastName: body.lastName,
-      country: body.country,
-      state: body.state,
-      city: body.city,
-      agreeTermsOfUse: body.agreeTermsOfUse,
-      agreePrivacyPolicy: body.agreePrivacyPolicy,
-      agreeDirectSponsorshipPolicy: body.agreeDirectSponsorshipPolicy,
-      agreeCommunicationPolicy: body.agreeCommunicationPolicy,
-    });
-
-    if (!parsed.success) {
-      const message = parsed.error.errors.map((e) => e.message).join(", ");
-      throw new BadRequestException(message);
+    const parsedPassword = password(body);
+    if (parsedPassword !== required(body, 'confirmPassword')) {
+      throw new BadRequestException('Passwords do not match');
     }
-
-    if (profileImage && !profileImage.mimetype.startsWith("image/")) {
-      throw new BadRequestException("Profile image must be an image file");
+    if (!agreed(body.agreeTermsOfUse) || !agreed(body.agreePrivacyPolicy)) {
+      throw new BadRequestException(
+        'Terms of Use and Privacy Policy are required',
+      );
+    }
+    if (profileImage && !profileImage.mimetype.startsWith('image/')) {
+      throw new BadRequestException('Profile image must be an image file');
     }
 
     return this.authService.register(
       {
-        email: parsed.data.email,
-        password: parsed.data.password,
-        firstName: parsed.data.firstName,
-        lastName: parsed.data.lastName,
-        country: parsed.data.country,
-        state: parsed.data.state?.trim() || null,
-        city: parsed.data.city?.trim() || null,
+        email: email(body),
+        password: parsedPassword,
+        firstName: required(body, 'firstName'),
+        lastName: required(body, 'lastName'),
+        country: required(body, 'country'),
+        state: body.state?.trim() || null,
+        city: body.city?.trim() || null,
       },
       profileImage,
     );
   }
 
-  @Post("verify-email")
-  async verifyEmail(@Body() body: Record<string, string>) {
-    const parsed = verifyEmailSchema.safeParse(body);
-    if (!parsed.success) {
-      const message = parsed.error.errors.map((e) => e.message).join(", ");
-      throw new BadRequestException(message);
-    }
-    return this.authService.verifyEmail(parsed.data.email, parsed.data.otp);
+  @Post('verify-email')
+  verifyEmail(@Body() body: Record<string, string>) {
+    return this.authService.verifyEmail(email(body), otp(body));
   }
 
-  @Post("resend-otp")
-  async resendOtp(@Body() body: Record<string, string>) {
-    const parsed = resendOtpSchema.safeParse(body);
-    if (!parsed.success) {
-      const message = parsed.error.errors.map((e) => e.message).join(", ");
-      throw new BadRequestException(message);
-    }
-    return this.authService.resendOtp(parsed.data.email);
+  @Post('resend-otp')
+  resendOtp(@Body() body: Record<string, string>) {
+    return this.authService.resendOtp(email(body));
   }
 
-  @Post("forgot-password")
-  async forgotPassword(@Body() body: Record<string, string>) {
-    const parsed = forgotPasswordSchema.safeParse(body);
-    if (!parsed.success) {
-      const message = parsed.error.errors.map((e) => e.message).join(", ");
-      throw new BadRequestException(message);
-    }
-    return this.authService.forgotPassword(parsed.data.email);
+  @Post('forgot-password')
+  forgotPassword(@Body() body: Record<string, string>) {
+    return this.authService.forgotPassword(email(body));
   }
 
-  @Post("verify-reset-otp")
-  async verifyResetOtp(@Body() body: Record<string, string>) {
-    const parsed = verifyResetOtpSchema.safeParse(body);
-    if (!parsed.success) {
-      const message = parsed.error.errors.map((e) => e.message).join(", ");
-      throw new BadRequestException(message);
-    }
-    return this.authService.verifyResetOtp(parsed.data.email, parsed.data.otp);
+  @Post('verify-reset-otp')
+  verifyResetOtp(@Body() body: Record<string, string>) {
+    return this.authService.verifyResetOtp(email(body), otp(body));
   }
 
-  @Post("reset-password")
-  async resetPassword(@Body() body: Record<string, string>) {
-    const parsed = resetPasswordSchema.safeParse(body);
-    if (!parsed.success) {
-      const message = parsed.error.errors.map((e) => e.message).join(", ");
-      throw new BadRequestException(message);
-    }
+  @Post('reset-password')
+  resetPassword(@Body() body: Record<string, string>) {
     return this.authService.resetPassword(
-      parsed.data.email,
-      parsed.data.otp,
-      parsed.data.newPassword,
+      email(body),
+      otp(body),
+      password(body, 'newPassword'),
     );
   }
 
-  @Post("resend-reset-otp")
-  async resendResetOtp(@Body() body: Record<string, string>) {
-    const parsed = resendResetOtpSchema.safeParse(body);
-    if (!parsed.success) {
-      const message = parsed.error.errors.map((e) => e.message).join(", ");
-      throw new BadRequestException(message);
-    }
-    return this.authService.resendResetOtp(parsed.data.email);
+  @Post('resend-reset-otp')
+  resendResetOtp(@Body() body: Record<string, string>) {
+    return this.authService.resendResetOtp(email(body));
   }
 
-  @Post("login")
-  async login(@Body() body: Record<string, string>) {
-    const parsed = loginSchema.safeParse(body);
-    if (!parsed.success) {
-      const message = parsed.error.errors.map((e) => e.message).join(", ");
-      throw new BadRequestException(message);
-    }
-    return this.authService.login(parsed.data.email, parsed.data.password);
+  @Post('login')
+  login(@Body() body: Record<string, string>) {
+    return this.authService.login(email(body), required(body, 'password'));
   }
 
-  @Get("me")
+  @Get('me')
   @UseGuards(JwtAuthGuard)
-  async me(@Req() req: { user: { sub: string } }) {
-    const user = await this.authService.findById(req.user.sub);
-    if (!user) {
-      throw new BadRequestException("User not found");
-    }
+  async me(@Req() request: { user: { sub: string } }) {
+    const user = await this.authService.findById(request.user.sub);
+    if (!user) throw new BadRequestException('User not found');
     return { user: this.authService.toPublicUser(user) };
   }
 }

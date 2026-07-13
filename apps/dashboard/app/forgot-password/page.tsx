@@ -1,14 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { useI18n } from "@muakhah/i18n";
-import type {
-  ForgotPasswordResponse,
-  ResetPasswordResponse,
-  VerifyResetOtpResponse,
-} from "@muakhah/contracts";
+import { useRouter } from "next/navigation";
 import { OtpInput } from "@/components/auth/otp-input";
 import { AuthPageTitle } from "@/components/auth/auth-page-title";
 import { PasswordInput } from "@/components/auth/password-input";
@@ -17,119 +11,104 @@ import { apiRequest } from "@/lib/api-client";
 import { isAuthenticated } from "@/lib/auth";
 import styles from "../auth.module.css";
 
-type Step = "email" | "otp" | "password" | "success";
+type Step = "request" | "verify" | "reset" | "complete";
 
 export default function ForgotPasswordPage() {
-  const { t } = useI18n();
   const router = useRouter();
-  const [step, setStep] = useState<Step>("email");
+  const [step, setStep] = useState<Step>("request");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
-  const [newPassword, setNewPassword] = useState("");
+  const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [resending, setResending] = useState(false);
-  const [resent, setResent] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated()) {
-      router.replace("/dashboard");
-    }
+    if (isAuthenticated()) router.replace("/dashboard");
   }, [router]);
 
-  async function handleEmailSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function requestReset(event: FormEvent) {
+    event.preventDefault();
     setError(null);
+    setMessage(null);
     setLoading(true);
-
-    const normalizedEmail = email.trim().toLowerCase();
-
     try {
-      await apiRequest<ForgotPasswordResponse>("/auth/forgot-password", {
+      const data = await apiRequest<{ message?: string }>("/auth/forgot-password", {
         method: "POST",
-        body: JSON.stringify({ email: normalizedEmail }),
+        body: JSON.stringify({ email }),
       });
-      setEmail(normalizedEmail);
-      setStep("otp");
-    } catch (err) {
+      setEmail(email.trim());
+      setMessage(data.message ?? "If the account exists, a reset code has been sent.");
+      setStep("verify");
+    } catch (cause) {
       setError(
-        err instanceof Error ? err.message : t("auth.forgotPassword.emailStepFailed"),
+        cause instanceof Error
+          ? cause.message
+          : "Unable to request a password reset.",
       );
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleOtpSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function verifyCode(event: FormEvent) {
+    event.preventDefault();
     setError(null);
+    setMessage(null);
     setLoading(true);
-
     try {
-      await apiRequest<VerifyResetOtpResponse>("/auth/verify-reset-otp", {
+      await apiRequest("/auth/verify-reset-otp", {
         method: "POST",
         body: JSON.stringify({ email, otp }),
       });
-      setStep("password");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("auth.forgotPassword.otpFailed"));
+      setStep("reset");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to verify the code.");
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleResendOtp() {
+  async function resendCode() {
     setError(null);
-    setResent(false);
-    setResending(true);
-
+    setMessage(null);
+    setLoading(true);
     try {
       await apiRequest("/auth/resend-reset-otp", {
         method: "POST",
         body: JSON.stringify({ email }),
       });
-      setResent(true);
       setOtp("");
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t("auth.forgotPassword.otpResendFailed"),
-      );
+      setMessage("A new reset code has been sent.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to resend the code.");
     } finally {
-      setResending(false);
+      setLoading(false);
     }
   }
 
-  async function handlePasswordSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function resetPassword(event: FormEvent) {
+    event.preventDefault();
     setError(null);
-
-    if (newPassword !== confirmPassword) {
-      setError(t("auth.register.validation.passwordMismatch"));
+    if (password.length < 8) {
+      setError("Password must contain at least 8 characters.");
       return;
     }
-
-    if (newPassword.length < 8) {
-      setError(t("auth.register.validation.password"));
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
       return;
     }
-
     setLoading(true);
-
     try {
-      await apiRequest<ResetPasswordResponse>("/auth/reset-password", {
+      await apiRequest("/auth/reset-password", {
         method: "POST",
-        body: JSON.stringify({
-          email,
-          otp,
-          newPassword,
-          confirmPassword,
-        }),
+        body: JSON.stringify({ email, otp, newPassword: password }),
       });
-      setStep("success");
-    } catch (err) {
+      setStep("complete");
+    } catch (cause) {
       setError(
-        err instanceof Error ? err.message : t("auth.forgotPassword.passwordFailed"),
+        cause instanceof Error ? cause.message : "Unable to reset your password.",
       );
     } finally {
       setLoading(false);
@@ -137,169 +116,99 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className={styles["auth-page"]}>
+    <main className={styles["auth-page"]}>
       <div className={styles["auth-card"]}>
-        {step === "email" && (
-          <>
-            <AuthPageTitle icon="forgot">{t("auth.forgotPassword.title")}</AuthPageTitle>
-            <p className={styles.subtitle}>{t("auth.forgotPassword.subtitle")}</p>
+        <AuthPageTitle icon="forgot">Reset Password</AuthPageTitle>
+        <p className={styles.subtitle}>
+          {step === "request"
+            ? "Enter your email address to receive a reset code."
+            : step === "complete"
+              ? "Your password has been updated."
+              : "Complete the secure password reset steps below."}
+        </p>
+        {error && <div className={styles["error-banner"]}>{error}</div>}
+        {message && <div className={styles["success-banner"]}>{message}</div>}
 
-            {error && <div className={styles["error-banner"]}>{error}</div>}
-
-            <form onSubmit={handleEmailSubmit}>
-              <div className={styles["form-group"]}>
-                <label htmlFor="email">{t("auth.login.email")}</label>
-                <IconInput
-                  icon="email"
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-
-              <button
-                type="submit"
-                className={styles["btn-primary"]}
-                disabled={loading}
-              >
-                {loading
-                  ? t("auth.forgotPassword.emailStepSending")
-                  : t("auth.forgotPassword.emailStepSubmit")}
-              </button>
-            </form>
-
-            <div className={styles["auth-footer"]}>
-              {t("auth.forgotPassword.rememberPassword")}{" "}
-              <Link href="/login">{t("auth.register.login")}</Link>
+        {step === "request" && (
+          <form onSubmit={requestReset}>
+            <div className={styles["form-group"]}>
+              <label htmlFor="email">Email address</label>
+              <IconInput
+                icon="email"
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
             </div>
-          </>
+            <button className={styles["btn-primary"]} disabled={loading}>
+              {loading ? "Sending..." : "Send reset code"}
+            </button>
+          </form>
         )}
 
-        {step === "otp" && (
-          <div className={styles["verify-step"]}>
-            <div className={styles["verify-icon"]} aria-hidden>
-              ✉
-            </div>
-            <h2 className={styles["verify-title"]}>{t("auth.forgotPassword.otpTitle")}</h2>
-            <p className={styles["verify-subtitle"]}>
-              {t("auth.forgotPassword.otpSubtitle", { email })}
-            </p>
-
-            {error && <div className={styles["error-banner"]}>{error}</div>}
-            {resent && (
-              <div className={styles["success-banner"]}>
-                {t("auth.forgotPassword.otpResent")}
-              </div>
-            )}
-
-            <form onSubmit={handleOtpSubmit}>
-              <label className={styles["verify-otp-label"]}>
-                {t("auth.forgotPassword.otpLabel")}
-              </label>
-              <OtpInput value={otp} onChange={setOtp} disabled={loading} />
-
-              <button
-                type="submit"
-                className={styles["btn-primary"]}
-                disabled={loading || otp.length !== 6}
-              >
-                {loading
-                  ? t("auth.forgotPassword.otpVerifying")
-                  : t("auth.forgotPassword.otpSubmit")}
-              </button>
-            </form>
-
+        {step === "verify" && (
+          <form onSubmit={verifyCode}>
+            <label className={styles["verify-otp-label"]}>Reset code</label>
+            <OtpInput value={otp} onChange={setOtp} disabled={loading} />
+            <button
+              className={styles["btn-primary"]}
+              disabled={loading || otp.length !== 6}
+            >
+              {loading ? "Verifying..." : "Verify code"}
+            </button>
             <p className={styles["verify-resend"]}>
-              {t("auth.forgotPassword.otpNoCode")}{" "}
+              Need another code?{" "}
               <button
                 type="button"
                 className={styles["policy-link"]}
-                onClick={handleResendOtp}
-                disabled={resending}
-              >
-                {resending
-                  ? t("auth.forgotPassword.otpResending")
-                  : t("auth.forgotPassword.otpResend")}
-              </button>
-            </p>
-
-            <div className={styles["auth-footer"]}>
-              <button
-                type="button"
-                className={styles["policy-link"]}
-                onClick={() => {
-                  setStep("email");
-                  setOtp("");
-                  setError(null);
-                }}
-              >
-                {t("common.back")}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === "password" && (
-          <>
-            <h1>{t("auth.forgotPassword.passwordTitle")}</h1>
-            <p className={styles.subtitle}>{t("auth.forgotPassword.passwordSubtitle")}</p>
-
-            {error && <div className={styles["error-banner"]}>{error}</div>}
-
-            <form onSubmit={handlePasswordSubmit}>
-              <PasswordInput
-                id="newPassword"
-                name="newPassword"
-                label={t("auth.forgotPassword.newPassword")}
-                required
-                autoComplete="new-password"
-                value={newPassword}
-                onChange={setNewPassword}
-              />
-
-              <PasswordInput
-                id="confirmPassword"
-                name="confirmPassword"
-                label={t("auth.forgotPassword.confirmPassword")}
-                required
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={setConfirmPassword}
-              />
-
-              <button
-                type="submit"
-                className={styles["btn-primary"]}
+                onClick={resendCode}
                 disabled={loading}
               >
-                {loading
-                  ? t("auth.forgotPassword.passwordSaving")
-                  : t("auth.forgotPassword.passwordSubmit")}
+                Resend code
               </button>
-            </form>
-          </>
+            </p>
+          </form>
         )}
 
-        {step === "success" && (
-          <div className={styles["verify-step"]}>
-            <div className={styles["verify-icon"]} aria-hidden>
-              ✓
-            </div>
-            <h2 className={styles["verify-title"]}>{t("auth.forgotPassword.successTitle")}</h2>
-            <p className={styles["verify-subtitle"]}>
-              {t("auth.forgotPassword.successMessage")}
-            </p>
+        {step === "reset" && (
+          <form onSubmit={resetPassword}>
+            <PasswordInput
+              id="password"
+              name="password"
+              label="New password"
+              autoComplete="new-password"
+              value={password}
+              onChange={setPassword}
+            />
+            <PasswordInput
+              id="confirmPassword"
+              name="confirmPassword"
+              label="Confirm new password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+            />
+            <button className={styles["btn-primary"]} disabled={loading}>
+              {loading ? "Updating..." : "Update password"}
+            </button>
+          </form>
+        )}
 
-            <Link href="/login" className={styles["btn-primary"]}>
-              {t("auth.forgotPassword.backToLogin")}
-            </Link>
+        {step === "complete" && (
+          <Link className={styles["btn-primary"]} href="/login">
+            Return to sign in
+          </Link>
+        )}
+
+        {step !== "complete" && (
+          <div className={styles["auth-footer"]}>
+            <Link href="/login">Back to sign in</Link>
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }

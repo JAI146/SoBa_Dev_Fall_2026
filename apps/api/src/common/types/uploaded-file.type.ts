@@ -4,5 +4,3 @@ export type UploadedImageFile = {
   mimetype: string;
   size: number;
 };
-
-export type UploadedMediaFile = UploadedImageFile;

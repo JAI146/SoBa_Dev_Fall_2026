@@ -1,21 +1,23 @@
-import type { UploadedImageFile } from "../common/types/uploaded-file.type";
+import type { UploadedImageFile } from '../common/types/uploaded-file.type';
 import {
   BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
-} from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
-import { InjectRepository } from "@nestjs/typeorm";
-import * as bcrypt from "bcrypt";
-import { randomInt } from "crypto";
-import { LegalDocumentSlug, ActivityAction, permissionsForRole } from "@muakhah/contracts";
-import { Repository } from "typeorm";
-import { ActivityLogService } from "../activity-logs/activity-log.service";
-import { AdminRoleEnum, User, UserStatusEnum, UserTypeEnum } from "../entities/user.entity";
-import { Family, FamilyProfileStatusEnum } from "../entities/family.entity";
-import { MailService } from "../mail/mail.service";
-import { S3Service } from "../storage/s3.service";
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
+import * as bcrypt from 'bcrypt';
+import { randomInt } from 'crypto';
+import { Repository } from 'typeorm';
+import {
+  AdminRoleEnum,
+  User,
+  UserStatusEnum,
+  UserTypeEnum,
+} from '../entities/user.entity';
+import { MailService } from '../mail/mail.service';
+import { S3Service } from '../storage/s3.service';
 
 export interface JwtPayload {
   sub: string;
@@ -31,12 +33,9 @@ export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
-    @InjectRepository(Family)
-    private readonly familyRepo: Repository<Family>,
     private readonly jwtService: JwtService,
     private readonly s3Service: S3Service,
     private readonly mailService: MailService,
-    private readonly activityLogService: ActivityLogService,
   ) {}
 
   async register(
@@ -53,31 +52,31 @@ export class AuthService {
   ) {
     const email = data.email.toLowerCase();
     const existing = await this.userRepo.findOne({ where: { email } });
-
     if (existing && existing.status !== UserStatusEnum.PENDING_EMAIL) {
-      throw new ConflictException("Email is already registered");
+      throw new ConflictException('Email is already registered');
     }
 
     const passwordHash = await bcrypt.hash(data.password, 12);
     const agreedAt = new Date().toISOString();
     const { otp, otpHash, otpExpiresAt } = await this.createOtpPayload();
+    const policyAgreements = {
+      terms_of_use: agreedAt,
+      privacy_policy: agreedAt,
+    };
 
     let user: User;
     if (existing) {
-      existing.passwordHash = passwordHash;
-      existing.firstName = data.firstName;
-      existing.lastName = data.lastName;
-      existing.country = data.country;
-      existing.state = data.state;
-      existing.city = data.city;
-      existing.policyAgreements = {
-        [LegalDocumentSlug.TERMS_OF_USE]: agreedAt,
-        [LegalDocumentSlug.PRIVACY_POLICY]: agreedAt,
-        [LegalDocumentSlug.DIRECT_SPONSORSHIP_POLICY]: agreedAt,
-        [LegalDocumentSlug.COMMUNICATION_POLICY]: agreedAt,
-      };
-      existing.emailOtpHash = otpHash;
-      existing.emailOtpExpiresAt = otpExpiresAt;
+      Object.assign(existing, {
+        passwordHash,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        country: data.country,
+        state: data.state,
+        city: data.city,
+        policyAgreements,
+        emailOtpHash: otpHash,
+        emailOtpExpiresAt: otpExpiresAt,
+      });
       user = await this.userRepo.save(existing);
     } else {
       user = await this.userRepo.save(
@@ -89,13 +88,8 @@ export class AuthService {
           country: data.country,
           state: data.state,
           city: data.city,
-          policyAgreements: {
-            [LegalDocumentSlug.TERMS_OF_USE]: agreedAt,
-            [LegalDocumentSlug.PRIVACY_POLICY]: agreedAt,
-            [LegalDocumentSlug.DIRECT_SPONSORSHIP_POLICY]: agreedAt,
-            [LegalDocumentSlug.COMMUNICATION_POLICY]: agreedAt,
-          },
-          userType: UserTypeEnum.VISITOR,
+          policyAgreements,
+          userType: UserTypeEnum.USER,
           status: UserStatusEnum.PENDING_EMAIL,
           profileImageUrl: null,
           emailOtpHash: otpHash,
@@ -106,16 +100,14 @@ export class AuthService {
 
     if (profileImage) {
       try {
-        const imageUrl = await this.s3Service.uploadProfileImage(
+        user.profileImageUrl = await this.s3Service.uploadProfileImage(
           profileImage,
           user.id,
         );
-        user.profileImageUrl = imageUrl;
         user = await this.userRepo.save(user);
       } catch {
-        await this.userRepo.delete({ id: user.id });
         throw new BadRequestException(
-          "Failed to upload profile image. Please try again.",
+          'Failed to upload profile image. Please try again.',
         );
       }
     }
@@ -127,16 +119,15 @@ export class AuthService {
         otp,
       });
     } catch {
-      await this.userRepo.delete({ id: user.id });
       throw new BadRequestException(
-        "Failed to send verification email. Check SMTP settings or try again later.",
+        'Failed to send verification email. Check SMTP settings or try again later.',
       );
     }
 
     return {
       requiresVerification: true as const,
       email: user.email,
-      message: "Verification code sent to your email.",
+      message: 'Verification code sent to your email.',
     };
   }
 
@@ -145,28 +136,19 @@ export class AuthService {
       where: { email: email.toLowerCase() },
     });
     if (!user || user.status !== UserStatusEnum.PENDING_EMAIL) {
-      throw new BadRequestException("Invalid verification request");
+      throw new BadRequestException('Invalid verification request');
     }
-
-    if (!user.emailOtpHash || !user.emailOtpExpiresAt) {
-      throw new BadRequestException("No verification code found. Request a new one.");
-    }
-
-    if (user.emailOtpExpiresAt.getTime() < Date.now()) {
-      throw new BadRequestException("Verification code has expired. Request a new one.");
-    }
-
-    const valid = await bcrypt.compare(otp, user.emailOtpHash);
-    if (!valid) {
-      throw new BadRequestException("Invalid verification code");
-    }
+    await this.assertValidOtp(
+      otp,
+      user.emailOtpHash,
+      user.emailOtpExpiresAt,
+      'verification',
+    );
 
     user.status = UserStatusEnum.ACTIVE;
     user.emailOtpHash = null;
     user.emailOtpExpiresAt = null;
-    const saved = await this.userRepo.save(user);
-
-    return this.buildAuthResponse(saved);
+    return this.buildAuthResponse(await this.userRepo.save(user));
   }
 
   async resendOtp(email: string) {
@@ -174,52 +156,40 @@ export class AuthService {
       where: { email: email.toLowerCase() },
     });
     if (!user || user.status !== UserStatusEnum.PENDING_EMAIL) {
-      throw new BadRequestException("No pending registration found for this email");
+      throw new BadRequestException(
+        'No pending registration found for this email',
+      );
     }
 
     const { otp, otpHash, otpExpiresAt } = await this.createOtpPayload();
     user.emailOtpHash = otpHash;
     user.emailOtpExpiresAt = otpExpiresAt;
     await this.userRepo.save(user);
-
-    try {
-      await this.mailService.sendOtpEmail({
-        to: user.email,
-        firstName: user.firstName,
-        otp,
-      });
-    } catch {
-      throw new BadRequestException(
-        "Failed to send verification email. Check SMTP settings or try again later.",
-      );
-    }
-
-    return {
-      success: true,
-      message: "A new verification code has been sent to your email.",
-    };
+    await this.mailService.sendOtpEmail({
+      to: user.email,
+      firstName: user.firstName,
+      otp,
+    });
+    return { success: true, message: 'A new verification code has been sent.' };
   }
 
   async forgotPassword(email: string) {
     const normalizedEmail = email.toLowerCase();
-    const user = await this.userRepo.findOne({ where: { email: normalizedEmail } });
-
-    const genericResponse = {
+    const user = await this.userRepo.findOne({
+      where: { email: normalizedEmail },
+    });
+    const response = {
       success: true as const,
       email: normalizedEmail,
       message:
-        "If an account exists for this email, a password reset code has been sent.",
+        'If an account exists for this email, a password reset code has been sent.',
     };
-
-    if (!user || !this.canResetPassword(user)) {
-      return genericResponse;
-    }
+    if (!user || user.status !== UserStatusEnum.ACTIVE) return response;
 
     const { otp, otpHash, otpExpiresAt } = await this.createOtpPayload();
     user.passwordResetOtpHash = otpHash;
     user.passwordResetOtpExpiresAt = otpExpiresAt;
     await this.userRepo.save(user);
-
     try {
       await this.mailService.sendPasswordResetEmail({
         to: user.email,
@@ -231,81 +201,55 @@ export class AuthService {
       user.passwordResetOtpExpiresAt = null;
       await this.userRepo.save(user);
       throw new BadRequestException(
-        "Failed to send password reset email. Check SMTP settings or try again later.",
+        'Failed to send password reset email. Check SMTP settings or try again later.',
       );
     }
-
-    return genericResponse;
+    return response;
   }
 
   async verifyResetOtp(email: string, otp: string) {
-    const user = await this.userRepo.findOne({
-      where: { email: email.toLowerCase() },
-    });
-    if (!user || !this.canResetPassword(user)) {
-      throw new BadRequestException("Invalid password reset request");
-    }
-
-    await this.assertValidResetOtp(user, otp);
-
-    return {
-      success: true as const,
-      message: "Verification code confirmed. You can set a new password.",
-    };
+    const user = await this.findResetUser(email);
+    await this.assertValidOtp(
+      otp,
+      user.passwordResetOtpHash,
+      user.passwordResetOtpExpiresAt,
+      'password reset',
+    );
+    return { success: true, message: 'Reset code confirmed.' };
   }
 
   async resetPassword(email: string, otp: string, newPassword: string) {
-    const user = await this.userRepo.findOne({
-      where: { email: email.toLowerCase() },
-    });
-    if (!user || !this.canResetPassword(user)) {
-      throw new BadRequestException("Invalid password reset request");
-    }
-
-    await this.assertValidResetOtp(user, otp);
-
+    const user = await this.findResetUser(email);
+    await this.assertValidOtp(
+      otp,
+      user.passwordResetOtpHash,
+      user.passwordResetOtpExpiresAt,
+      'password reset',
+    );
     user.passwordHash = await bcrypt.hash(newPassword, 12);
     user.passwordResetOtpHash = null;
     user.passwordResetOtpExpiresAt = null;
     await this.userRepo.save(user);
-
-    return {
-      success: true as const,
-      message: "Your password has been updated. You can sign in with your new password.",
-    };
+    return { success: true, message: 'Your password has been updated.' };
   }
 
   async resendResetOtp(email: string) {
-    const normalizedEmail = email.toLowerCase();
-    const user = await this.userRepo.findOne({ where: { email: normalizedEmail } });
-    if (!user || !this.canResetPassword(user)) {
-      throw new BadRequestException("No password reset request found for this email");
-    }
-
+    const user = await this.findResetUser(email);
     if (!user.passwordResetOtpHash || !user.passwordResetOtpExpiresAt) {
-      throw new BadRequestException("No password reset request found for this email");
+      throw new BadRequestException('No password reset request found');
     }
-
     const { otp, otpHash, otpExpiresAt } = await this.createOtpPayload();
     user.passwordResetOtpHash = otpHash;
     user.passwordResetOtpExpiresAt = otpExpiresAt;
     await this.userRepo.save(user);
-
-    try {
-      await this.mailService.sendPasswordResetEmail({
-        to: user.email,
-        firstName: user.firstName,
-        otp,
-      });
-    } catch {
-      throw new BadRequestException(
-        "Failed to send password reset email. Check SMTP settings or try again later.",
-      );
-    }
-
+    await this.mailService.sendPasswordResetEmail({
+      to: user.email,
+      firstName: user.firstName,
+      otp,
+    });
     return {
       success: true,
-      message: "A new password reset code has been sent to your email.",
+      message: 'A new password reset code has been sent.',
     };
   }
 
@@ -313,52 +257,18 @@ export class AuthService {
     const user = await this.userRepo.findOne({
       where: { email: email.toLowerCase() },
     });
-    if (!user) {
-      throw new UnauthorizedException("Invalid email or password");
+    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+      throw new UnauthorizedException('Invalid email or password');
     }
-
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) {
-      throw new UnauthorizedException("Invalid email or password");
-    }
-
     if (user.status === UserStatusEnum.PENDING_EMAIL) {
       throw new UnauthorizedException(
-        "Please verify your email before signing in.",
+        'Please verify your email before signing in.',
       );
     }
-
     if (user.status === UserStatusEnum.SUSPENDED) {
-      throw new UnauthorizedException("Account is suspended");
+      throw new UnauthorizedException('Account is suspended');
     }
-
-    if (user.userType === UserTypeEnum.FAMILY) {
-      const family = await this.familyRepo.findOne({
-        where: { familyUserId: user.id },
-      });
-      if (
-        !family ||
-        !family.familyLoginEnabled ||
-        family.profileStatus === FamilyProfileStatusEnum.SUSPENDED
-      ) {
-        throw new UnauthorizedException("Account is suspended");
-      }
-    }
-
-    const response = this.buildAuthResponse(user);
-
-    if (user.userType === UserTypeEnum.ADMIN) {
-      await this.activityLogService.log({
-        actorUserId: user.id,
-        actorAdminRole: user.adminRole,
-        action: ActivityAction.USER_LOGIN,
-        entityType: "user",
-        entityId: user.id,
-        summary: `Admin login: ${user.email}`,
-      });
-    }
-
-    return response;
+    return this.buildAuthResponse(user);
   }
 
   async findById(id: string): Promise<User | null> {
@@ -366,11 +276,7 @@ export class AuthService {
   }
 
   toPublicUser(user: User) {
-    const adminRole =
-      user.userType === UserTypeEnum.ADMIN
-        ? user.adminRole ?? AdminRoleEnum.SUPER_ADMIN
-        : null;
-
+    const isAdmin = user.userType === UserTypeEnum.ADMIN;
     return {
       id: user.id,
       email: user.email,
@@ -379,53 +285,51 @@ export class AuthService {
       profileImageUrl: user.profileImageUrl,
       userType: user.userType,
       status: user.status,
-      adminRole,
-      permissions:
-        user.userType === UserTypeEnum.ADMIN
-          ? permissionsForRole(adminRole)
-          : undefined,
+      adminRole: isAdmin ? (user.adminRole ?? AdminRoleEnum.SUPER_ADMIN) : null,
       createdAt: user.createdAt.toISOString(),
     };
   }
 
   private async createOtpPayload() {
     const otp = String(randomInt(100000, 1000000));
-    const otpHash = await bcrypt.hash(otp, 10);
-    const otpExpiresAt = new Date(Date.now() + OTP_EXPIRES_MINUTES * 60 * 1000);
-    return { otp, otpHash, otpExpiresAt };
+    return {
+      otp,
+      otpHash: await bcrypt.hash(otp, 10),
+      otpExpiresAt: new Date(Date.now() + OTP_EXPIRES_MINUTES * 60 * 1000),
+    };
   }
 
-  private canResetPassword(user: User) {
-    if (user.status !== UserStatusEnum.ACTIVE) {
-      return false;
+  private async findResetUser(email: string) {
+    const user = await this.userRepo.findOne({
+      where: { email: email.toLowerCase() },
+    });
+    if (!user || user.status !== UserStatusEnum.ACTIVE) {
+      throw new BadRequestException('Invalid password reset request');
     }
-
-    return (
-      user.userType === UserTypeEnum.FAMILY ||
-      user.userType === UserTypeEnum.VISITOR ||
-      user.userType === UserTypeEnum.SPONSOR
-    );
+    return user;
   }
 
-  private async assertValidResetOtp(user: User, otp: string) {
-    if (!user.passwordResetOtpHash || !user.passwordResetOtpExpiresAt) {
-      throw new BadRequestException("No password reset code found. Request a new one.");
+  private async assertValidOtp(
+    otp: string,
+    hash: string | null,
+    expiresAt: Date | null,
+    label: string,
+  ) {
+    if (!hash || !expiresAt) {
+      throw new BadRequestException('No ' + label + ' code found');
     }
-
-    if (user.passwordResetOtpExpiresAt.getTime() < Date.now()) {
-      throw new BadRequestException("Password reset code has expired. Request a new one.");
+    if (expiresAt.getTime() < Date.now()) {
+      throw new BadRequestException('The ' + label + ' code has expired');
     }
-
-    const valid = await bcrypt.compare(otp, user.passwordResetOtpHash);
-    if (!valid) {
-      throw new BadRequestException("Invalid password reset code");
+    if (!(await bcrypt.compare(otp, hash))) {
+      throw new BadRequestException('Invalid ' + label + ' code');
     }
   }
 
   private buildAuthResponse(user: User) {
     const adminRole =
       user.userType === UserTypeEnum.ADMIN
-        ? user.adminRole ?? AdminRoleEnum.SUPER_ADMIN
+        ? (user.adminRole ?? AdminRoleEnum.SUPER_ADMIN)
         : null;
     const payload: JwtPayload = {
       sub: user.id,

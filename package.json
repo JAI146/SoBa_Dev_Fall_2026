@@ -7,7 +7,6 @@
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
-    "dev:landing": "pnpm --filter @muakhah/landing dev",
     "dev:dashboard": "pnpm --filter @muakhah/contracts build && pnpm --filter @muakhah/dashboard dev",
     "dev:api": "pnpm --filter @muakhah/contracts build && pnpm --filter @muakhah/api dev"
   },

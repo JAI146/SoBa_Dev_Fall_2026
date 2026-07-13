@@ -12,9 +12,7 @@
   },
   "dependencies": {
     "@muakhah/contracts": "workspace:*",
-    "@muakhah/i18n": "workspace:*",
     "@muakhah/tailwind-config": "workspace:^",
-    "@muakhah/ui": "workspace:*",
     "country-state-city": "^3.2.1",
     "next": "16.2.0",
     "react": "^19.2.0",

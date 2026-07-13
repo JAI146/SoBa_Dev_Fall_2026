@@ -1,25 +1,16 @@
 import type { Metadata } from "next";
-import { Cairo, Poppins } from "next/font/google";
-import { AppProviders } from "@/components/app-providers";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+const appFont = localFont({
+  src: "./fonts/GeistVF.woff",
   variable: "--font-poppins",
   display: "swap",
 });
 
-const cairo = Cairo({
-  subsets: ["arabic", "latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-cairo",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
-  title: "Muakhah Dashboard",
-  description: "Muakhah donor and admin dashboard",
+  title: "PurposeMint Dashboard",
+  description: "PurposeMint platform administration dashboard",
 };
 
 export default function RootLayout({
@@ -28,13 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${poppins.variable} ${cairo.variable} ${poppins.className}`}
-        suppressHydrationWarning
-      >
-        <AppProviders>{children}</AppProviders>
-      </body>
+    <html lang="en">
+      <body className={appFont.variable}>{children}</body>
     </html>
   );
 }

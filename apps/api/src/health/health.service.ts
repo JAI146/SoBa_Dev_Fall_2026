@@ -1,7 +1,7 @@
-import { Injectable, ServiceUnavailableException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { User } from "../entities/user.entity";
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from '../entities/user.entity';
 
 @Injectable()
 export class HealthService {
@@ -14,14 +14,15 @@ export class HealthService {
     try {
       await this.userRepo.count();
       return {
-        status: "ok",
+        status: 'ok',
         message:
-          "Successfully queried the users table. Backend and database are running.",
+          'Successfully queried the users table. Backend and database are running.',
       };
     } catch {
       throw new ServiceUnavailableException({
-        status: "error",
-        message: "Failed to query the users table. Backend or database may be down.",
+        status: 'error',
+        message:
+          'Failed to query the users table. Backend or database may be down.',
       });
     }
   }
