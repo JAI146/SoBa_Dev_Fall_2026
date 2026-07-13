@@ -1,0 +1,26 @@
+{
+  "name": "muakhaa",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "check-types": "turbo run check-types",
+    "dev:landing": "pnpm --filter @muakhah/landing dev",
+    "dev:dashboard": "pnpm --filter @muakhah/contracts build && pnpm --filter @muakhah/dashboard dev",
+    "dev:api": "pnpm --filter @muakhah/contracts build && pnpm --filter @muakhah/api dev"
+  },
+  "dependencies": {
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "prettier": "^3.7.4",
+    "turbo": "^2.9.18",
+    "typescript": "5.9.2"
+  },
+  "packageManager": "pnpm@10.34.5+sha512.a4ee05f2f73658255bd6a89859c065a45c28a57daefae2c893a168ee2b73168c37b91e83e57ea67654ad03f03031746430e8bce38e362e042605fb8abc80192e",
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}

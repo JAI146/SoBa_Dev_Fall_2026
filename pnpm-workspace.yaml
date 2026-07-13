@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+allowBuilds:
+  bcrypt: true
+  sharp: false
+  unrs-resolver: false
