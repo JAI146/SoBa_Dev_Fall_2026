@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import type { AuthResponse } from "@muakhah/contracts";
+import type { AuthResponse } from "@purposemint/contracts";
 import { PasswordInput } from "@/components/auth/password-input";
 import { AuthPageTitle } from "@/components/auth/auth-page-title";
 import { IconInput } from "@/components/forms/icon-field";

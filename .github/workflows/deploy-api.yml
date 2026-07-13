@@ -24,7 +24,7 @@
 #             set -e
 #             cd ~/muakhaa
 #             git pull origin main
-#             pnpm install --filter @muakhah/api...
+#             pnpm install --filter @purposemint/api...
 #             cd apps/api
 #             pnpm run build
 #             pm2 restart muakhaa-api --update-env

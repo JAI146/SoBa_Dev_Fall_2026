@@ -1,6 +1,6 @@
 "use client";
 
-import type { AuthResponse } from "@muakhah/contracts";
+import type { AuthResponse } from "@purposemint/contracts";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { apiRequest } from "@/lib/api-client";

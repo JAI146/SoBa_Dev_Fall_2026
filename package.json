@@ -1,5 +1,5 @@
 {
-  "name": "muakhaa",
+  "name": "purposemint-platform",
   "private": true,
   "scripts": {
     "build": "turbo run build",
@@ -7,8 +7,8 @@
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
-    "dev:dashboard": "pnpm --filter @muakhah/contracts build && pnpm --filter @muakhah/dashboard dev",
-    "dev:api": "pnpm --filter @muakhah/contracts build && pnpm --filter @muakhah/api dev"
+    "dev:dashboard": "pnpm --filter @purposemint/contracts build && pnpm --filter @purposemint/dashboard dev",
+    "dev:api": "pnpm --filter @purposemint/contracts build && pnpm --filter @purposemint/api dev"
   },
   "dependencies": {
     "zod": "^3.24.2"

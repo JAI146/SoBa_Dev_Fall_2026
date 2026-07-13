@@ -1,5 +1,5 @@
 {
-  "extends": "@muakhah/typescript-config/nextjs.json",
+  "extends": "@purposemint/typescript-config/nextjs.json",
   "compilerOptions": {
     "paths": {
       "@/*": ["./*"]

@@ -154,10 +154,10 @@ importers:
 
   apps/dashboard:
     dependencies:
-      '@muakhah/contracts':
+      '@purposemint/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@muakhah/tailwind-config':
+      '@purposemint/tailwind-config':
         specifier: workspace:^
         version: link:../../packages/tailwind-config
       country-state-city:
@@ -173,10 +173,10 @@ importers:
         specifier: ^19.2.0
         version: 19.2.0(react@19.2.0)
     devDependencies:
-      '@muakhah/eslint-config':
+      '@purposemint/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
-      '@muakhah/typescript-config':
+      '@purposemint/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
       '@tailwindcss/postcss':
@@ -210,7 +210,7 @@ importers:
         specifier: ^3.24.2
         version: 3.25.76
     devDependencies:
-      '@muakhah/typescript-config':
+      '@purposemint/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
       typescript:

@@ -1,4 +1,4 @@
-import type { AuthResponse } from "@muakhah/contracts";
+import type { AuthResponse } from "@purposemint/contracts";
 
 const TOKEN_KEY = "purposemint_access_token";
 const USER_KEY = "purposemint_user";

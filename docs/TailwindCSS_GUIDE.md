@@ -1,854 +1,367 @@
-# Muakhah Tailwind CSS Shared Package Reference
+# PurposeMint Tailwind CSS Guide
 
-This document explains how Tailwind CSS is configured in the Muakhah monorepo, how each app uses it, and how shared UI packages should be handled.
+## 1. Scope
 
-The setup is already working. This file is mainly for future reference so any developer can understand the structure, use Tailwind correctly, and avoid breaking the monorepo rules.
+Tailwind CSS is used for the **web dashboard only**.
 
----
-
-## 1. Purpose of This Setup
-
-The Muakhah repository uses:
-
-- pnpm workspaces
-- Turborepo
-- Next.js apps inside `apps/*`
-- Shared packages inside `packages/*`
-
-Tailwind CSS is configured as a shared package so multiple web apps can use the same design tokens, theme values, and PostCSS setup without duplicating configuration.
-
-Current intended usage:
-
-```txt
-apps/landing       -> uses shared Tailwind setup
-apps/dashboard     -> uses shared Tailwind setup
-packages/ui        -> optional shared UI components that may use Tailwind classes
-packages/tailwind-config -> shared Tailwind/PostCSS/CSS theme package
+```text
+apps/dashboard
 ```
 
-The API and mobile app do not use this web Tailwind setup directly.
+The Expo React Native application does not use the dashboard's Tailwind configuration or web components.
 
-```txt
-apps/api           -> no Tailwind needed
-apps/mobile        -> Expo/React Native styling is separate
+Do not add a shared `packages/tailwind-config` package unless a second web application is introduced and genuinely needs the same Tailwind theme.
+
+For the current repository, keep Tailwind configuration local to:
+
+```text
+apps/dashboard
 ```
 
 ---
 
-## 2. Important Monorepo Rule
+## 2. Recommended Dashboard Structure
 
-Apps must not import files from other apps.
-
-Allowed:
-
-```txt
-apps/dashboard -> packages/tailwind-config
-apps/landing   -> packages/tailwind-config
-apps/dashboard -> packages/ui
-apps/landing   -> packages/ui
+```text
+apps/dashboard/
+  src/
+    app/
+      globals.css
+      layout.tsx
+    components/
+      ui/
+      layout/
+      dashboard/
+    features/
+    lib/
+  postcss.config.*
+  package.json
 ```
 
-Not allowed:
+Use application-level CSS variables and design tokens in `globals.css`.
 
-```txt
-apps/dashboard -> apps/landing/src
-apps/landing   -> apps/dashboard/src
-apps/mobile    -> apps/dashboard/src
-```
+Keep feature-specific components near their features.
 
-Shared styling, shared components, shared contracts, and shared utilities should live inside `packages/*`.
+Keep generic dashboard primitives under:
 
----
-
-## 3. Why PostCSS Is Needed
-
-Tailwind CSS is being used through the official PostCSS plugin setup.
-
-Tailwind v4 uses:
-
-```txt
-tailwindcss
-@tailwindcss/postcss
-postcss
-```
-
-The PostCSS config loads the Tailwind PostCSS plugin:
-
-```js
-const postcssConfig = {
-  plugins: {
-    "@tailwindcss/postcss": {},
-  },
-};
-
-export default postcssConfig;
-```
-
-Each Next.js app that compiles Tailwind CSS needs access to this PostCSS config.
-
----
-
-## 4. Shared Tailwind Package Location
-
-The shared Tailwind package lives here:
-
-```txt
-packages/tailwind-config
-```
-
-Recommended structure:
-
-```txt
-packages/tailwind-config/
-├── package.json
-├── postcss.config.mjs
-└── shared-styles.css
+```text
+src/components/ui
 ```
 
 ---
 
-## 5. Shared Package `package.json`
+## 3. PurposeMint Design Tokens
 
-The shared package should look like this:
+Define reusable semantic tokens rather than repeating raw colors throughout components.
 
-```json
-{
-  "name": "@muakhah/tailwind-config",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "exports": {
-    ".": "./shared-styles.css",
-    "./postcss": "./postcss.config.mjs"
-  },
-  "peerDependencies": {
-    "tailwindcss": "^4.0.0",
-    "@tailwindcss/postcss": "^4.0.0",
-    "postcss": "^8.0.0"
-  }
-}
+Example semantic groups:
+
+```text
+background
+foreground
+card
+muted
+primary
+secondary
+accent
+success
+warning
+danger
+border
+input
+ring
 ```
 
-### Why this package exports two things
+PurposeMint's visual direction may use warm pink, mint/teal, gold, cream, and dark plum tones, but components should reference semantic classes instead of hard-coded brand values.
 
-The default export:
-
-```txt
-@muakhah/tailwind-config
-```
-
-points to:
-
-```txt
-shared-styles.css
-```
-
-This allows apps to import the shared Tailwind CSS theme.
-
-The PostCSS export:
-
-```txt
-@muakhah/tailwind-config/postcss
-```
-
-points to:
-
-```txt
-postcss.config.mjs
-```
-
-This allows apps to reuse the same PostCSS plugin config.
-
----
-
-## 6. Shared PostCSS Config
-
-File:
-
-```txt
-packages/tailwind-config/postcss.config.mjs
-```
-
-Content:
-
-```js
-const postcssConfig = {
-  plugins: {
-    "@tailwindcss/postcss": {},
-  },
-};
-
-export default postcssConfig;
-```
-
-Every web app can reuse this config instead of repeating it.
-
----
-
-## 7. Shared Tailwind CSS Theme
-
-File:
-
-```txt
-packages/tailwind-config/shared-styles.css
-```
-
-Example content:
-
-```css
-@import "tailwindcss";
-
-@theme {
-  --color-muakhah-primary: #0f766e;
-  --color-muakhah-primary-dark: #115e59;
-  --color-muakhah-primary-light: #ccfbf1;
-
-  --color-muakhah-background: #ffffff;
-  --color-muakhah-foreground: #0f172a;
-
-  --color-muakhah-muted: #f8fafc;
-  --color-muakhah-muted-foreground: #64748b;
-
-  --color-muakhah-border: #e2e8f0;
-  --color-muakhah-danger: #dc2626;
-  --color-muakhah-success: #16a34a;
-  --color-muakhah-warning: #d97706;
-
-  --radius-muakhah-sm: 0.375rem;
-  --radius-muakhah-md: 0.5rem;
-  --radius-muakhah-lg: 0.75rem;
-  --radius-muakhah-xl: 1rem;
-}
-```
-
-After defining these theme variables, classes like these can be used:
+Preferred:
 
 ```tsx
-<div className="bg-muakhah-primary text-white rounded-muakhah-lg">
-  Muakhah
-</div>
+<div className="bg-card text-foreground border-border" />
 ```
+
+Avoid repeated raw values such as:
+
+```tsx
+<div className="bg-[#fff7fb] text-[#26002f] border-[#edc6d8]" />
+```
+
+Raw values are acceptable only for a one-off design requirement that cannot reasonably be represented by an existing token.
 
 ---
 
-## 8. Installing Dependencies
+## 4. Component Styling Rules
 
-Do not install app-specific dependencies in the root package unless the root actually uses them.
+Prefer small, composable class sets.
 
-Tailwind is compiled by the web apps, so Tailwind dependencies should be installed in the apps that use Tailwind.
-
-For Landing:
-
-```bash
-pnpm --filter @muakhah/landing add -D tailwindcss @tailwindcss/postcss postcss
+```tsx
+<button
+  className="
+    inline-flex items-center justify-center
+    rounded-xl px-4 py-2
+    font-medium
+    transition-colors
+    disabled:pointer-events-none disabled:opacity-50
+  "
+>
+  Continue
+</button>
 ```
 
-For Dashboard:
+Use a class-merging helper for conditional classes.
 
-```bash
-pnpm --filter @muakhah/dashboard add -D tailwindcss @tailwindcss/postcss postcss
+Example:
+
+```ts
+import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: Parameters<typeof clsx>) {
+  return twMerge(clsx(inputs));
+}
 ```
 
-Then add the shared Tailwind package to each app:
+Do not construct uncontrolled class strings from arbitrary API values.
 
-```bash
-pnpm --filter @muakhah/landing add @muakhah/tailwind-config@workspace:*
-pnpm --filter @muakhah/dashboard add @muakhah/tailwind-config@workspace:*
-```
-
-This keeps the monorepo clean and follows the rule:
-
-```txt
-Install dependencies where they are used.
-```
+Avoid deeply nested conditional class expressions inside JSX. Move complex variants into a component variant helper or a named variable.
 
 ---
 
-## 9. App-Level PostCSS Config
+## 5. Responsive Design
 
-Each app should have its own small PostCSS config file that simply re-exports the shared config.
+Build mobile-first.
 
-Landing:
+Preferred order:
 
-```txt
-apps/landing/postcss.config.mjs
+```text
+base -> sm -> md -> lg -> xl
 ```
-
-Dashboard:
-
-```txt
-apps/dashboard/postcss.config.mjs
-```
-
-Content:
-
-```js
-export { default } from "@muakhah/tailwind-config/postcss";
-```
-
-This means both apps use the same Tailwind PostCSS setup.
-
----
-
-## 10. App-Level Global CSS Import
-
-Each app should import the shared Tailwind CSS package inside its global CSS file.
-
-Landing:
-
-```txt
-apps/landing/src/app/globals.css
-```
-
-Dashboard:
-
-```txt
-apps/dashboard/src/app/globals.css
-```
-
-Content:
-
-```css
-@import "@muakhah/tailwind-config";
-```
-
-Make sure the app imports its global CSS in `layout.tsx`.
 
 Example:
 
 ```tsx
-import "./globals.css";
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
-}
+<div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4" />
 ```
+
+Test the dashboard at minimum at:
+
+- small laptop
+- standard desktop
+- large desktop
+- tablet width
+- narrow browser width
+
+Do not assume the dashboard will only be used on a full-width monitor.
 
 ---
 
-## 11. Using Tailwind in Apps
+## 6. Layout Rules
 
-Example inside `apps/landing`:
+Use a consistent shell for:
 
-```tsx
-export default function HomePage() {
-  return (
-    <main className="min-h-screen bg-muakhah-background text-muakhah-foreground flex items-center justify-center">
-      <h1 className="text-4xl font-bold text-muakhah-primary">
-        Muakhah Landing
-      </h1>
-    </main>
-  );
-}
+- sidebar
+- top navigation
+- page title
+- breadcrumbs
+- main content
+- action area
+
+Avoid page-level one-off widths when a shared container can be used.
+
+Recommended patterns:
+
+```text
+max-w-screen-2xl
+mx-auto
+w-full
+px-4 sm:px-6 lg:px-8
 ```
 
-Example inside `apps/dashboard`:
+Tables and dense financial data may use horizontal scrolling on smaller screens.
 
-```tsx
-export default function DashboardPage() {
-  return (
-    <main className="min-h-screen bg-muakhah-muted text-muakhah-foreground p-8">
-      <div className="rounded-muakhah-xl border border-muakhah-border bg-white p-6">
-        <h1 className="text-3xl font-bold text-muakhah-primary">
-          Muakhah Dashboard
-        </h1>
-      </div>
-    </main>
-  );
-}
-```
+Do not allow dashboard tables to force the entire page beyond the viewport.
 
 ---
 
-## 12. Using Tailwind Inside `packages/ui`
+## 7. Typography Rules
 
-If the project later uses a shared UI package, it may look like this:
+Use a small, documented typography scale.
 
-```txt
-packages/ui/
-├── package.json
-└── src/
-    └── components/
-        └── button.tsx
+Recommended semantic use:
+
+```text
+Page title
+Section title
+Card title
+Body
+Muted body
+Label
+Caption
 ```
 
-Example shared component:
+Do not select font sizes independently for every component.
 
-```tsx
-export function Button({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <button className="rounded-muakhah-md bg-muakhah-primary px-4 py-2 text-white">
-      {children}
-    </button>
-  );
-}
-```
+Keep financial values, statuses, and primary actions visually clear.
 
-If `packages/ui` contains Tailwind classes, the consuming app must tell Tailwind to scan that package.
-
-Add this to each app's global CSS:
-
-```css
-@import "@muakhah/tailwind-config";
-
-@source "../../../../packages/ui/src";
-```
-
-Use this in:
-
-```txt
-apps/landing/src/app/globals.css
-apps/dashboard/src/app/globals.css
-```
-
-### Why `@source` is needed
-
-Tailwind scans source files to find utility classes. In monorepos, shared package files may not always be detected automatically. The `@source` directive makes sure Tailwind also scans shared UI components.
-
-Without this, Tailwind classes used only inside `packages/ui` may not be generated.
+Avoid low-contrast muted text for important compliance or transaction information.
 
 ---
 
-## 13. Installing and Using `packages/ui`
+## 8. Form Rules
 
-If a shared UI package is created, apps should install it like this:
+Every form control must have:
 
-```bash
-pnpm --filter @muakhah/landing add @muakhah/ui@workspace:*
-pnpm --filter @muakhah/dashboard add @muakhah/ui@workspace:*
-```
+- an associated label
+- visible focus state
+- disabled state
+- error state
+- helper text when required
+- keyboard accessibility
 
-Then import components by package name:
+Use consistent spacing between labels, controls, helper text, and errors.
 
-```tsx
-import { Button } from "@muakhah/ui";
-```
+Never communicate validation errors by color alone.
 
-Do not import shared UI with relative paths like this:
+For sensitive financial operations, clearly separate:
 
-```tsx
-import { Button } from "../../../packages/ui/src/components/button";
-```
-
-Do not import shared UI using `@/`:
-
-```tsx
-import { Button } from "@/../../packages/ui/src/components/button";
-```
-
-The `@/` alias means current app only.
+- information
+- warning
+- destructive confirmation
+- final submission
 
 ---
 
-## 14. What Happens When Someone Pulls the Repo?
+## 9. Status and Financial State Styling
 
-If someone pulls the repository for the first time, they usually only need to run this from the root:
-
-```bash
-pnpm install
-```
-
-This will:
-
-- install root tooling dependencies
-- install dependencies for all workspace apps/packages
-- link internal workspace packages like `@muakhah/tailwind-config`
-- make shared package imports work locally
-
-After that, they can run whichever app they need.
+Use semantic status variants.
 
 Examples:
 
-```bash
-pnpm --filter @muakhah/landing dev
+```text
+pending
+processing
+active
+completed
+failed
+blocked
+requires_action
+cancelled
 ```
 
-```bash
-pnpm --filter @muakhah/dashboard dev
-```
+Each status should have:
 
-Or, if the root script exists:
+- readable text
+- consistent badge styling
+- sufficient contrast
+- an icon when useful
+- no reliance on color alone
 
-```bash
-pnpm dev
-```
-
-### Important
-
-Developers should run `pnpm install` from the root, not from inside `apps/landing` or `apps/dashboard`.
-
-Correct:
-
-```bash
-pnpm install
-```
-
-from:
-
-```txt
-muakhah-platform/
-```
-
-Incorrect:
-
-```bash
-cd apps/dashboard
-pnpm install
-```
-
-Running installs from inside individual apps can cause dependency/linking issues in a workspace monorepo.
+Do not use the same visual style for a harmless pending state and a compliance-blocked state.
 
 ---
 
-## 15. When Should Someone Run `pnpm install` Again?
+## 10. Accessibility
 
-Run this from root whenever:
+All interactive controls must be keyboard accessible.
 
-- a new dependency is added
-- `package.json` changes in any app or package
-- `pnpm-lock.yaml` changes
-- a new workspace package is added
-- switching branches where dependencies changed
-- after taking a fresh pull from Git
+Maintain visible focus indicators.
 
-Command:
+Use semantic HTML before adding ARIA attributes.
 
-```bash
-pnpm install
-```
+Meet appropriate contrast requirements for text and controls.
+
+Respect reduced-motion preferences.
+
+Do not use animation as the only indication of progress.
+
+Icons used without visible text must have accessible labels.
 
 ---
 
-## 16. Common Development Commands
+## 11. Dark Mode
 
-Run Landing:
+Do not implement dark mode merely because Tailwind supports it.
+
+Add dark mode only when it is part of the approved PurposeMint design scope.
+
+When implemented, use semantic variables so components do not contain separate hard-coded dark color values.
+
+---
+
+## 12. Shared Web UI
+
+A separate `packages/ui` package is not needed while `apps/dashboard` is the only web application.
+
+Keep dashboard components inside the dashboard.
+
+Create a shared web UI package later only when:
+
+- another web app exists
+- the same components are being duplicated
+- the components have stable shared APIs
+- the package reduces maintenance rather than adding abstraction
+
+React Native components must never be placed in the web UI package.
+
+---
+
+## 13. Tailwind Config Package
+
+A separate `packages/tailwind-config` package is not required for the current architecture.
+
+Delete it when:
+
+- only the dashboard uses Tailwind
+- no other web app consumes its preset
+- the dashboard can keep its styles locally
+
+Before deleting, search for references:
 
 ```bash
-pnpm --filter @muakhah/landing dev
+rg -n "tailwind-config|@purposemint/tailwind-config|@purposemint/tailwind-config" .
 ```
 
-Run Dashboard:
+After deleting, run:
 
 ```bash
-pnpm --filter @muakhah/dashboard dev
-```
-
-Run API:
-
-```bash
-pnpm --filter @muakhah/api start:dev
-```
-
-Run all dev tasks if configured in root:
-
-```bash
-pnpm dev
-```
-
-Build all apps/packages with Turbo:
-
-```bash
+pnpm install
+pnpm --filter @purposemint/dashboard dev
+pnpm lint
+pnpm check-types
 pnpm build
 ```
 
-Build only Landing:
+---
 
-```bash
-pnpm --filter @muakhah/landing build
+## 14. React Native Styling
+
+Do not import dashboard CSS or Tailwind web classes into `apps/mobile`.
+
+Choose the mobile styling approach separately.
+
+Recommended default:
+
+```text
+React Native StyleSheet + reusable design tokens
 ```
 
-Build only Dashboard:
+NativeWind may be introduced only after an explicit team decision. It should not be added merely to reuse the dashboard's Tailwind configuration because web and native components remain different.
 
-```bash
-pnpm --filter @muakhah/dashboard build
-```
+Shared visual values may later live in a platform-neutral design-token package, but actual web and native components should remain separate.
 
 ---
 
-## 17. Adding More Tailwind Tokens
-
-Add shared design tokens in:
-
-```txt
-packages/tailwind-config/shared-styles.css
-```
-
-Example:
-
-```css
-@theme {
-  --color-muakhah-card: #ffffff;
-  --color-muakhah-card-foreground: #0f172a;
-
-  --shadow-muakhah-card: 0 8px 30px rgba(15, 23, 42, 0.08);
-}
-```
-
-Then use them:
-
-```tsx
-<div className="bg-muakhah-card text-muakhah-card-foreground shadow-muakhah-card">
-  Card content
-</div>
-```
-
-Keep shared tokens generic and platform-level. Avoid adding one-off page-specific values unless they are part of the design system.
-
----
-
-## 18. Recommended Pattern for App-Specific CSS
-
-Shared/global design tokens should go in:
-
-```txt
-packages/tailwind-config/shared-styles.css
-```
-
-App-specific CSS should stay inside the app.
-
-Example:
-
-```txt
-apps/landing/src/app/globals.css
-apps/dashboard/src/app/globals.css
-```
-
-Landing-specific styles should not be forced into the shared Tailwind package unless Dashboard also needs them.
-
-Dashboard-specific admin styles should not be forced into the shared Tailwind package unless Landing or shared UI also needs them.
-
----
-
-## 19. Should Tailwind Be Installed in the Root?
-
-Usually no.
-
-Do not do this unless the root package itself is compiling CSS:
-
-```bash
-pnpm add -D tailwindcss @tailwindcss/postcss postcss -w
-```
-
-For this monorepo, Tailwind belongs in the web apps that use it:
-
-```bash
-pnpm --filter @muakhah/landing add -D tailwindcss @tailwindcss/postcss postcss
-pnpm --filter @muakhah/dashboard add -D tailwindcss @tailwindcss/postcss postcss
-```
-
-The shared package exposes config and CSS, but the apps do the actual CSS compilation.
-
----
-
-## 20. Troubleshooting
-
-### Tailwind classes are not working in the app
-
-Check that the app has:
-
-```txt
-postcss.config.mjs
-```
-
-with:
-
-```js
-export { default } from "@muakhah/tailwind-config/postcss";
-```
-
-Also check that the app's global CSS imports:
-
-```css
-@import "@muakhah/tailwind-config";
-```
-
-And confirm `layout.tsx` imports the global CSS:
-
-```tsx
-import "./globals.css";
-```
-
----
-
-### Tailwind classes work in app files but not in `packages/ui`
-
-Add `@source` to the consuming app's global CSS:
-
-```css
-@import "@muakhah/tailwind-config";
-
-@source "../../../../packages/ui/src";
-```
-
-Then restart the dev server.
-
----
-
-### Internal package cannot be resolved
-
-Run from repo root:
-
-```bash
-pnpm install
-```
-
-Make sure the app has the internal package dependency:
-
-```json
-{
-  "dependencies": {
-    "@muakhah/tailwind-config": "workspace:*"
-  }
-}
-```
-
-If using shared UI:
-
-```json
-{
-  "dependencies": {
-    "@muakhah/ui": "workspace:*"
-  }
-}
-```
-
----
-
-### PostCSS config cannot find `@tailwindcss/postcss`
-
-Make sure the app has these dev dependencies:
-
-```json
-{
-  "devDependencies": {
-    "tailwindcss": "^4.0.0",
-    "@tailwindcss/postcss": "^4.0.0",
-    "postcss": "^8.0.0"
-  }
-}
-```
-
-Install them with:
-
-```bash
-pnpm --filter @muakhah/landing add -D tailwindcss @tailwindcss/postcss postcss
-pnpm --filter @muakhah/dashboard add -D tailwindcss @tailwindcss/postcss postcss
-```
-
----
-
-### After pulling latest code, the app fails to start
-
-First run:
-
-```bash
-pnpm install
-```
-
-from the root.
-
-Then restart the app:
-
-```bash
-pnpm --filter @muakhah/dashboard dev
-```
-
-or:
-
-```bash
-pnpm --filter @muakhah/landing dev
-```
-
----
-
-## 21. Final Rule for Developers
-
-For normal usage after pulling the repo:
-
-```bash
-pnpm install
-```
-
-from the root is enough to install dependencies and link workspace packages.
-
-Then run the app you need:
-
-```bash
-pnpm --filter @muakhah/landing dev
-```
-
-or:
-
-```bash
-pnpm --filter @muakhah/dashboard dev
-```
-
-For shared UI Tailwind support, remember:
-
-```css
-@source "../../../../packages/ui/src";
-```
-
-must be added in the consuming app's global CSS if Tailwind classes are written inside `packages/ui`.
-
----
-
-## 22. Quick Checklist
-
-For each web app using Tailwind:
-
-- [ ] App has `tailwindcss`, `@tailwindcss/postcss`, and `postcss`
-- [ ] App depends on `@muakhah/tailwind-config@workspace:*`
-- [ ] App has `postcss.config.mjs`
-- [ ] App global CSS imports `@muakhah/tailwind-config`
-- [ ] App layout imports `globals.css`
-- [ ] If using `packages/ui`, app global CSS includes `@source "../../../../packages/ui/src"`
-- [ ] Developers run `pnpm install` from the root after pull
-
----
-
-## 23. Clean Example
-
-App PostCSS config:
-
-```js
-export { default } from "@muakhah/tailwind-config/postcss";
-```
-
-App global CSS without shared UI:
-
-```css
-@import "@muakhah/tailwind-config";
-```
-
-App global CSS with shared UI:
-
-```css
-@import "@muakhah/tailwind-config";
-
-@source "../../../../packages/ui/src";
-```
-
-Install dependencies after pull:
-
-```bash
-pnpm install
-```
-
-Run app:
-
-```bash
-pnpm --filter @muakhah/dashboard dev
-```
+## 15. Review Checklist
+
+Before merging dashboard UI work, confirm:
+
+- semantic tokens are used
+- layout is responsive
+- focus states are visible
+- forms have labels and errors
+- financial states use consistent variants
+- no sensitive information is revealed by styling or hidden-only UI
+- tables handle smaller widths
+- duplicated classes are extracted only when repetition is meaningful
+- no app imports from another app
+- mobile code does not depend on dashboard Tailwind files

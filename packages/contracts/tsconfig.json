@@ -1,5 +1,5 @@
 {
-  "extends": "@muakhah/typescript-config/base.json",
+  "extends": "@purposemint/typescript-config/base.json",
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src"

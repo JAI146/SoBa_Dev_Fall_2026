@@ -1,1 +1,1 @@
-export { default } from "@muakhah/tailwind-config/postcss";
+export { default } from "@purposemint/tailwind-config/postcss";

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import type { AuthResponse } from "@muakhah/contracts";
+import type { AuthResponse } from "@purposemint/contracts";
 import { OtpInput } from "@/components/auth/otp-input";
 import { apiRequest } from "@/lib/api-client";
 import styles from "../../app/auth.module.css";

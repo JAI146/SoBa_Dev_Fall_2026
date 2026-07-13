@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useRef, useState } from "react";
-import type { AuthResponse } from "@muakhah/contracts";
+import type { AuthResponse } from "@purposemint/contracts";
 import { EmailVerificationStep } from "@/components/auth/email-verification-step";
 import { AuthPageTitle } from "@/components/auth/auth-page-title";
 import { LocationFields } from "@/components/auth/location-fields";

@@ -1,5 +1,5 @@
 {
-  "name": "@muakhah/contracts",
+  "name": "@purposemint/contracts",
   "version": "0.0.0",
   "private": true,
   "main": "./dist/index.js",
@@ -19,7 +19,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@muakhah/typescript-config": "workspace:*",
+    "@purposemint/typescript-config": "workspace:*",
     "typescript": "5.9.2"
   }
 }
