@@ -8,7 +8,10 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
     "dev:dashboard": "pnpm --filter @purposemint/contracts build && pnpm --filter @purposemint/dashboard dev",
-    "dev:api": "pnpm --filter @purposemint/contracts build && pnpm --filter @purposemint/api dev"
+    "dev:api": "pnpm --filter @purposemint/contracts build && pnpm --filter @purposemint/api dev",
+    "dev:mobile": "pnpm --filter @purposemint/mobile start",
+    "dev:mobile:clear": "pnpm --filter @purposemint/mobile start:clear",
+    "mobile:android": "pnpm --filter @purposemint/mobile android"
   },
   "dependencies": {
     "zod": "^3.24.2"

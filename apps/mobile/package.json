@@ -6,6 +6,7 @@
     "@expo/ui": "~57.0.4",
     "expo": "~57.0.4",
     "expo-constants": "~57.0.3",
+    "expo-dev-client": "~57.0.5",
     "expo-device": "~57.0.0",
     "expo-font": "~57.0.0",
     "expo-glass-effect": "~57.0.0",
@@ -29,15 +30,32 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "eas-cli": "^21.0.1",
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "start": "expo start",
+    "start-legacy": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android-legacy": "expo start --android",
+    "ios-legacy": "expo start --ios",
+    "web-legacy": "expo start --web",
+    "lint": "expo lint",
+    "start": "expo start --dev-client",
+    "start:clear": "expo start --dev-client --clear",
+    "start:go": "expo start --go",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "prebuild": "expo prebuild",
+    "prebuild:android": "expo prebuild --platform android",
+    "prebuild:clean": "expo prebuild --clean",
+    "prebuild:android:clean": "expo prebuild --clean --platform android",
+    "doctor": "pnpm dlx expo-doctor@latest",
+    "build:android:development": "eas build --platform android --profile development",
+    "build:android:preview": "eas build --platform android --profile preview",
+    "build:android:production": "eas build --platform android --profile production",
+    "build:ios:development": "eas build --platform ios --profile development",
+    "build:ios:production": "eas build --platform ios --profile production"
   },
   "private": true
 }
