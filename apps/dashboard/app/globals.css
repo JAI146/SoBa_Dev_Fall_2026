@@ -1,4 +1,4 @@
-@import "@purposemint/tailwind-config";
+@import "tailwindcss";
 
 :root {
   --primary: #059669;

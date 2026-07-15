@@ -1,1 +1,7 @@
-export { default } from "@purposemint/tailwind-config/postcss";
+const postcssConfig = {
+  plugins: {
+    "@tailwindcss/postcss": {},
+  },
+};
+
+export default postcssConfig;
