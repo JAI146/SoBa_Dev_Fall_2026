@@ -1,7 +1,17 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+nodeLinker: hoisted
+
 allowBuilds:
   bcrypt: true
   sharp: false
   unrs-resolver: false
+
+# v11 defaults left deliberately UNSET:
+#
+#   minimumReleaseAge   defaults to 1440 (1 day)
+#   blockExoticSubdeps  defaults to true
+#
+# See the trap note below before writing minimumReleaseAge explicitly.
