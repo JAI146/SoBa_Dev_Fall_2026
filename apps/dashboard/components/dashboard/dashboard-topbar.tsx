@@ -1,8 +1,8 @@
 import Image from "next/image";
-import type { StoredUser } from "@/lib/auth";
+import type { DashboardUser } from "@/lib/auth";
 import styles from "../../app/dashboard/dashboard.module.css";
 
-export function DashboardTopbar({ user }: { user: StoredUser }) {
+export function DashboardTopbar({ user }: { user: DashboardUser }) {
   const initials =
     (user.firstName?.charAt(0) ?? "") + (user.lastName?.charAt(0) ?? "");
 

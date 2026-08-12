@@ -7,6 +7,12 @@ const REMEMBERED_EMAIL_KEY = "purposemint_remembered_email";
 
 export type StoredUser = AuthResponse["user"];
 
+/** The subset of the account the chrome actually renders. */
+export type DashboardUser = Pick<
+  StoredUser,
+  "firstName" | "lastName" | "email" | "profileImageUrl"
+>;
+
 function readStorageValue(key: string): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(key) ?? sessionStorage.getItem(key);
@@ -28,7 +34,10 @@ export function getStoredUser(): StoredUser | null {
   }
 }
 
-export function saveAuth(data: AuthResponse, rememberSession: boolean): void {
+export function saveAuth(
+  data: Pick<AuthResponse, "user" | "accessToken">,
+  rememberSession: boolean,
+): void {
   if (typeof window === "undefined") return;
   clearAuth();
   const storage = rememberSession ? localStorage : sessionStorage;

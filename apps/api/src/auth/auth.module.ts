@@ -3,30 +3,50 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from '../entities/user.entity';
+import { AuditModule } from '../audit/audit.module';
+import type { Env } from '../config/env.validation';
+import { UserOtp } from '../entities/user-otp.entity';
+import { UserSession } from '../entities/user-session.entity';
 import { MailModule } from '../mail/mail.module';
-import { StorageModule } from '../storage/storage.module';
+import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { JwtStrategy } from './jwt.strategy';
+import { OtpService } from './otp.service';
+import { SessionService } from './session.service';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { TokenService } from './token.service';
 
+/**
+ * `auth` depends on `users`, never the other way round. `users` reaches back
+ * only for the guards and decorators, which are plain files with no providers.
+ */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([UserSession, UserOtp]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.getOrThrow<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '7d' },
+      useFactory: (config: ConfigService<Env, true>) => ({
+        secret: config.get('JWT_ACCESS_SECRET', { infer: true }),
+        // Refresh tokens are opaque and signed by nothing — this key only ever
+        // signs short-lived access tokens.
+        signOptions: { algorithm: 'HS256' },
+        verifyOptions: { algorithms: ['HS256'] },
       }),
     }),
-    StorageModule,
+    UsersModule,
     MailModule,
+    AuditModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
+  providers: [
+    AuthService,
+    SessionService,
+    TokenService,
+    OtpService,
+    JwtStrategy,
+  ],
+  exports: [SessionService],
 })
 export class AuthModule {}

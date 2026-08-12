@@ -1,138 +1,241 @@
-import type { UploadedImageFile } from '../common/types/uploaded-file.type';
 import {
-  BadRequestException,
   Body,
   Controller,
-  Get,
+  HttpCode,
+  HttpStatus,
   Post,
   Req,
-  UploadedFile,
+  Res,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { AuthService } from './auth.service';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { ConfigService } from '@nestjs/config';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import {
+  ClientType,
+  type AuthResponse,
+  type MessageResponse,
+} from '@purposemint/contracts';
+import type { Request, Response } from 'express';
+import { AuthThrottlerGuard } from '../common/guards/auth-throttler.guard';
+import { requestContext } from '../common/request-context';
+import type { Env } from '../config/env.validation';
+import type { AuthPrincipal } from './auth-principal';
+import { AuthService, type AuthOutcome } from './auth.service';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { Public } from './decorators/public.decorator';
+import {
+  ChangePasswordDto,
+  ForgotPasswordDto,
+  LoginDto,
+  RefreshDto,
+  RegisterDto,
+  ResendVerificationDto,
+  ResetPasswordDto,
+  VerifyEmailDto,
+} from './dto/auth.dto';
+import {
+  REFRESH_COOKIE_NAME,
+  clearRefreshCookie,
+  setRefreshCookie,
+} from './refresh-cookie';
 
-function required(body: Record<string, string>, field: string) {
-  const value = body[field]?.trim();
-  if (!value) throw new BadRequestException(field + ' is required');
-  return value;
-}
+/**
+ * Tighter than the global limit, on the routes worth guessing at. The
+ * `AuthThrottlerGuard` registered on each of them counts per IP *and* email.
+ */
+const CREDENTIAL_LIMIT = { default: { limit: 8, ttl: 60_000 } };
+const EMAIL_SEND_LIMIT = { default: { limit: 4, ttl: 300_000 } };
 
-function email(body: Record<string, string>) {
-  const value = required(body, 'email').toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-    throw new BadRequestException('Enter a valid email address');
-  }
-  return value;
-}
-
-function otp(body: Record<string, string>) {
-  const value = required(body, 'otp');
-  if (!/^\d{6}$/.test(value)) {
-    throw new BadRequestException('OTP must contain six digits');
-  }
-  return value;
-}
-
-function password(body: Record<string, string>, field = 'password') {
-  const value = required(body, field);
-  if (value.length < 8) {
-    throw new BadRequestException(
-      'Password must contain at least 8 characters',
-    );
-  }
-  return value;
-}
-
-function agreed(value: string | undefined) {
-  return value === 'on' || value === 'true' || value === '1';
-}
-
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  private readonly isProduction: boolean;
 
-  @Post('register')
-  @UseInterceptors(
-    FileInterceptor('profileImage', { limits: { fileSize: 5_242_880 } }),
-  )
-  async register(
-    @Body() body: Record<string, string>,
-    @UploadedFile() profileImage?: UploadedImageFile,
+  constructor(
+    private readonly authService: AuthService,
+    config: ConfigService<Env, true>,
   ) {
-    const parsedPassword = password(body);
-    if (parsedPassword !== required(body, 'confirmPassword')) {
-      throw new BadRequestException('Passwords do not match');
-    }
-    if (!agreed(body.agreeTermsOfUse) || !agreed(body.agreePrivacyPolicy)) {
-      throw new BadRequestException(
-        'Terms of Use and Privacy Policy are required',
-      );
-    }
-    if (profileImage && !profileImage.mimetype.startsWith('image/')) {
-      throw new BadRequestException('Profile image must be an image file');
-    }
+    this.isProduction = config.get('NODE_ENV', { infer: true }) === 'production';
+  }
 
-    return this.authService.register(
-      {
-        email: email(body),
-        password: parsedPassword,
-        firstName: required(body, 'firstName'),
-        lastName: required(body, 'lastName'),
-        country: required(body, 'country'),
-        state: body.state?.trim() || null,
-        city: body.city?.trim() || null,
-      },
-      profileImage,
+  @Public()
+  @UseGuards(AuthThrottlerGuard)
+  @Throttle(CREDENTIAL_LIMIT)
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Create an account, send a confirmation code, and sign them in',
+  })
+  async register(
+    @Body() body: RegisterDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<AuthResponse> {
+    return this.deliver(
+      response,
+      await this.authService.register(body, requestContext(request)),
     );
   }
 
+  @Public()
+  @UseGuards(AuthThrottlerGuard)
+  @Throttle(CREDENTIAL_LIMIT)
   @Post('verify-email')
-  verifyEmail(@Body() body: Record<string, string>) {
-    return this.authService.verifyEmail(email(body), otp(body));
-  }
-
-  @Post('resend-otp')
-  resendOtp(@Body() body: Record<string, string>) {
-    return this.authService.resendOtp(email(body));
-  }
-
-  @Post('forgot-password')
-  forgotPassword(@Body() body: Record<string, string>) {
-    return this.authService.forgotPassword(email(body));
-  }
-
-  @Post('verify-reset-otp')
-  verifyResetOtp(@Body() body: Record<string, string>) {
-    return this.authService.verifyResetOtp(email(body), otp(body));
-  }
-
-  @Post('reset-password')
-  resetPassword(@Body() body: Record<string, string>) {
-    return this.authService.resetPassword(
-      email(body),
-      otp(body),
-      password(body, 'newPassword'),
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Confirm an email address with its one-time code' })
+  async verifyEmail(
+    @Body() body: VerifyEmailDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<AuthResponse> {
+    return this.deliver(
+      response,
+      await this.authService.verifyEmail(body, requestContext(request)),
     );
   }
 
-  @Post('resend-reset-otp')
-  resendResetOtp(@Body() body: Record<string, string>) {
-    return this.authService.resendResetOtp(email(body));
+  @Public()
+  @UseGuards(AuthThrottlerGuard)
+  @Throttle(EMAIL_SEND_LIMIT)
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Send a fresh confirmation code' })
+  resendVerification(
+    @Body() body: ResendVerificationDto,
+  ): Promise<MessageResponse> {
+    return this.authService.resendVerification(body);
   }
 
+  @Public()
+  @UseGuards(AuthThrottlerGuard)
+  @Throttle(CREDENTIAL_LIMIT)
   @Post('login')
-  login(@Body() body: Record<string, string>) {
-    return this.authService.login(email(body), required(body, 'password'));
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Sign in and open a session' })
+  async login(
+    @Body() body: LoginDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<AuthResponse> {
+    return this.deliver(
+      response,
+      await this.authService.login(body, requestContext(request)),
+    );
   }
 
-  @Get('me')
-  @UseGuards(JwtAuthGuard)
-  async me(@Req() request: { user: { sub: string } }) {
-    const user = await this.authService.findById(request.user.sub);
-    if (!user) throw new BadRequestException('User not found');
-    return { user: this.authService.toPublicUser(user) };
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Exchange a refresh token for a new access token and rotate it',
+  })
+  async refresh(
+    @Body() body: RefreshDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<AuthResponse> {
+    // Mobile sends it in the body; the dashboard's arrives as a cookie.
+    const presented = body.refreshToken ?? this.cookieToken(request);
+    return this.deliver(
+      response,
+      await this.authService.refresh(presented, requestContext(request)),
+    );
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'End the session on this device only' })
+  async logout(
+    @CurrentUser() principal: AuthPrincipal,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<MessageResponse> {
+    const result = await this.authService.logout(principal);
+    clearRefreshCookie(response, this.isProduction);
+    return result;
+  }
+
+  @Post('logout-all')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'End every session for this account' })
+  async logoutAll(
+    @CurrentUser() principal: AuthPrincipal,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<MessageResponse> {
+    const result = await this.authService.logoutAll(
+      principal,
+      requestContext(request),
+    );
+    clearRefreshCookie(response, this.isProduction);
+    return result;
+  }
+
+  @Public()
+  @UseGuards(AuthThrottlerGuard)
+  @Throttle(EMAIL_SEND_LIMIT)
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Send a password reset code. Always answers the same way.',
+  })
+  forgotPassword(@Body() body: ForgotPasswordDto): Promise<MessageResponse> {
+    return this.authService.forgotPassword(body);
+  }
+
+  @Public()
+  @UseGuards(AuthThrottlerGuard)
+  @Throttle(CREDENTIAL_LIMIT)
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Set a new password with a reset code and end every session',
+  })
+  async resetPassword(
+    @Body() body: ResetPasswordDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<MessageResponse> {
+    const result = await this.authService.resetPassword(
+      body,
+      requestContext(request),
+    );
+    clearRefreshCookie(response, this.isProduction);
+    return result;
+  }
+
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Change a password from inside the app and sign out other devices',
+  })
+  changePassword(
+    @CurrentUser() principal: AuthPrincipal,
+    @Body() body: ChangePasswordDto,
+    @Req() request: Request,
+  ): Promise<MessageResponse> {
+    return this.authService.changePassword(
+      principal,
+      body,
+      requestContext(request),
+    );
+  }
+
+  /**
+   * The one place refresh tokens are handed out. Dashboard clients get an
+   * httpOnly cookie; mobile clients already have theirs in the body.
+   */
+  private deliver(response: Response, outcome: AuthOutcome): AuthResponse {
+    if (outcome.session.clientType === ClientType.DASHBOARD) {
+      setRefreshCookie(response, outcome.session, this.isProduction);
+    }
+    return outcome.auth;
+  }
+
+  private cookieToken(request: Request): string | undefined {
+    const cookies = request.cookies as
+      | Record<string, string | undefined>
+      | undefined;
+    return cookies?.[REFRESH_COOKIE_NAME];
   }
 }

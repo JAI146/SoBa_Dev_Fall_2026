@@ -38,16 +38,13 @@ function HandoffContent() {
       }
 
       try {
-        const response = await apiRequest<{ user: AuthResponse["user"] }>(
-          "/auth/me",
+        const user = await apiRequest<AuthResponse["user"]>(
+          "/users/me",
           {},
           importedTokenRef.current,
         );
         if (cancelled) return;
-        saveAuth(
-          { user: response.user, accessToken: importedTokenRef.current },
-          true,
-        );
+        saveAuth({ user, accessToken: importedTokenRef.current }, true);
         router.replace(safeNext(searchParams.get("next")));
       } catch (cause) {
         if (!cancelled) {

@@ -1,37 +1,51 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { RolesGuard } from './auth/guards/roles.guard';
+import { validateEnv, type Env } from './config/env.validation';
+import { dataSourceOptions } from './database/data-source';
 import { DatabaseModule } from './database/database.module';
-import { S3Config } from './entities/s3-config.entity';
-import { SmtpConfig } from './entities/smtp-config.entity';
-import { User } from './entities/user.entity';
 import { HealthModule } from './health/health.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env'],
+      cache: true,
+      validate: validateEnv,
     }),
+    // The exact same options the TypeORM CLI uses, so the schema the app
+    // expects and the schema the migrations build cannot drift apart.
     TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
+      useFactory: () => dataSourceOptions,
+    }),
+    ThrottlerModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.get('DB_HOST', 'localhost'),
-        port: Number(config.get('DB_PORT', '5432')),
-        username: config.get('DB_USERNAME', 'postgres'),
-        password: config.get('DB_PASSWORD', 'postgres'),
-        database: config.get('DB_NAME', 'purposemint'),
-        entities: [User, S3Config, SmtpConfig],
-        synchronize: false,
-        logging: config.get('NODE_ENV') === 'development',
-      }),
+      useFactory: (config: ConfigService<Env, true>) => [
+        {
+          ttl: config.get('THROTTLE_TTL_SECONDS', { infer: true }) * 1000,
+          limit: config.get('THROTTLE_LIMIT', { infer: true }),
+        },
+      ],
     }),
     DatabaseModule,
+    AuditModule,
     AuthModule,
+    UsersModule,
     HealthModule,
+  ],
+  providers: [
+    // Order matters: rate limit, then authenticate, then authorize.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule {}

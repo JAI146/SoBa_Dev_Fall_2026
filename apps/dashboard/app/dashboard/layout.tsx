@@ -10,6 +10,7 @@ import {
   clearAuth,
   getStoredUser,
   getToken,
+  type DashboardUser,
   type StoredUser,
 } from "@/lib/auth";
 import styles from "./dashboard.module.css";
@@ -63,19 +64,12 @@ export default function DashboardLayout({
     },
   ];
 
-  const user = {
-    user: {
-      id: "",
-      email: "",
-      firstName: "",
-      lastName: "",
-      profileImageUrl: "",
-      userType: "",
-      status: "",
-      adminRole: "",
-      permissions: "",
-    },
-    accessToken: "",
+  // Placeholder until the auth check above is switched back on.
+  const user: DashboardUser = {
+    firstName: "",
+    lastName: "",
+    email: "",
+    profileImageUrl: null,
   };
 
   return (

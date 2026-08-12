@@ -1,10 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
-import { buildOtpEmailHtml } from './templates/otp-email.template';
-import { buildPasswordResetEmailHtml } from './templates/password-reset-email.template';
 import { SmtpConfigService } from './smtp-config.service';
+import {
+  buildPasswordResetEmailHtml,
+  buildVerificationEmailHtml,
+} from './templates/auth-code-email.template';
 
-const OTP_EXPIRES_MINUTES = 10;
+interface CodeEmailParams {
+  to: string;
+  firstName: string;
+  otp: string;
+  expiresMinutes: number;
+}
 
 @Injectable()
 export class MailService {
@@ -12,39 +19,21 @@ export class MailService {
 
   constructor(private readonly smtpConfigService: SmtpConfigService) {}
 
-  async sendOtpEmail(params: { to: string; firstName: string; otp: string }) {
+  async sendVerificationEmail(params: CodeEmailParams): Promise<void> {
     await this.send({
       to: params.to,
-      subject: params.otp + ' is your PurposeMint verification code',
-      text:
-        'Your PurposeMint verification code is ' +
-        params.otp +
-        '. It expires in 10 minutes.',
-      html: buildOtpEmailHtml({
-        firstName: params.firstName,
-        otp: params.otp,
-        expiresMinutes: OTP_EXPIRES_MINUTES,
-      }),
+      subject: `${params.otp} is your PurposeMint confirmation code`,
+      text: `Hi ${params.firstName}, your PurposeMint confirmation code is ${params.otp}. It works for the next ${params.expiresMinutes} minutes.`,
+      html: buildVerificationEmailHtml(params),
     });
   }
 
-  async sendPasswordResetEmail(params: {
-    to: string;
-    firstName: string;
-    otp: string;
-  }) {
+  async sendPasswordResetEmail(params: CodeEmailParams): Promise<void> {
     await this.send({
       to: params.to,
-      subject: params.otp + ' is your PurposeMint password reset code',
-      text:
-        'Your PurposeMint password reset code is ' +
-        params.otp +
-        '. It expires in 10 minutes.',
-      html: buildPasswordResetEmailHtml({
-        firstName: params.firstName,
-        otp: params.otp,
-        expiresMinutes: OTP_EXPIRES_MINUTES,
-      }),
+      subject: `${params.otp} is your PurposeMint password reset code`,
+      text: `Hi ${params.firstName}, your PurposeMint password reset code is ${params.otp}. It works for the next ${params.expiresMinutes} minutes.`,
+      html: buildPasswordResetEmailHtml(params),
     });
   }
 
@@ -53,11 +42,12 @@ export class MailService {
     subject: string;
     text: string;
     html: string;
-  }) {
+  }): Promise<void> {
     const config = await this.smtpConfigService.getConfig();
     if (!config || !config.smtpEnabled) {
       throw new Error('SMTP is not configured or is disabled');
     }
+
     const transporter = nodemailer.createTransport({
       host: config.smtpServer,
       port: config.smtpPort,
@@ -67,14 +57,17 @@ export class MailService {
         pass: config.smtpEmailPassword,
       },
     });
+
     await transporter.sendMail({
-      from: '"PurposeMint" <' + config.smtpEmailUser + '>',
+      from: `"PurposeMint" <${config.smtpEmailUser}>`,
       to: message.to,
       bcc: config.smtpBcc ?? undefined,
       subject: message.subject,
       text: message.text,
       html: message.html,
     });
-    this.logger.log('Authentication email sent to ' + message.to);
+
+    // Never log the subject or body — both carry the one-time code.
+    this.logger.log(`Sent an authentication email to ${message.to}`);
   }
 }

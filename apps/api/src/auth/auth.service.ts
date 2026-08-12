@@ -1,345 +1,490 @@
-import type { UploadedImageFile } from '../common/types/uploaded-file.type';
 import {
-  BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
+  Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
-import * as bcrypt from 'bcrypt';
-import { randomInt } from 'crypto';
-import { Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import {
-  AdminRoleEnum,
-  User,
-  UserStatusEnum,
-  UserTypeEnum,
-} from '../entities/user.entity';
+  AuditAction,
+  AuditOutcome,
+  ClientType,
+  OtpType,
+  PolicyDocumentKey,
+  UserStatus,
+  type AuthResponse,
+  type ChangePasswordInput,
+  type ClientTypeValue,
+  type ForgotPasswordInput,
+  type LoginInput,
+  type MessageResponse,
+  type PolicyAgreements,
+  type RegisterInput,
+  type ResendVerificationInput,
+  type ResetPasswordInput,
+  type VerifyEmailInput,
+} from '@purposemint/contracts';
+import * as bcrypt from 'bcrypt';
+import { toPublicUser } from '../common/mappers/user.mapper';
+import type { RequestContext } from '../common/request-context';
+import { AuditService } from '../audit/audit.service';
+import type { Env } from '../config/env.validation';
+import type { User } from '../entities/user.entity';
 import { MailService } from '../mail/mail.service';
-import { S3Service } from '../storage/s3.service';
+import { UsersService } from '../users/users.service';
+import type { AuthPrincipal } from './auth-principal';
+import { OtpService } from './otp.service';
+import {
+  SessionRevokedReason,
+  SessionService,
+  type IssuedSession,
+} from './session.service';
+import { TokenService } from './token.service';
 
-export interface JwtPayload {
-  sub: string;
-  email: string;
-  userType: UserTypeEnum;
-  adminRole?: AdminRoleEnum | null;
+/** Nothing about a login failure should hint at which half was wrong. */
+const GENERIC_LOGIN_FAILURE =
+  "That email and password don't match up. You can reset your password if you need to.";
+
+const GENERIC_SESSION_FAILURE =
+  'That session has run out. Signing in again will get you straight back to where you were.';
+
+/**
+ * What every session-creating call hands back.
+ *
+ * `auth` is the response body: it carries the refresh token only for mobile
+ * clients. `session` still holds the plaintext token so the controller can put
+ * a dashboard client's copy into an httpOnly cookie instead.
+ */
+export interface AuthOutcome {
+  auth: AuthResponse;
+  session: IssuedSession;
 }
-
-const OTP_EXPIRES_MINUTES = 10;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+  private readonly bcryptRounds: number;
+  /**
+   * Compared against when the email is unknown, so a miss costs the same time
+   * as a wrong password and the response cannot be timed to reveal existence.
+   */
+  private readonly dummyPasswordHash: string;
+
   constructor(
-    @InjectRepository(User)
-    private readonly userRepo: Repository<User>,
-    private readonly jwtService: JwtService,
-    private readonly s3Service: S3Service,
+    private readonly usersService: UsersService,
+    private readonly sessionService: SessionService,
+    private readonly tokenService: TokenService,
+    private readonly otpService: OtpService,
     private readonly mailService: MailService,
-  ) {}
+    private readonly audit: AuditService,
+    config: ConfigService<Env, true>,
+  ) {
+    this.bcryptRounds = config.get('BCRYPT_ROUNDS', { infer: true });
+    this.dummyPasswordHash = bcrypt.hashSync(
+      'purposemint-timing-equaliser',
+      this.bcryptRounds,
+    );
+  }
+
+  // --- registration and verification -----------------------------------
 
   async register(
-    data: {
-      email: string;
-      password: string;
-      firstName: string;
-      lastName: string;
-      country: string;
-      state: string | null;
-      city: string | null;
-    },
-    profileImage?: UploadedImageFile,
-  ) {
-    const email = data.email.toLowerCase();
-    const existing = await this.userRepo.findOne({ where: { email } });
-    if (existing && existing.status !== UserStatusEnum.PENDING_EMAIL) {
-      throw new ConflictException('Email is already registered');
-    }
-
-    const passwordHash = await bcrypt.hash(data.password, 12);
+    input: RegisterInput,
+    context: RequestContext,
+  ): Promise<AuthOutcome> {
     const agreedAt = new Date().toISOString();
-    const { otp, otpHash, otpExpiresAt } = await this.createOtpPayload();
-    const policyAgreements = {
-      terms_of_use: agreedAt,
-      privacy_policy: agreedAt,
+    const policyAgreements: PolicyAgreements = {
+      [PolicyDocumentKey.TERMS_OF_USE]: {
+        version: input.policyVersion,
+        agreedAt,
+      },
+      [PolicyDocumentKey.PRIVACY_POLICY]: {
+        version: input.policyVersion,
+        agreedAt,
+      },
     };
 
-    let user: User;
-    if (existing) {
-      Object.assign(existing, {
-        passwordHash,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        country: data.country,
-        state: data.state,
-        city: data.city,
-        policyAgreements,
-        emailOtpHash: otpHash,
-        emailOtpExpiresAt: otpExpiresAt,
-      });
-      user = await this.userRepo.save(existing);
-    } else {
-      user = await this.userRepo.save(
-        this.userRepo.create({
-          email,
-          passwordHash,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          country: data.country,
-          state: data.state,
-          city: data.city,
-          policyAgreements,
-          userType: UserTypeEnum.USER,
-          status: UserStatusEnum.PENDING_EMAIL,
-          profileImageUrl: null,
-          emailOtpHash: otpHash,
-          emailOtpExpiresAt: otpExpiresAt,
-        }),
-      );
-    }
+    const existing = await this.usersService.findByEmail(input.email);
+    const user =
+      existing && existing.status === UserStatus.PENDING_EMAIL
+        ? // A half-finished signup is not a dead end — let them start over.
+          await this.usersService.save(
+            Object.assign(existing, {
+              passwordHash: await this.hashPassword(input.password),
+              firstName: input.firstName,
+              lastName: input.lastName,
+              country: input.country ?? null,
+              state: input.state ?? null,
+              city: input.city ?? null,
+              policyAgreements,
+            }),
+          )
+        : await this.usersService.create({
+            email: input.email,
+            passwordHash: await this.hashPassword(input.password),
+            firstName: input.firstName,
+            lastName: input.lastName,
+            country: input.country ?? null,
+            state: input.state ?? null,
+            city: input.city ?? null,
+            policyAgreements,
+          });
 
-    if (profileImage) {
-      try {
-        user.profileImageUrl = await this.s3Service.uploadProfileImage(
-          profileImage,
-          user.id,
-        );
-        user = await this.userRepo.save(user);
-      } catch {
-        throw new BadRequestException(
-          'Failed to upload profile image. Please try again.',
-        );
-      }
-    }
+    await this.issueAndSendVerificationCode(user);
 
-    try {
-      await this.mailService.sendOtpEmail({
-        to: user.email,
-        firstName: user.firstName,
-        otp,
-      });
-    } catch {
-      throw new BadRequestException(
-        'Failed to send verification email. Check SMTP settings or try again later.',
-      );
-    }
+    await this.audit.record({
+      action: AuditAction.USER_REGISTERED,
+      actorUserId: user.id,
+      entityType: 'user',
+      entityId: user.id,
+      ipAddress: context.ipAddress,
+    });
 
-    return {
-      requiresVerification: true as const,
-      email: user.email,
-      message: 'Verification code sent to your email.',
-    };
+    return this.startSession(user, input.clientType, context);
   }
 
-  async verifyEmail(email: string, otp: string) {
-    const user = await this.userRepo.findOne({
-      where: { email: email.toLowerCase() },
-    });
-    if (!user || user.status !== UserStatusEnum.PENDING_EMAIL) {
-      throw new BadRequestException('Invalid verification request');
+  async verifyEmail(
+    input: VerifyEmailInput,
+    context: RequestContext,
+  ): Promise<AuthOutcome> {
+    const user = await this.usersService.findByEmail(input.email);
+    if (!user) {
+      // Same message the OTP service gives for a bad code — no existence hint.
+      throw this.unknownCode();
     }
-    await this.assertValidOtp(
-      otp,
-      user.emailOtpHash,
-      user.emailOtpExpiresAt,
-      'verification',
+    if (user.emailVerifiedAt) {
+      // Never hand out a session here. A confirmed address has no outstanding
+      // code, so anything presented is unverified — signing in is the way back.
+      throw new ConflictException(
+        "That email is already confirmed — you're all set to sign in.",
+      );
+    }
+
+    await this.otpService.consume(
+      user.id,
+      OtpType.EMAIL_VERIFICATION,
+      input.otp,
     );
+    const verified = await this.usersService.markEmailVerified(user.id);
 
-    user.status = UserStatusEnum.ACTIVE;
-    user.emailOtpHash = null;
-    user.emailOtpExpiresAt = null;
-    return this.buildAuthResponse(await this.userRepo.save(user));
+    await this.audit.record({
+      action: AuditAction.USER_EMAIL_VERIFIED,
+      actorUserId: user.id,
+      entityType: 'user',
+      entityId: user.id,
+      ipAddress: context.ipAddress,
+    });
+
+    return this.startSession(verified, input.clientType, context);
   }
 
-  async resendOtp(email: string) {
-    const user = await this.userRepo.findOne({
-      where: { email: email.toLowerCase() },
-    });
-    if (!user || user.status !== UserStatusEnum.PENDING_EMAIL) {
-      throw new BadRequestException(
-        'No pending registration found for this email',
-      );
-    }
-
-    const { otp, otpHash, otpExpiresAt } = await this.createOtpPayload();
-    user.emailOtpHash = otpHash;
-    user.emailOtpExpiresAt = otpExpiresAt;
-    await this.userRepo.save(user);
-    await this.mailService.sendOtpEmail({
-      to: user.email,
-      firstName: user.firstName,
-      otp,
-    });
-    return { success: true, message: 'A new verification code has been sent.' };
-  }
-
-  async forgotPassword(email: string) {
-    const normalizedEmail = email.toLowerCase();
-    const user = await this.userRepo.findOne({
-      where: { email: normalizedEmail },
-    });
-    const response = {
-      success: true as const,
-      email: normalizedEmail,
+  async resendVerification(
+    input: ResendVerificationInput,
+  ): Promise<MessageResponse> {
+    const confirmation: MessageResponse = {
       message:
-        'If an account exists for this email, a password reset code has been sent.',
+        "If that email still needs confirming, a new code is on its way. It works for the next few minutes.",
     };
-    if (!user || user.status !== UserStatusEnum.ACTIVE) return response;
 
-    const { otp, otpHash, otpExpiresAt } = await this.createOtpPayload();
-    user.passwordResetOtpHash = otpHash;
-    user.passwordResetOtpExpiresAt = otpExpiresAt;
-    await this.userRepo.save(user);
-    try {
-      await this.mailService.sendPasswordResetEmail({
-        to: user.email,
-        firstName: user.firstName,
-        otp,
+    const user = await this.usersService.findByEmail(input.email);
+    if (!user || user.emailVerifiedAt) return confirmation;
+
+    await this.otpService.assertNotOnCooldown(
+      user.id,
+      OtpType.EMAIL_VERIFICATION,
+    );
+    await this.issueAndSendVerificationCode(user);
+    return confirmation;
+  }
+
+  // --- sessions ---------------------------------------------------------
+
+  async login(
+    input: LoginInput,
+    context: RequestContext,
+  ): Promise<AuthOutcome> {
+    const user = await this.usersService.findByEmailWithPassword(input.email);
+
+    // Run the compare either way so both branches cost the same.
+    const passwordMatches = await bcrypt.compare(
+      input.password,
+      user?.passwordHash ?? this.dummyPasswordHash,
+    );
+
+    if (!user || !passwordMatches) {
+      await this.audit.record({
+        action: AuditAction.USER_LOGIN_FAILED,
+        outcome: AuditOutcome.FAILURE,
+        actorUserId: user?.id ?? null,
+        entityType: 'user',
+        entityId: user?.id ?? null,
+        ipAddress: context.ipAddress,
+        metadata: { email: UsersService.normaliseEmail(input.email) },
       });
-    } catch {
-      user.passwordResetOtpHash = null;
-      user.passwordResetOtpExpiresAt = null;
-      await this.userRepo.save(user);
-      throw new BadRequestException(
-        'Failed to send password reset email. Check SMTP settings or try again later.',
+      throw new UnauthorizedException(GENERIC_LOGIN_FAILURE);
+    }
+
+    // Only mentioned once the password is known to be right, so suspension
+    // cannot be used to probe for registered addresses.
+    if (user.status === UserStatus.SUSPENDED) {
+      throw new ForbiddenException(
+        "This account is on hold at the moment. Email support@purposemint.app and we'll help you sort it out.",
       );
     }
-    return response;
+
+    await this.usersService.markLoggedIn(user.id);
+
+    await this.audit.record({
+      action: AuditAction.USER_LOGIN_SUCCEEDED,
+      actorUserId: user.id,
+      entityType: 'user',
+      entityId: user.id,
+      ipAddress: context.ipAddress,
+      metadata: { clientType: input.clientType },
+    });
+
+    return this.startSession(user, input.clientType, context);
   }
 
-  async verifyResetOtp(email: string, otp: string) {
-    const user = await this.findResetUser(email);
-    await this.assertValidOtp(
-      otp,
-      user.passwordResetOtpHash,
-      user.passwordResetOtpExpiresAt,
-      'password reset',
-    );
-    return { success: true, message: 'Reset code confirmed.' };
-  }
-
-  async resetPassword(email: string, otp: string, newPassword: string) {
-    const user = await this.findResetUser(email);
-    await this.assertValidOtp(
-      otp,
-      user.passwordResetOtpHash,
-      user.passwordResetOtpExpiresAt,
-      'password reset',
-    );
-    user.passwordHash = await bcrypt.hash(newPassword, 12);
-    user.passwordResetOtpHash = null;
-    user.passwordResetOtpExpiresAt = null;
-    await this.userRepo.save(user);
-    return { success: true, message: 'Your password has been updated.' };
-  }
-
-  async resendResetOtp(email: string) {
-    const user = await this.findResetUser(email);
-    if (!user.passwordResetOtpHash || !user.passwordResetOtpExpiresAt) {
-      throw new BadRequestException('No password reset request found');
+  /** Rotation and reuse detection both live in `SessionService`. */
+  async refresh(
+    presentedToken: string | undefined,
+    context: RequestContext,
+  ): Promise<AuthOutcome> {
+    if (!presentedToken) {
+      throw new UnauthorizedException(GENERIC_SESSION_FAILURE);
     }
-    const { otp, otpHash, otpExpiresAt } = await this.createOtpPayload();
-    user.passwordResetOtpHash = otpHash;
-    user.passwordResetOtpExpiresAt = otpExpiresAt;
-    await this.userRepo.save(user);
-    await this.mailService.sendPasswordResetEmail({
+
+    const rotated = await this.sessionService.rotate(presentedToken, context);
+    const user = await this.usersService.findById(rotated.userId);
+    if (!user || user.status === UserStatus.SUSPENDED) {
+      await this.sessionService.revokeSession(
+        rotated.sessionId,
+        SessionRevokedReason.LOGOUT_ALL,
+      );
+      throw new UnauthorizedException(GENERIC_SESSION_FAILURE);
+    }
+
+    return this.buildOutcome(user, rotated);
+  }
+
+  async logout(principal: AuthPrincipal): Promise<MessageResponse> {
+    await this.sessionService.revokeSession(
+      principal.sessionId,
+      SessionRevokedReason.LOGOUT,
+    );
+    return { message: "You're signed out on this device. See you soon." };
+  }
+
+  async logoutAll(
+    principal: AuthPrincipal,
+    context: RequestContext,
+  ): Promise<MessageResponse> {
+    await this.sessionService.revokeAllForUser(
+      principal.userId,
+      SessionRevokedReason.LOGOUT_ALL,
+    );
+    await this.audit.record({
+      action: AuditAction.USER_LOGGED_OUT_ALL,
+      actorUserId: principal.userId,
+      entityType: 'user',
+      entityId: principal.userId,
+      ipAddress: context.ipAddress,
+    });
+    return {
+      message: "You're signed out everywhere. Every device will need a fresh sign-in.",
+    };
+  }
+
+  // --- passwords --------------------------------------------------------
+
+  /** Always answers the same way, whether or not the address is registered. */
+  async forgotPassword(input: ForgotPasswordInput): Promise<MessageResponse> {
+    const confirmation: MessageResponse = {
+      message:
+        'If there’s an account for that email, a reset code is on its way.',
+    };
+
+    const user = await this.usersService.findByEmail(input.email);
+    if (!user || user.status === UserStatus.SUSPENDED) return confirmation;
+
+    try {
+      await this.otpService.assertNotOnCooldown(
+        user.id,
+        OtpType.PASSWORD_RESET,
+      );
+    } catch {
+      // Told to slow down? Still answer identically — the cooldown is ours to
+      // enforce quietly, not a signal to hand back.
+      return confirmation;
+    }
+
+    const code = await this.otpService.issue(user.id, OtpType.PASSWORD_RESET);
+    await this.sendCode(user, code, 'password-reset');
+    return confirmation;
+  }
+
+  async resetPassword(
+    input: ResetPasswordInput,
+    context: RequestContext,
+  ): Promise<MessageResponse> {
+    const user = await this.usersService.findByEmail(input.email);
+    if (!user) throw this.unknownCode();
+
+    await this.otpService.consume(user.id, OtpType.PASSWORD_RESET, input.otp);
+    await this.usersService.updatePasswordHash(
+      user.id,
+      await this.hashPassword(input.newPassword),
+    );
+    // A reset is the recovery path for a compromised account — clear the decks.
+    await this.sessionService.revokeAllForUser(
+      user.id,
+      SessionRevokedReason.PASSWORD_RESET,
+    );
+
+    await this.audit.record({
+      action: AuditAction.USER_PASSWORD_RESET,
+      actorUserId: user.id,
+      entityType: 'user',
+      entityId: user.id,
+      ipAddress: context.ipAddress,
+    });
+
+    return {
+      message:
+        "Your new password is set. Sign in with it and you're back where you left off.",
+    };
+  }
+
+  async changePassword(
+    principal: AuthPrincipal,
+    input: ChangePasswordInput,
+    context: RequestContext,
+  ): Promise<MessageResponse> {
+    const user = await this.usersService.findByIdWithPassword(
+      principal.userId,
+    );
+    if (!user) throw new UnauthorizedException(GENERIC_LOGIN_FAILURE);
+
+    if (!(await bcrypt.compare(input.currentPassword, user.passwordHash))) {
+      throw new UnauthorizedException(
+        "That current password doesn't match what we have. You can reset it instead if it's slipped your mind.",
+      );
+    }
+
+    await this.usersService.updatePasswordHash(
+      user.id,
+      await this.hashPassword(input.newPassword),
+    );
+    // Everything except the device doing the changing.
+    await this.sessionService.revokeAllForUser(
+      user.id,
+      SessionRevokedReason.PASSWORD_CHANGED,
+      principal.sessionId,
+    );
+
+    await this.audit.record({
+      action: AuditAction.USER_PASSWORD_CHANGED,
+      actorUserId: user.id,
+      entityType: 'user',
+      entityId: user.id,
+      ipAddress: context.ipAddress,
+    });
+
+    return {
+      message:
+        "Your password is updated. You're still signed in here; other devices will need the new one.",
+    };
+  }
+
+  // --- helpers ----------------------------------------------------------
+
+  private hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, this.bcryptRounds);
+  }
+
+  private async issueAndSendVerificationCode(user: User): Promise<void> {
+    const code = await this.otpService.issue(
+      user.id,
+      OtpType.EMAIL_VERIFICATION,
+    );
+    await this.sendCode(user, code, 'verification');
+  }
+
+  private async sendCode(
+    user: User,
+    code: string,
+    kind: 'verification' | 'password-reset',
+  ): Promise<void> {
+    const params = {
       to: user.email,
       firstName: user.firstName,
-      otp,
-    });
-    return {
-      success: true,
-      message: 'A new password reset code has been sent.',
+      otp: code,
+      expiresMinutes: this.otpService.ttlMinutesForCopy,
     };
-  }
 
-  async login(email: string, password: string) {
-    const user = await this.userRepo.findOne({
-      where: { email: email.toLowerCase() },
-    });
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
-    if (user.status === UserStatusEnum.PENDING_EMAIL) {
-      throw new UnauthorizedException(
-        'Please verify your email before signing in.',
+    try {
+      if (kind === 'verification') {
+        await this.mailService.sendVerificationEmail(params);
+      } else {
+        await this.mailService.sendPasswordResetEmail(params);
+      }
+    } catch (error) {
+      // The code itself never reaches the log.
+      this.logger.error(
+        `Could not send the ${kind} email to user ${user.id}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new ServiceUnavailableException(
+        "We couldn't get that email out just now. Give it a moment and ask for a new code.",
       );
     }
-    if (user.status === UserStatusEnum.SUSPENDED) {
-      throw new UnauthorizedException('Account is suspended');
-    }
-    return this.buildAuthResponse(user);
   }
 
-  async findById(id: string): Promise<User | null> {
-    return this.userRepo.findOne({ where: { id } });
-  }
-
-  toPublicUser(user: User) {
-    const isAdmin = user.userType === UserTypeEnum.ADMIN;
-    return {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      profileImageUrl: user.profileImageUrl,
-      userType: user.userType,
-      status: user.status,
-      adminRole: isAdmin ? (user.adminRole ?? AdminRoleEnum.SUPER_ADMIN) : null,
-      createdAt: user.createdAt.toISOString(),
-    };
-  }
-
-  private async createOtpPayload() {
-    const otp = String(randomInt(100000, 1000000));
-    return {
-      otp,
-      otpHash: await bcrypt.hash(otp, 10),
-      otpExpiresAt: new Date(Date.now() + OTP_EXPIRES_MINUTES * 60 * 1000),
-    };
-  }
-
-  private async findResetUser(email: string) {
-    const user = await this.userRepo.findOne({
-      where: { email: email.toLowerCase() },
+  private async startSession(
+    user: User,
+    clientType: ClientTypeValue,
+    context: RequestContext,
+  ): Promise<AuthOutcome> {
+    const session = await this.sessionService.issue({
+      userId: user.id,
+      clientType,
+      context,
     });
-    if (!user || user.status !== UserStatusEnum.ACTIVE) {
-      throw new BadRequestException('Invalid password reset request');
-    }
-    return user;
+    return this.buildOutcome(user, session);
   }
 
-  private async assertValidOtp(
-    otp: string,
-    hash: string | null,
-    expiresAt: Date | null,
-    label: string,
-  ) {
-    if (!hash || !expiresAt) {
-      throw new BadRequestException('No ' + label + ' code found');
-    }
-    if (expiresAt.getTime() < Date.now()) {
-      throw new BadRequestException('The ' + label + ' code has expired');
-    }
-    if (!(await bcrypt.compare(otp, hash))) {
-      throw new BadRequestException('Invalid ' + label + ' code');
-    }
-  }
-
-  private buildAuthResponse(user: User) {
-    const adminRole =
-      user.userType === UserTypeEnum.ADMIN
-        ? (user.adminRole ?? AdminRoleEnum.SUPER_ADMIN)
-        : null;
-    const payload: JwtPayload = {
+  private async buildOutcome(
+    user: User,
+    session: IssuedSession,
+  ): Promise<AuthOutcome> {
+    const accessToken = await this.tokenService.signAccessToken({
       sub: user.id,
-      email: user.email,
+      sid: session.sessionId,
       userType: user.userType,
-      adminRole,
-    };
+      adminRole: user.adminRole,
+    });
+
     return {
-      user: this.toPublicUser(user),
-      accessToken: this.jwtService.sign(payload),
+      auth: {
+        user: toPublicUser(user),
+        accessToken,
+        expiresIn: this.tokenService.accessTokenTtlSeconds,
+        // Mobile stores this in expo-secure-store. Dashboard clients get the
+        // same token as an httpOnly cookie, set by the controller.
+        ...(session.clientType === ClientType.MOBILE
+          ? { refreshToken: session.refreshToken }
+          : {}),
+      },
+      session,
     };
+  }
+
+  private unknownCode() {
+    return new UnauthorizedException(
+      "That code doesn't match the one we sent. Worth another look — or ask for a new one.",
+    );
   }
 }

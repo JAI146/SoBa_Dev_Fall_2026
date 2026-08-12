@@ -1,35 +1,46 @@
 import {
+  AdminRole,
+  OnboardingStatus,
+  Tier,
+  UserStatus,
+  UserType,
+  type AdminRoleValue,
+  type NotificationPreferences,
+  type OnboardingStatusValue,
+  type PolicyAgreements,
+  type TierValue,
+  type UserStatusValue,
+  type UserTypeValue,
+} from '@purposemint/contracts';
+import {
   Column,
   CreateDateColumn,
+  DeleteDateColumn,
   Entity,
+  Index,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
-export enum AdminRoleEnum {
-  SUPER_ADMIN = 'super_admin',
-}
-
-export enum UserTypeEnum {
-  USER = 'visitor',
-  ADMIN = 'admin',
-}
-
-export enum UserStatusEnum {
-  ACTIVE = 'active',
-  PENDING_EMAIL = 'pending_email',
-  SUSPENDED = 'suspended',
-}
-
 @Entity('users')
+@Index('idx_users_status', ['status'])
+@Index('idx_users_deleted_at', ['deletedAt'])
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'varchar', length: 255, unique: true })
+  /** Always stored lowercased and trimmed. Normalise on write and on lookup. */
+  @Index('uq_users_email', { unique: true })
+  @Column({ type: 'varchar', length: 255 })
   email!: string;
 
-  @Column({ name: 'password_hash', type: 'varchar', length: 255 })
+  /** Never selected by default. Login must `addSelect` it explicitly. */
+  @Column({
+    name: 'password_hash',
+    type: 'varchar',
+    length: 255,
+    select: false,
+  })
   passwordHash!: string;
 
   @Column({ name: 'first_name', type: 'varchar', length: 100 })
@@ -55,8 +66,57 @@ export class User {
   @Column({ type: 'varchar', length: 100, nullable: true })
   city!: string | null;
 
+  @Column({
+    name: 'user_type',
+    type: 'enum',
+    enum: Object.values(UserType),
+    default: UserType.CUSTOMER,
+  })
+  userType!: UserTypeValue;
+
+  @Column({
+    name: 'admin_role',
+    type: 'enum',
+    enum: Object.values(AdminRole),
+    nullable: true,
+  })
+  adminRole!: AdminRoleValue | null;
+
+  @Column({
+    type: 'enum',
+    enum: Object.values(UserStatus),
+    default: UserStatus.PENDING_EMAIL,
+  })
+  status!: UserStatusValue;
+
+  @Column({ name: 'email_verified_at', type: 'timestamptz', nullable: true })
+  emailVerifiedAt!: Date | null;
+
+  @Column({
+    name: 'onboarding_status',
+    type: 'enum',
+    enum: Object.values(OnboardingStatus),
+    default: OnboardingStatus.NOT_STARTED,
+  })
+  onboardingStatus!: OnboardingStatusValue;
+
+  /**
+   * Written **only** by the subscription module (Phase 3), and never read to
+   * make an authorization decision. Entitlement is decided by the subscription
+   * module against Stripe state, not by this column.
+   */
+  @Column({
+    type: 'enum',
+    enum: Object.values(Tier),
+    default: Tier.FREE,
+  })
+  tier!: TierValue;
+
   @Column({ name: 'notification_preferences', type: 'jsonb', default: {} })
-  notificationPreferences!: Record<string, boolean>;
+  notificationPreferences!: NotificationPreferences;
+
+  @Column({ name: 'policy_agreements', type: 'jsonb', default: {} })
+  policyAgreements!: PolicyAgreements;
 
   @Column({
     name: 'delete_account_requested_at',
@@ -65,61 +125,15 @@ export class User {
   })
   deleteAccountRequestedAt!: Date | null;
 
-  @Column({ name: 'policy_agreements', type: 'jsonb', default: {} })
-  policyAgreements!: Record<string, string>;
+  @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
+  lastLoginAt!: Date | null;
 
-  @Column({
-    name: 'email_otp_hash',
-    type: 'varchar',
-    length: 255,
-    nullable: true,
-  })
-  emailOtpHash!: string | null;
-
-  @Column({ name: 'email_otp_expires_at', type: 'timestamptz', nullable: true })
-  emailOtpExpiresAt!: Date | null;
-
-  @Column({
-    name: 'password_reset_otp_hash',
-    type: 'varchar',
-    length: 255,
-    nullable: true,
-  })
-  passwordResetOtpHash!: string | null;
-
-  @Column({
-    name: 'password_reset_otp_expires_at',
-    type: 'timestamptz',
-    nullable: true,
-  })
-  passwordResetOtpExpiresAt!: Date | null;
-
-  @Column({
-    name: 'user_type',
-    type: 'enum',
-    enum: UserTypeEnum,
-    default: UserTypeEnum.USER,
-  })
-  userType!: UserTypeEnum;
-
-  @Column({
-    name: 'admin_role',
-    type: 'enum',
-    enum: AdminRoleEnum,
-    nullable: true,
-  })
-  adminRole!: AdminRoleEnum | null;
-
-  @Column({
-    type: 'enum',
-    enum: UserStatusEnum,
-    default: UserStatusEnum.ACTIVE,
-  })
-  status!: UserStatusEnum;
-
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
+
+  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+  deletedAt!: Date | null;
 }

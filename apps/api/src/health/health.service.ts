@@ -1,29 +1,26 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { User } from '../entities/user.entity';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 
 @Injectable()
 export class HealthService {
   constructor(
-    @InjectRepository(User)
-    private readonly userRepo: Repository<User>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
   async check() {
     try {
-      await this.userRepo.count();
+      // A bare round-trip, so health does not depend on any table's shape.
+      await this.dataSource.query('SELECT 1');
       return {
         status: 'ok',
-        message:
-          'Successfully queried the users table. Backend and database are running.',
+        message: 'The API is up and the database answered.',
       };
     } catch {
-      throw new ServiceUnavailableException({
-        status: 'error',
-        message:
-          'Failed to query the users table. Backend or database may be down.',
-      });
+      throw new ServiceUnavailableException(
+        'The API is up but the database did not answer.',
+      );
     }
   }
 }

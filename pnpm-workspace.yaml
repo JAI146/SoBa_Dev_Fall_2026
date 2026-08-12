@@ -5,6 +5,8 @@ packages:
 nodeLinker: hoisted
 
 allowBuilds:
+  # Analytics ping that ships inside @nestjs/swagger. Nothing needs to run.
+  '@scarf/scarf': false
   bcrypt: true
   sharp: false
   unrs-resolver: false

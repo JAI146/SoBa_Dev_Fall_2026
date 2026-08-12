@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { StoredUser } from "@/lib/auth";
+import type { DashboardUser } from "@/lib/auth";
 import { SidebarNavLink } from "./sidebar-nav-link";
 import type { SidebarNavIconName } from "./sidebar-nav-icons";
 import { DashboardTopbar } from "./dashboard-topbar";
@@ -21,7 +21,7 @@ export function DashboardShell({
   children,
 }: {
   navItems: DashboardNavItem[];
-  user: StoredUser;
+  user: DashboardUser;
   onLogout: () => void;
   children: React.ReactNode;
 }) {
