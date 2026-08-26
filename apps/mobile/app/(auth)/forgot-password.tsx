@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { forgotPasswordSchema } from '@purposemint/contracts';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Keyboard, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -6,36 +7,50 @@ import { Keyboard, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 import { AppButton } from '@/components/AppButton';
 import { AppInput } from '@/components/AppInput';
 import { AuthScaffold } from '@/components/AuthScaffold';
+import { FormNotice } from '@/components/FormNotice';
 import { theme } from '@/constants/theme';
-
-const isValidEmail = (value: string) => /^\S+@\S+\.\S+$/.test(value.trim());
+import { useForgotPasswordMutation } from '@/hooks/use-auth-mutations';
+import { useCooldown } from '@/hooks/use-cooldown';
+import { ApiClientError } from '@/lib/api/client';
+import { getApiFormErrors, getZodFieldErrors } from '@/lib/forms/errors';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
-  const [error, setError] = useState<string>();
-  const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [emailError, setEmailError] = useState<string>();
+  const [formError, setFormError] = useState<string>();
+  const forgotPasswordMutation = useForgotPasswordMutation();
+  const cooldown = useCooldown();
 
-  const sendResetLink = () => {
+  const handleSubmit = () => {
     Keyboard.dismiss();
+    setFormError(undefined);
 
-    if (!email.trim()) {
-      setError('Email is required.');
+    const result = forgotPasswordSchema.safeParse({ email });
+    if (!result.success) {
+      setEmailError(getZodFieldErrors<'email'>(result.error.issues).email);
       return;
     }
 
-    if (!isValidEmail(email)) {
-      setError('Enter a valid email address.');
-      return;
-    }
-
-    setError(undefined);
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setSent(true);
-    }, 1000);
+    setEmailError(undefined);
+    forgotPasswordMutation.mutate(result.data, {
+      onError: (error) => {
+        const nextErrors = getApiFormErrors(error, ['email']);
+        setEmailError(nextErrors.fieldErrors.email);
+        setFormError(nextErrors.formError);
+        if (error instanceof ApiClientError && error.status === 429) {
+          cooldown.startCooldown(30);
+        }
+      },
+      onSuccess: (response) => {
+        router.replace({
+          pathname: '/(auth)/reset-password',
+          params: { confirmation: response.message, email: result.data.email },
+        });
+      },
+    });
   };
+
+  const isDisabled = forgotPasswordMutation.isPending || cooldown.isCoolingDown;
 
   return (
     <AuthScaffold
@@ -45,57 +60,46 @@ export default function ForgotPasswordScreen() {
         accessibilityLabel="Back to login"
         accessibilityRole="button"
         activeOpacity={0.7}
+        disabled={forgotPasswordMutation.isPending}
         onPress={() => router.back()}
         style={styles.backButton}>
         <Ionicons color={theme.colors.deepGreen} name="arrow-back" size={21} />
         <Text style={styles.backText}>Back</Text>
       </TouchableOpacity>
 
-      {sent ? (
-        <View accessibilityLiveRegion="polite" style={styles.successCard}>
-          <View style={styles.successIcon}>
-            <Ionicons color={theme.colors.deepGreen} name="mail-open-outline" size={32} />
-          </View>
-          <Text style={styles.title}>Check your inbox</Text>
-          <Text style={styles.supporting}>
-            We sent a demo reset link to the email address you entered.
-          </Text>
-          <AppButton
-            onPress={() => router.replace('/(auth)/login')}
-            style={styles.successButton}
-            title="Back to login"
-            variant="soft"
-          />
-        </View>
-      ) : (
-        <>
-          <View style={styles.headingBlock}>
-            <Text style={styles.title}>Reset your password</Text>
-            <Text style={styles.supporting}>Enter your email and we’ll send you a reset link.</Text>
-          </View>
-          <AppInput
-            autoComplete="email"
-            editable={!loading}
-            error={error}
-            keyboardType="email-address"
-            label="Email address"
-            onChangeText={(value) => {
-              setEmail(value);
-              setError(undefined);
-            }}
-            onSubmitEditing={sendResetLink}
-            placeholder="maya@example.com"
-            returnKeyType="send"
-            value={email}
-          />
-          <AppButton
-            loading={loading}
-            loadingTitle="Sending link…"
-            onPress={sendResetLink}
-            title="Send reset link"
-          />
-        </>
-      )}
+      <View style={styles.headingBlock}>
+        <Text style={styles.title}>Reset your password</Text>
+        <Text style={styles.supporting}>
+          Enter your email and we’ll send a six-digit reset code.
+        </Text>
+      </View>
+
+      <AppInput
+        autoComplete="email"
+        editable={!forgotPasswordMutation.isPending}
+        error={emailError}
+        keyboardType="email-address"
+        label="Email address"
+        onChangeText={(value) => {
+          setEmail(value);
+          setEmailError(undefined);
+          setFormError(undefined);
+        }}
+        onSubmitEditing={handleSubmit}
+        placeholder="maya@example.com"
+        returnKeyType="send"
+        value={email}
+      />
+
+      <FormNotice message={formError} />
+
+      <AppButton
+        disabled={isDisabled}
+        loading={forgotPasswordMutation.isPending}
+        loadingTitle="Sending code…"
+        onPress={handleSubmit}
+        title={cooldown.isCoolingDown ? `Try again in ${cooldown.secondsRemaining}s` : 'Send code'}
+      />
     </AuthScaffold>
   );
 }
@@ -126,23 +130,5 @@ const styles = StyleSheet.create({
     color: theme.colors.mutedText,
     fontSize: theme.fontSize.sm,
     lineHeight: 21,
-  },
-  successCard: {
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    paddingVertical: theme.spacing.md,
-  },
-  successIcon: {
-    alignItems: 'center',
-    backgroundColor: theme.colors.lightMint,
-    borderRadius: theme.radius.pill,
-    height: 68,
-    justifyContent: 'center',
-    marginBottom: theme.spacing.xs,
-    width: 68,
-  },
-  successButton: {
-    marginTop: theme.spacing.sm,
-    width: '100%',
   },
 });

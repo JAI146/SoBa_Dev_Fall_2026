@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 
 import { theme } from '@/constants/theme';
+import { useAuth } from '@/contexts/AuthContext';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
@@ -11,6 +12,12 @@ function TabIcon({ color, focused, name }: { color: string; focused: boolean; na
 }
 
 export default function TabsLayout() {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
   return (
     <Tabs
       screenOptions={{

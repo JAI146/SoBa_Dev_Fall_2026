@@ -1,3 +1,4 @@
+import { ClientType, loginSchema } from '@purposemint/contracts';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Keyboard, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -5,44 +6,53 @@ import { Keyboard, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 import { AppButton } from '@/components/AppButton';
 import { AppInput } from '@/components/AppInput';
 import { AuthScaffold } from '@/components/AuthScaffold';
+import { FormNotice } from '@/components/FormNotice';
 import { theme } from '@/constants/theme';
+import { useLoginMutation } from '@/hooks/use-auth-mutations';
+import { useCooldown } from '@/hooks/use-cooldown';
+import { ApiClientError } from '@/lib/api/client';
+import { getApiFormErrors, getZodFieldErrors } from '@/lib/forms/errors';
 
-type LoginErrors = {
-  email?: string;
-  password?: string;
-};
-
-const isValidEmail = (value: string) => /^\S+@\S+\.\S+$/.test(value.trim());
+type LoginField = 'email' | 'password';
+type LoginErrors = Partial<Record<LoginField, string>>;
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<LoginErrors>({});
-  const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string>();
+  const loginMutation = useLoginMutation();
+  const cooldown = useCooldown();
 
   const handleLogin = () => {
     Keyboard.dismiss();
-    const nextErrors: LoginErrors = {};
+    setFormError(undefined);
 
-    if (!email.trim()) {
-      nextErrors.email = 'Email is required.';
-    } else if (!isValidEmail(email)) {
-      nextErrors.email = 'Enter a valid email address.';
-    }
+    const result = loginSchema.safeParse({
+      clientType: ClientType.MOBILE,
+      email,
+      password,
+    });
 
-    if (!password.trim()) {
-      nextErrors.password = 'Password is required.';
-    }
-
-    setErrors(nextErrors);
-
-    if (Object.keys(nextErrors).length > 0) {
+    if (!result.success) {
+      setErrors(getZodFieldErrors<LoginField>(result.error.issues));
       return;
     }
 
-    setLoading(true);
-    setTimeout(() => router.replace('/(tabs)'), 1200);
+    setErrors({});
+    loginMutation.mutate(result.data, {
+      onError: (error) => {
+        const nextErrors = getApiFormErrors(error, ['email', 'password']);
+        setErrors(nextErrors.fieldErrors);
+        setFormError(nextErrors.formError);
+        if (error instanceof ApiClientError && error.status === 429) {
+          cooldown.startCooldown(30);
+        }
+      },
+    });
   };
+
+  const isDisabled = loginMutation.isPending || cooldown.isCoolingDown;
 
   return (
     <AuthScaffold
@@ -56,13 +66,14 @@ export default function LoginScreen() {
       <View style={styles.form}>
         <AppInput
           autoComplete="email"
-          editable={!loading}
+          editable={!loginMutation.isPending}
           error={errors.email}
           keyboardType="email-address"
           label="Email address"
           onChangeText={(value) => {
             setEmail(value);
             setErrors((current) => ({ ...current, email: undefined }));
+            setFormError(undefined);
           }}
           placeholder="maya@example.com"
           returnKeyType="next"
@@ -70,12 +81,13 @@ export default function LoginScreen() {
         />
         <AppInput
           autoComplete="current-password"
-          editable={!loading}
+          editable={!loginMutation.isPending}
           error={errors.password}
           label="Password"
           onChangeText={(value) => {
             setPassword(value);
             setErrors((current) => ({ ...current, password: undefined }));
+            setFormError(undefined);
           }}
           onSubmitEditing={handleLogin}
           placeholder="Enter your password"
@@ -83,21 +95,34 @@ export default function LoginScreen() {
           secureTextEntry
           value={password}
         />
-        <TouchableOpacity
-          accessibilityRole="link"
-          activeOpacity={0.7}
-          disabled={loading}
-          onPress={() => router.push('/(auth)/forgot-password')}
-          style={styles.forgotLink}>
-          <Text style={styles.linkText}>Forgot password?</Text>
-        </TouchableOpacity>
+        <View style={styles.accountLinks}>
+          <TouchableOpacity
+            accessibilityRole="link"
+            activeOpacity={0.7}
+            disabled={loginMutation.isPending}
+            onPress={() => router.push('/(auth)/verify-email')}
+            style={styles.forgotLink}>
+            <Text style={styles.linkText}>Verify email</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="link"
+            activeOpacity={0.7}
+            disabled={loginMutation.isPending}
+            onPress={() => router.push('/(auth)/forgot-password')}
+            style={styles.forgotLink}>
+            <Text style={styles.linkText}>Forgot password?</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
+      <FormNotice message={formError} />
+
       <AppButton
-        loading={loading}
+        disabled={isDisabled}
+        loading={loginMutation.isPending}
         loadingTitle="Logging in…"
         onPress={handleLogin}
-        title="Log in"
+        title={cooldown.isCoolingDown ? `Try again in ${cooldown.secondsRemaining}s` : 'Log in'}
       />
 
       <View style={styles.switchRow}>
@@ -105,8 +130,8 @@ export default function LoginScreen() {
         <TouchableOpacity
           accessibilityRole="link"
           activeOpacity={0.7}
-          disabled={loading}
-          onPress={() => router.push('/(auth)/signup')}>
+          disabled={loginMutation.isPending}
+          onPress={() => router.push('/(auth)/register')}>
           <Text style={styles.linkText}>Create an account</Text>
         </TouchableOpacity>
       </View>
@@ -132,10 +157,15 @@ const styles = StyleSheet.create({
   form: {
     gap: theme.spacing.md,
   },
+  accountLinks: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
   forgotLink: {
     alignSelf: 'flex-end',
-    minHeight: 44,
     justifyContent: 'center',
+    minHeight: 44,
   },
   linkText: {
     color: theme.colors.deepGreen,
