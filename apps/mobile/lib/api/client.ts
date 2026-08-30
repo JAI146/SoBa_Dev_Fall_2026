@@ -20,8 +20,6 @@ type ApiRequestOptions<TBody> = Omit<RequestInit, 'body' | 'headers'> & {
   headers?: Record<string, string>;
 };
 
-const API_PATH_PREFIX = '/api';
-
 let authBridge: AuthBridge | null = null;
 let refreshPromise: Promise<AuthResponse | null> | null = null;
 
@@ -202,5 +200,5 @@ function buildUrl(path: string) {
   }
 
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return `${baseUrl}${API_PATH_PREFIX}${normalizedPath}`;
+  return `${baseUrl}${normalizedPath}`;
 }

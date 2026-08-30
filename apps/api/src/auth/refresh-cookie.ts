@@ -7,7 +7,7 @@ export const REFRESH_COOKIE_NAME = 'pm_refresh_token';
  * Scoped so the browser only ever sends the refresh token to the one endpoint
  * that consumes it. Nothing else on the API sees it.
  */
-export const REFRESH_COOKIE_PATH = '/api/auth/refresh';
+export const REFRESH_COOKIE_PATH = '/auth/refresh';
 
 function cookieOptions(isProduction: boolean): CookieOptions {
   return {
