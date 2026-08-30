@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import type { AuthResponse } from "@purposemint/contracts";
+import type { AuthResponse, RegisterPendingResponse } from "@purposemint/contracts";
 import { PasswordInput } from "@/components/auth/password-input";
 import { AuthPageTitle } from "@/components/auth/auth-page-title";
 import { IconInput } from "@/components/forms/icon-field";
@@ -40,10 +40,17 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const data = await apiRequest<AuthResponse>("/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
+      const data = await apiRequest<AuthResponse | RegisterPendingResponse>(
+        "/auth/login",
+        {
+          method: "POST",
+          body: JSON.stringify({ email, password }),
+        },
+      );
+      if (!("accessToken" in data)) {
+        setError(data.message);
+        return;
+      }
       saveAuth(data, rememberMe);
       setRememberMePreference(rememberMe, email);
       router.push("/dashboard");

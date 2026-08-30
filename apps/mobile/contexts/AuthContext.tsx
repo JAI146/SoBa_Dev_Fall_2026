@@ -6,6 +6,7 @@ import {
   type LoginInput,
   type MessageResponse,
   type RegisterInput,
+  type RegisterPendingResponse,
   type ResendVerificationInput,
   type ResetPasswordInput,
   type UserPublic,
@@ -44,9 +45,9 @@ type AuthContextValue = {
   forgotPassword: (input: ForgotPasswordInput) => Promise<MessageResponse>;
   isAuthenticated: boolean;
   isBootstrapping: boolean;
-  login: (input: LoginInput) => Promise<AuthResponse>;
+  login: (input: LoginInput) => Promise<AuthResponse | RegisterPendingResponse>;
   logout: () => Promise<void>;
-  register: (input: RegisterInput) => Promise<AuthResponse>;
+  register: (input: RegisterInput) => Promise<RegisterPendingResponse>;
   resendVerification: (input: ResendVerificationInput) => Promise<MessageResponse>;
   resetPassword: (input: ResetPasswordInput) => Promise<MessageResponse>;
   session: AuthSession | null;
@@ -137,26 +138,28 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const login = useCallback(
     async (input: LoginInput) => {
-      const nextSession = await apiRequest<AuthResponse, LoginInput>('/auth/login', {
+      const result = await apiRequest<
+        AuthResponse | RegisterPendingResponse,
+        LoginInput
+      >('/auth/login', {
         body: { ...input, clientType: ClientType.MOBILE },
         method: 'POST',
       });
-      await applySession(nextSession);
-      return nextSession;
+      if ('accessToken' in result) {
+        await applySession(result);
+      }
+      return result;
     },
     [applySession],
   );
 
   const register = useCallback(
-    async (input: RegisterInput) => {
-      const nextSession = await apiRequest<AuthResponse, RegisterInput>('/auth/register', {
+    (input: RegisterInput) =>
+      apiRequest<RegisterPendingResponse, RegisterInput>('/auth/register', {
         body: { ...input, clientType: ClientType.MOBILE },
         method: 'POST',
-      });
-      await applySession(nextSession);
-      return nextSession;
-    },
-    [applySession],
+      }),
+    [],
   );
 
   const verifyEmail = useCallback(

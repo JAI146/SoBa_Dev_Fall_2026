@@ -4,6 +4,7 @@ import {
   type LoginInput,
   type MessageResponse,
   type RegisterInput,
+  type RegisterPendingResponse,
   type ResendVerificationInput,
   type ResetPasswordInput,
   type VerifyEmailInput,
@@ -15,12 +16,16 @@ import { type ApiClientError } from '@/lib/api/client';
 
 export function useLoginMutation() {
   const { login } = useAuth();
-  return useMutation<AuthResponse, ApiClientError, LoginInput>({ mutationFn: login });
+  return useMutation<AuthResponse | RegisterPendingResponse, ApiClientError, LoginInput>({
+    mutationFn: login,
+  });
 }
 
 export function useRegisterMutation() {
   const { register } = useAuth();
-  return useMutation<AuthResponse, ApiClientError, RegisterInput>({ mutationFn: register });
+  return useMutation<RegisterPendingResponse, ApiClientError, RegisterInput>({
+    mutationFn: register,
+  });
 }
 
 export function useVerifyEmailMutation() {

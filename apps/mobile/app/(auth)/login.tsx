@@ -11,6 +11,7 @@ import { theme } from '@/constants/theme';
 import { useLoginMutation } from '@/hooks/use-auth-mutations';
 import { useCooldown } from '@/hooks/use-cooldown';
 import { ApiClientError } from '@/lib/api/client';
+import { navigateToVerifyEmail } from '@/lib/auth/navigate-to-verify-email';
 import { getApiFormErrors, getZodFieldErrors } from '@/lib/forms/errors';
 
 type LoginField = 'email' | 'password';
@@ -47,6 +48,11 @@ export default function LoginScreen() {
         setFormError(nextErrors.formError);
         if (error instanceof ApiClientError && error.status === 429) {
           cooldown.startCooldown(30);
+        }
+      },
+      onSuccess: (response) => {
+        if (!('accessToken' in response)) {
+          navigateToVerifyEmail(response);
         }
       },
     });

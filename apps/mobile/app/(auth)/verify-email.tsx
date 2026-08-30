@@ -25,12 +25,14 @@ type VerifyField = 'email' | 'otp';
 type VerifyErrors = Partial<Record<VerifyField, string>>;
 
 export default function VerifyEmailScreen() {
-  const params = useLocalSearchParams<{ email?: string }>();
+  const params = useLocalSearchParams<{ email?: string; message?: string }>();
   const [email, setEmail] = useState(params.email ?? '');
   const [otp, setOtp] = useState('');
   const [errors, setErrors] = useState<VerifyErrors>({});
   const [formError, setFormError] = useState<string>();
-  const [resendMessage, setResendMessage] = useState<string>();
+  const [resendMessage, setResendMessage] = useState<string | undefined>(
+    params.message,
+  );
   const verifyMutation = useVerifyEmailMutation();
   const resendMutation = useResendVerificationMutation();
   const submitCooldown = useCooldown();

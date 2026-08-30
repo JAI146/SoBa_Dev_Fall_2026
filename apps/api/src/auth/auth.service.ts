@@ -22,6 +22,7 @@ import {
   type MessageResponse,
   type PolicyAgreements,
   type RegisterInput,
+  type RegisterPendingResponse,
   type ResendVerificationInput,
   type ResetPasswordInput,
   type VerifyEmailInput,
@@ -93,7 +94,7 @@ export class AuthService {
   async register(
     input: RegisterInput,
     context: RequestContext,
-  ): Promise<AuthOutcome> {
+  ): Promise<RegisterPendingResponse> {
     const agreedAt = new Date().toISOString();
     const policyAgreements: PolicyAgreements = {
       [PolicyDocumentKey.TERMS_OF_USE]: {
@@ -142,7 +143,12 @@ export class AuthService {
       ipAddress: context.ipAddress,
     });
 
-    return this.startSession(user, input.clientType, context);
+    return {
+      requiresVerification: true,
+      email: user.email,
+      message:
+        "We've sent a six-digit code to that address. It works for the next few minutes.",
+    };
   }
 
   async verifyEmail(
@@ -204,7 +210,7 @@ export class AuthService {
   async login(
     input: LoginInput,
     context: RequestContext,
-  ): Promise<AuthOutcome> {
+  ): Promise<AuthOutcome | RegisterPendingResponse> {
     const user = await this.usersService.findByEmailWithPassword(input.email);
 
     // Run the compare either way so both branches cost the same.
@@ -232,6 +238,18 @@ export class AuthService {
       throw new ForbiddenException(
         "This account is on hold at the moment. Email support@purposemint.app and we'll help you sort it out.",
       );
+    }
+
+    // Same ordering as suspension: status is only consulted after the
+    // password is confirmed, so PENDING_EMAIL cannot become an existence oracle.
+    if (user.status === UserStatus.PENDING_EMAIL) {
+      await this.sendVerificationCodeUnlessCoolingDown(user);
+      return {
+        requiresVerification: true,
+        email: user.email,
+        message:
+          "That email still needs confirming. Enter the six-digit code we sent — it works for the next few minutes.",
+      };
     }
 
     await this.usersService.markLoggedIn(user.id);
@@ -411,6 +429,25 @@ export class AuthService {
       OtpType.EMAIL_VERIFICATION,
     );
     await this.sendCode(user, code, 'verification');
+  }
+
+  /**
+   * Login of an unverified account should hand them a working code if the last
+   * one has gone stale — but never fight `/resend-verification`'s cooldown.
+   */
+  private async sendVerificationCodeUnlessCoolingDown(
+    user: User,
+  ): Promise<void> {
+    try {
+      await this.otpService.assertNotOnCooldown(
+        user.id,
+        OtpType.EMAIL_VERIFICATION,
+      );
+    } catch {
+      return;
+    }
+
+    await this.issueAndSendVerificationCode(user);
   }
 
   private async sendCode(

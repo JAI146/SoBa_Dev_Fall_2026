@@ -15,6 +15,7 @@ import {
   ClientType,
   type AuthResponse,
   type MessageResponse,
+  type RegisterPendingResponse,
 } from '@purposemint/contracts';
 import type { Request, Response } from 'express';
 import { AuthThrottlerGuard } from '../common/guards/auth-throttler.guard';
@@ -65,17 +66,14 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
-    summary: 'Create an account, send a confirmation code, and sign them in',
+    summary:
+      'Create an account and email a confirmation code. Does not open a session.',
   })
-  async register(
+  register(
     @Body() body: RegisterDto,
     @Req() request: Request,
-    @Res({ passthrough: true }) response: Response,
-  ): Promise<AuthResponse> {
-    return this.deliver(
-      response,
-      await this.authService.register(body, requestContext(request)),
-    );
+  ): Promise<RegisterPendingResponse> {
+    return this.authService.register(body, requestContext(request));
   }
 
   @Public()
@@ -112,16 +110,23 @@ export class AuthController {
   @Throttle(CREDENTIAL_LIMIT)
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Sign in and open a session' })
+  @ApiOperation({
+    summary:
+      'Sign in and open a session. Unverified accounts receive a pending-verification response instead.',
+  })
   async login(
     @Body() body: LoginDto,
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<AuthResponse> {
-    return this.deliver(
-      response,
-      await this.authService.login(body, requestContext(request)),
+  ): Promise<AuthResponse | RegisterPendingResponse> {
+    const result = await this.authService.login(
+      body,
+      requestContext(request),
     );
+    if ('requiresVerification' in result) {
+      return result;
+    }
+    return this.deliver(response, result);
   }
 
   @Public()

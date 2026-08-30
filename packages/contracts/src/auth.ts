@@ -130,6 +130,17 @@ export interface AuthResponse {
   refreshToken?: string;
 }
 
+/**
+ * What `POST /auth/register` returns. The account exists and a code is on
+ * its way; there is no session and no token — those arrive only after
+ * `verify-email` succeeds.
+ */
+export interface RegisterPendingResponse {
+  requiresVerification: true;
+  email: string;
+  message: string;
+}
+
 export interface MessageResponse {
   message: string;
 }

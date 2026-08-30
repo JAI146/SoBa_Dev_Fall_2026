@@ -12,6 +12,7 @@ import { theme } from '@/constants/theme';
 import { useRegisterMutation } from '@/hooks/use-auth-mutations';
 import { useCooldown } from '@/hooks/use-cooldown';
 import { ApiClientError } from '@/lib/api/client';
+import { navigateToVerifyEmail } from '@/lib/auth/navigate-to-verify-email';
 import { getApiFormErrors, getZodFieldErrors } from '@/lib/forms/errors';
 
 type RegisterField = 'firstName' | 'lastName' | 'email' | 'password' | 'terms';
@@ -66,6 +67,7 @@ export default function RegisterScreen() {
           cooldown.startCooldown(30);
         }
       },
+      onSuccess: (response) => navigateToVerifyEmail(response),
     });
   };
 
