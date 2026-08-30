@@ -12,7 +12,15 @@ import { Repository } from 'typeorm';
 import type { Env } from '../config/env.validation';
 import { S3Config } from '../entities/s3-config.entity';
 import { SmtpConfig } from '../entities/smtp-config.entity';
+import { GoalTemplate } from '../entities/goal-template.entity';
+import { HabitTemplate } from '../entities/habit-template.entity';
 import { User } from '../entities/user.entity';
+import { Value } from '../entities/value.entity';
+import {
+  SEEDED_GOAL_TEMPLATES,
+  SEEDED_HABIT_TEMPLATES,
+  SEEDED_VALUES,
+} from './onboarding-seed-data';
 
 /**
  * Optional bootstrapping from environment variables. Everything here is a
@@ -30,6 +38,12 @@ export class SeedService implements OnModuleInit {
     private readonly s3ConfigRepo: Repository<S3Config>,
     @InjectRepository(SmtpConfig)
     private readonly smtpConfigRepo: Repository<SmtpConfig>,
+    @InjectRepository(Value)
+    private readonly valuesRepo: Repository<Value>,
+    @InjectRepository(GoalTemplate)
+    private readonly goalTemplatesRepo: Repository<GoalTemplate>,
+    @InjectRepository(HabitTemplate)
+    private readonly habitTemplatesRepo: Repository<HabitTemplate>,
     private readonly config: ConfigService<Env, true>,
   ) {}
 
@@ -37,6 +51,7 @@ export class SeedService implements OnModuleInit {
     await this.seedAdmin();
     await this.seedS3Config();
     await this.seedSmtpConfig();
+    await this.seedOnboardingContent();
   }
 
   private async seedAdmin() {
@@ -147,5 +162,32 @@ export class SeedService implements OnModuleInit {
       }),
     );
     this.logger.log('Seeded SMTP configuration from the environment.');
+  }
+
+  private async seedOnboardingContent() {
+    if ((await this.valuesRepo.count()) === 0) {
+      await this.valuesRepo.save(
+        SEEDED_VALUES.map((value) => this.valuesRepo.create({ ...value })),
+      );
+      this.logger.log('Seeded values.');
+    }
+
+    if ((await this.goalTemplatesRepo.count()) === 0) {
+      await this.goalTemplatesRepo.save(
+        SEEDED_GOAL_TEMPLATES.map((template) =>
+          this.goalTemplatesRepo.create({ ...template }),
+        ),
+      );
+      this.logger.log('Seeded goal templates.');
+    }
+
+    if ((await this.habitTemplatesRepo.count()) === 0) {
+      await this.habitTemplatesRepo.save(
+        SEEDED_HABIT_TEMPLATES.map((template) =>
+          this.habitTemplatesRepo.create({ ...template }),
+        ),
+      );
+      this.logger.log('Seeded habit templates.');
+    }
   }
 }

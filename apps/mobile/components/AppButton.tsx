@@ -8,7 +8,7 @@ type AppButtonProps = {
   disabled?: boolean;
   loading?: boolean;
   loadingTitle?: string;
-  variant?: 'primary' | 'soft' | 'outline';
+  variant?: 'primary' | 'soft' | 'outline' | 'gold';
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
   accessibilityLabel?: string;
@@ -27,6 +27,7 @@ export function AppButton({
 }: AppButtonProps) {
   const isDisabled = disabled || loading;
   const isPrimary = variant === 'primary';
+  const isGold = variant === 'gold';
 
   return (
     <TouchableOpacity
@@ -39,18 +40,23 @@ export function AppButton({
       style={[
         styles.button,
         isPrimary && styles.primaryButton,
+        isGold && styles.goldButton,
         variant === 'soft' && styles.softButton,
         variant === 'outline' && styles.outlineButton,
         isDisabled && styles.disabledButton,
         style,
       ]}>
       {loading ? (
-        <ActivityIndicator color={isPrimary ? theme.colors.white : theme.colors.deepGreen} size="small" />
+        <ActivityIndicator
+          color={isPrimary || isGold ? theme.colors.white : theme.colors.deepGreen}
+          size="small"
+        />
       ) : null}
       <Text
         style={[
           styles.title,
           isPrimary ? styles.primaryTitle : styles.secondaryTitle,
+          isGold && styles.goldTitle,
           textStyle,
         ]}>
         {loading ? loadingTitle ?? title : title}
@@ -73,6 +79,10 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.deepGreen,
     ...theme.shadows.button,
   },
+  goldButton: {
+    backgroundColor: theme.colors.gold,
+    ...theme.shadows.button,
+  },
   softButton: {
     backgroundColor: theme.colors.lightMint,
   },
@@ -90,6 +100,9 @@ const styles = StyleSheet.create({
   },
   primaryTitle: {
     color: theme.colors.white,
+  },
+  goldTitle: {
+    color: theme.colors.darkGreenText,
   },
   secondaryTitle: {
     color: theme.colors.deepGreen,

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   interpolateColor,
   useAnimatedStyle,
@@ -10,23 +10,28 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { theme } from '@/constants/theme';
-import { type Habit } from '@/lib/fixtures/habits';
-import { formatHabitSchedule } from '@/lib/habits/schedule';
 
 type HabitCheckCardProps = {
-  habit: Habit;
-  goalTitle?: string;
-  onOpen: () => void;
+  title: string;
+  description: string;
+  iconEmoji: string;
+  completedToday: boolean;
   onToggle: () => void;
 };
 
-export function HabitCheckCard({ habit, goalTitle, onOpen, onToggle }: HabitCheckCardProps) {
-  const completion = useSharedValue(habit.completedToday ? 1 : 0);
+export function HabitCheckCard({
+  title,
+  description,
+  iconEmoji,
+  completedToday,
+  onToggle,
+}: HabitCheckCardProps) {
+  const completion = useSharedValue(completedToday ? 1 : 0);
   const checkScale = useSharedValue(1);
 
   useEffect(() => {
-    completion.value = withTiming(habit.completedToday ? 1 : 0, { duration: 240 });
-  }, [completion, habit.completedToday]);
+    completion.value = withTiming(completedToday ? 1 : 0, { duration: 240 });
+  }, [completion, completedToday]);
 
   const cardStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(
@@ -46,7 +51,7 @@ export function HabitCheckCard({ habit, goalTitle, onOpen, onToggle }: HabitChec
   }));
 
   const handleToggle = () => {
-    const nextValue = habit.completedToday ? 0 : 1;
+    const nextValue = completedToday ? 0 : 1;
     completion.value = withTiming(nextValue, { duration: 240 });
     checkScale.value = withSequence(
       withTiming(0.84, { duration: 80 }),
@@ -57,38 +62,24 @@ export function HabitCheckCard({ habit, goalTitle, onOpen, onToggle }: HabitChec
 
   return (
     <Animated.View style={[styles.card, cardStyle]}>
+      <Text style={styles.emoji}>{iconEmoji}</Text>
+      <View style={styles.copy}>
+        <Text style={[styles.title, completedToday && styles.titleCompleted]}>{title}</Text>
+        <Text style={styles.description}>{description}</Text>
+      </View>
       <Pressable
-        accessibilityLabel={`${habit.completedToday ? 'Completed' : 'Mark complete'}: ${habit.title}`}
+        accessibilityLabel={`${completedToday ? 'Completed' : 'Mark complete'}: ${title}`}
         accessibilityRole="checkbox"
-        accessibilityState={{ checked: habit.completedToday }}
+        accessibilityState={{ checked: completedToday }}
         hitSlop={4}
         onPress={handleToggle}
         style={styles.checkTarget}>
-        <Animated.View
-          style={[styles.check, habit.completedToday && styles.checkCompleted, checkStyle]}>
-          {habit.completedToday ? (
+        <Animated.View style={[styles.check, completedToday && styles.checkCompleted, checkStyle]}>
+          {completedToday ? (
             <Ionicons color={theme.colors.white} name="checkmark" size={19} />
           ) : null}
         </Animated.View>
       </Pressable>
-
-      <TouchableOpacity
-        accessibilityLabel={`Open habit: ${habit.title}`}
-        accessibilityRole="button"
-        activeOpacity={0.72}
-        onPress={onOpen}
-        style={styles.openTarget}>
-        <View style={styles.copy}>
-          <Text style={[styles.title, habit.completedToday && styles.titleCompleted]}>
-            {habit.title}
-          </Text>
-          <Text style={styles.meta}>
-            {formatHabitSchedule(habit)} | {habit.currentStreak}-check-in streak
-          </Text>
-          {goalTitle ? <Text style={styles.goal}>Supports: {goalTitle}</Text> : null}
-        </View>
-        <Ionicons color={theme.colors.disabled} name="chevron-forward" size={20} />
-      </TouchableOpacity>
     </Animated.View>
   );
 }
@@ -99,59 +90,49 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.lg,
     borderWidth: 1,
     flexDirection: 'row',
-    minHeight: 92,
-    overflow: 'hidden',
-    paddingLeft: theme.spacing.xs,
+    gap: theme.spacing.sm,
+    minHeight: 72,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
   },
-  checkTarget: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 64,
-    width: 52,
-  },
-  check: {
-    alignItems: 'center',
-    borderColor: theme.colors.disabled,
-    borderRadius: theme.radius.pill,
-    borderWidth: 2,
-    height: 30,
-    justifyContent: 'center',
-    width: 30,
-  },
-  checkCompleted: {
-    backgroundColor: theme.colors.deepGreen,
-    borderColor: theme.colors.deepGreen,
-  },
-  openTarget: {
-    alignItems: 'center',
-    flex: 1,
-    flexDirection: 'row',
-    minHeight: 90,
-    paddingBottom: theme.spacing.sm,
-    paddingRight: theme.spacing.md,
-    paddingTop: theme.spacing.sm,
+  emoji: {
+    fontSize: 22,
   },
   copy: {
     flex: 1,
   },
   title: {
     color: theme.colors.text,
-    fontSize: theme.fontSize.md,
+    fontSize: theme.fontSize.sm,
     fontWeight: '900',
-    lineHeight: 22,
+    lineHeight: 20,
   },
   titleCompleted: {
     color: theme.colors.deepGreen,
   },
-  meta: {
+  description: {
     color: theme.colors.mutedText,
-    fontSize: theme.fontSize.xs,
-    marginTop: theme.spacing.xxs,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 2,
   },
-  goal: {
-    color: theme.colors.teal,
-    fontSize: 11,
-    fontWeight: '700',
-    marginTop: theme.spacing.xxs,
+  checkTarget: {
+    alignItems: 'center',
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  check: {
+    alignItems: 'center',
+    borderColor: theme.colors.disabled,
+    borderRadius: theme.radius.pill,
+    borderWidth: 2,
+    height: 28,
+    justifyContent: 'center',
+    width: 28,
+  },
+  checkCompleted: {
+    backgroundColor: theme.colors.deepGreen,
+    borderColor: theme.colors.deepGreen,
   },
 });

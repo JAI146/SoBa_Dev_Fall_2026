@@ -44,6 +44,7 @@ function RootNavigator() {
       <Stack screenOptions={{ animation: 'fade', headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(onboarding)" />
         <Stack.Screen name="(tabs)" />
       </Stack>
       <StatusBar backgroundColor="transparent" style="dark" translucent />

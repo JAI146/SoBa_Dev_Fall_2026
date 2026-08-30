@@ -4,3 +4,5 @@ export * from "./user";
 export * from "./auth";
 export * from "./s3-config";
 export * from "./smtp-config";
+export * from "./onboarding";
+export * from "./dashboard";

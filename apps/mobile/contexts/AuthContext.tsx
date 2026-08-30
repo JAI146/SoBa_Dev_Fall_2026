@@ -51,6 +51,7 @@ type AuthContextValue = {
   resendVerification: (input: ResendVerificationInput) => Promise<MessageResponse>;
   resetPassword: (input: ResetPasswordInput) => Promise<MessageResponse>;
   session: AuthSession | null;
+  updateSessionUser: (user: UserPublic) => void;
   verifyEmail: (input: VerifyEmailInput) => Promise<AuthResponse>;
 };
 
@@ -212,6 +213,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }, [clearSession]);
 
+  const updateSessionUser = useCallback(
+    (user: UserPublic) => {
+      setSession((current) => (current ? { ...current, user } : current));
+      queryClient.setQueryData(['users', 'me'], user);
+    },
+    [queryClient],
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       forgotPassword,
@@ -223,6 +232,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       resendVerification,
       resetPassword,
       session,
+      updateSessionUser,
       verifyEmail,
     }),
     [
@@ -234,6 +244,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       resendVerification,
       resetPassword,
       session,
+      updateSessionUser,
       verifyEmail,
     ],
   );

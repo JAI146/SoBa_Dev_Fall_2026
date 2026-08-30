@@ -89,7 +89,9 @@ export interface UserPublic {
   userType: UserTypeValue;
   adminRole: AdminRoleValue | null;
   status: UserStatusValue;
+  displayName: string | null;
   onboardingStatus: OnboardingStatusValue;
+  onboardingCompletedAt: string | null;
   tier: TierValue;
   emailVerifiedAt: string | null;
   lastLoginAt: string | null;
@@ -119,6 +121,12 @@ export const updateProfileSchema = z
       .string()
       .trim()
       .min(1, "We'd love a last name to go with your first.")
+      .max(100)
+      .optional(),
+    displayName: z
+      .string()
+      .trim()
+      .min(1, "We'd love a name to greet you by.")
       .max(100)
       .optional(),
     country: optionalPlace,

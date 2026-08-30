@@ -49,6 +49,10 @@ export class User {
   @Column({ name: 'last_name', type: 'varchar', length: 100 })
   lastName!: string;
 
+  /** Greeting name from onboarding. Null until the welcome step is saved. */
+  @Column({ name: 'display_name', type: 'varchar', length: 100, nullable: true })
+  displayName!: string | null;
+
   @Column({
     name: 'profile_image_url',
     type: 'varchar',
@@ -99,6 +103,28 @@ export class User {
     default: OnboardingStatus.NOT_STARTED,
   })
   onboardingStatus!: OnboardingStatusValue;
+
+  /**
+   * Set once when `onboardingStatus` becomes `completed`. Null at every other
+   * status. Routing uses `onboardingStatus`; this is the completion timestamp.
+   */
+  @Column({
+    name: 'onboarding_completed_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  onboardingCompletedAt!: Date | null;
+
+  /**
+   * True when the user chose "Build Habits First" and has no focus goal.
+   * Cleared if they later pick a savings goal during onboarding.
+   */
+  @Column({
+    name: 'onboarding_goal_skipped',
+    type: 'boolean',
+    default: false,
+  })
+  onboardingGoalSkipped!: boolean;
 
   /**
    * Written **only** by the subscription module (Phase 3), and never read to

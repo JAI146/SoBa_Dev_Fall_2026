@@ -64,6 +64,36 @@ export const tierValues = [Tier.FREE, Tier.GROWTH, Tier.ELEVATE] as const;
 
 export type TierValue = (typeof Tier)[keyof typeof Tier];
 
+export const HabitFrequency = {
+  DAILY: "daily",
+  WEEKLY: "weekly",
+  AS_NEEDED: "as_needed",
+} as const;
+
+export const habitFrequencyValues = [
+  HabitFrequency.DAILY,
+  HabitFrequency.WEEKLY,
+  HabitFrequency.AS_NEEDED,
+] as const;
+
+export type HabitFrequencyValue =
+  (typeof HabitFrequency)[keyof typeof HabitFrequency];
+
+export const HabitCategory = {
+  MONEY: "money",
+  MINDSET: "mindset",
+  MOTIVATION: "motivation",
+} as const;
+
+export const habitCategoryValues = [
+  HabitCategory.MONEY,
+  HabitCategory.MINDSET,
+  HabitCategory.MOTIVATION,
+] as const;
+
+export type HabitCategoryValue =
+  (typeof HabitCategory)[keyof typeof HabitCategory];
+
 /** Which client asked for the session. Decides refresh TTL and delivery channel. */
 export const ClientType = {
   MOBILE: "mobile",

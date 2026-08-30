@@ -1,618 +1,593 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { OnboardingStatus, Tier } from '@purposemint/contracts';
+import { Redirect } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AppScreen } from '@/components/AppScreen';
-import { DecorativeBlob } from '@/components/DecorativeBlob';
-import { ProgressBar } from '@/components/ProgressBar';
-import { SectionHeader } from '@/components/SectionHeader';
-import { SmallWinItem } from '@/components/SmallWinItem';
+import { AnimatedProgressBar } from '@/components/AnimatedProgressBar';
+import { ChangeGoalModal } from '@/components/dashboard/ChangeGoalModal';
+import {
+  CommunityChallengeCard,
+  PathwayProgressCard,
+  ReflectionJourneyCard,
+  WaysToSaveCard,
+} from '@/components/dashboard/DashboardSections';
+import { LogSavingsModal } from '@/components/dashboard/LogSavingsModal';
+import { HabitCheckCard } from '@/components/HabitCheckCard';
 import { theme } from '@/constants/theme';
+import { useAuth } from '@/contexts/AuthContext';
+import { useDashboard } from '@/hooks/use-dashboard';
+import { postAuthHref } from '@/lib/auth/post-auth-href';
+import { formatUsd } from '@/lib/format/money';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
-const smallWins: { id: string; title: string; time: string; icon: IoniconName }[] = [
-  { id: 'save', title: 'Move $5 to your cushion', time: '2 min', icon: 'wallet-outline' },
-  { id: 'review', title: 'Review one spending choice', time: '3 min', icon: 'search-outline' },
-  { id: 'reflect', title: 'Write today’s reflection', time: '2 min', icon: 'pencil-outline' },
+const TOOLS: {
+  title: string;
+  sub: string;
+  state: 'display' | 'functional' | 'locked';
+  requires: 'none' | 'momentum' | 'elevation';
+  icon: IoniconName;
+}[] = [
+  {
+    title: 'Daily check-in',
+    sub: 'How are you feeling?',
+    state: 'display',
+    requires: 'none',
+    icon: 'sunny-outline',
+  },
+  {
+    title: 'Month in review',
+    sub: 'See your recap',
+    state: 'display',
+    requires: 'none',
+    icon: 'calendar-outline',
+  },
+  {
+    title: 'Pause my plan',
+    sub: 'Life happens',
+    state: 'display',
+    requires: 'none',
+    icon: 'pause-outline',
+  },
+  {
+    title: 'Log savings by hand',
+    sub: 'Free manual tracking',
+    state: 'functional',
+    requires: 'none',
+    icon: 'pencil-outline',
+  },
+  {
+    title: 'Open an account',
+    sub: 'Momentum opens a partner-bank account',
+    state: 'locked',
+    requires: 'momentum',
+    icon: 'wallet-outline',
+  },
+  {
+    title: 'Level 5: Pathways',
+    sub: 'Elevation unlocks car, home, or training',
+    state: 'locked',
+    requires: 'elevation',
+    icon: 'map-outline',
+  },
+  {
+    title: 'How your money works',
+    sub: 'Fees, partners, support, closing your account',
+    state: 'display',
+    requires: 'none',
+    icon: 'information-circle-outline',
+  },
 ];
 
-const moods = ['😔', '😕', '😌', '🙂', '🌟'];
-const week = [
-  { day: 'M', done: true },
-  { day: 'T', done: true },
-  { day: 'W', done: true },
-  { day: 'T', done: true },
-  { day: 'F', done: false },
-  { day: 'S', done: false },
-  { day: 'S', done: false },
-];
+export default function DashboardScreen() {
+  const { session } = useAuth();
+  const { data, isLoading, completeHabit, logSavings, loggingSavings, setFocusGoal } =
+    useDashboard();
+  const [logOpen, setLogOpen] = useState(false);
+  const [changeOpen, setChangeOpen] = useState(false);
 
-export default function HomeScreen() {
-  const [completedWins, setCompletedWins] = useState<Record<string, boolean>>({});
-  const [selectedMood, setSelectedMood] = useState<string>();
-  const [notificationSeen, setNotificationSeen] = useState(false);
+  if (!session || session.user.onboardingStatus !== OnboardingStatus.COMPLETED) {
+    return <Redirect href={postAuthHref(session?.user)} />;
+  }
 
-  const toggleWin = (id: string) => {
-    setCompletedWins((current) => ({ ...current, [id]: !current[id] }));
-  };
+  if (isLoading || !data) {
+    return (
+      <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <View style={styles.loading}>
+          <ActivityIndicator color={theme.colors.deepGreen} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const focus = data.focusGoal;
+  const headline = data.primaryValue?.headlineWord;
 
   return (
-    <AppScreen contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <View style={styles.headerCopy}>
-          <Text style={styles.greeting}>Good morning, Maya</Text>
-          <Text style={styles.headerMessage}>Every small step is building something meaningful.</Text>
-        </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            accessibilityLabel="Notifications"
-            accessibilityRole="button"
-            activeOpacity={0.7}
-            onPress={() => setNotificationSeen(true)}
-            style={styles.headerButton}>
-            <Ionicons color={theme.colors.deepGreen} name="notifications-outline" size={22} />
-            {!notificationSeen ? <View style={styles.notificationDot} /> : null}
-          </TouchableOpacity>
-          <TouchableOpacity
-            accessibilityLabel="Open Maya's profile"
-            accessibilityRole="button"
-            activeOpacity={0.75}
-            onPress={() => router.push('/(tabs)/profile')}
-            style={styles.avatar}>
-            <Text style={styles.avatarText}>MA</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+    <SafeAreaView edges={['top']} style={styles.safeArea}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}>
+        <Text style={styles.heading}>{data.displayName}'s Dashboard</Text>
+        <Text style={styles.sub}>
+          You're building toward{' '}
+          {headline ? (
+            <Text style={styles.headlineWord}>{headline}</Text>
+          ) : (
+            <Text style={styles.headlineWord}>what matters</Text>
+          )}
+          .
+        </Text>
 
-      <View style={styles.heroCard}>
-        <DecorativeBlob style={styles.heroMintBlob} />
-        <DecorativeBlob style={styles.heroCoralBlob} />
-        <DecorativeBlob style={styles.heroOutlineBlob} />
-        <View style={styles.heroContent}>
-          <Text style={styles.eyebrow}>THIS WEEK’S PURPOSE</Text>
-          <Text style={styles.heroTitle}>Build a little more breathing room</Text>
-          <Text style={styles.heroText}>You’re making progress toward your emergency cushion.</Text>
-          <View style={styles.progressCopy}>
-            <Text style={styles.progressAmount}>$340 of $500</Text>
-            <Text style={styles.progressPercent}>68%</Text>
+        <View style={styles.pills}>
+          <QuickPill label="Update Goals" onPress={() => setChangeOpen(true)} />
+          <QuickPill label="Update Habits" onPress={() => undefined} />
+          <QuickPill label="Edit Values" onPress={() => undefined} />
+        </View>
+
+        <View style={styles.card}>
+          {focus ? (
+            <>
+              <View style={styles.rowBetween}>
+                <Text style={styles.sectionTitle}>
+                  Progress: {focus.progressPercent}% towards {formatUsd(focus.targetAmount)}
+                </Text>
+                <Text style={styles.savedHero}>{formatUsd(focus.savedAmount)}</Text>
+              </View>
+              <AnimatedProgressBar progress={focus.progressPercent / 100} />
+              <Text style={styles.muted}>
+                {formatUsd(focus.savedAmount)} saved · {formatUsd(focus.remainingAmount)} left to
+                reach your {formatUsd(focus.targetAmount)} goal
+              </Text>
+              <Text style={styles.italic}>
+                You log these amounts yourself on Starter. Nothing is withdrawn from a bank
+                account.
+              </Text>
+              <View style={styles.currentGoal}>
+                <Text style={styles.goalEmoji}>{focus.iconEmoji}</Text>
+                <View style={styles.flex}>
+                  <Text style={styles.goalTitle}>{focus.title}</Text>
+                  <Text style={styles.currentLabel}>Current Goal</Text>
+                </View>
+                <Pressable
+                  accessibilityLabel="Change"
+                  accessibilityRole="button"
+                  onPress={() => setChangeOpen(true)}
+                  style={styles.changeButton}>
+                  <Text style={styles.changeText}>Change</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={styles.sectionTitle}>Progress: start when you're ready</Text>
+              <AnimatedProgressBar progress={0} />
+              <Text style={styles.italic}>
+                Start with habits for now. When you're ready, pick a savings goal and log what you
+                set aside.
+              </Text>
+            </>
+          )}
+        </View>
+
+        <CommunityChallengeCard challenge={data.communityChallenge} />
+
+        <View style={styles.card}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.sectionTitle}>Today's Habits</Text>
+            <Pressable
+              accessibilityLabel="Edit Habits"
+              accessibilityRole="button"
+              onPress={() => undefined}
+              style={styles.editHabits}>
+              <Text style={styles.editHabitsText}>Edit Habits</Text>
+            </Pressable>
           </View>
-          <ProgressBar
-            fillStyle={styles.heroProgressFill}
-            progress={0.68}
-            trackStyle={styles.heroProgressTrack}
-          />
-          <TouchableOpacity
-            accessibilityRole="button"
-            activeOpacity={0.8}
-            onPress={() => router.push('/(tabs)/goals')}
-            style={styles.heroButton}>
-            <Text style={styles.heroButtonText}>View goal</Text>
-            <Ionicons color={theme.colors.deepGreen} name="arrow-forward" size={18} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <SectionHeader detail="3 actions" title="Today’s small wins" />
-        <View style={styles.list}>
-          {smallWins.map((win) => (
-            <SmallWinItem
-              completed={Boolean(completedWins[win.id])}
-              icon={win.icon}
-              key={win.id}
-              onToggle={() => toggleWin(win.id)}
-              time={win.time}
-              title={win.title}
+          {data.habits.map((habit) => (
+            <HabitCheckCard
+              completedToday={habit.completedToday}
+              description={habit.description}
+              iconEmoji={habit.iconEmoji}
+              key={habit.id}
+              onToggle={() => completeHabit(habit.id)}
+              title={habit.title}
             />
           ))}
-        </View>
-      </View>
-
-      <View style={styles.purposeCard}>
-        <View style={styles.purposeIcon}>
-          <Ionicons color={theme.colors.deepGreen} name="git-network-outline" size={24} />
-        </View>
-        <Text style={styles.cardTitle}>Your PurposeMap</Text>
-        <View style={styles.chipsWrap}>
-          <View style={styles.connector} />
-          {['Security', 'Family', 'Freedom'].map((value, index) => (
-            <View key={value} style={[styles.valueChip, index === 1 && styles.familyChip]}>
-              <Text style={styles.valueText}>{value}</Text>
+          <Pressable
+            accessibilityLabel="Log $5 you saved"
+            accessibilityRole="button"
+            onPress={() => setLogOpen(true)}
+            style={styles.logSavings}>
+            <Text style={styles.logSavingsTitle}>Log $5 you saved</Text>
+            <Text style={styles.logSavingsSub}>
+              Manual entry — no money moves in or out of any bank
+            </Text>
+          </Pressable>
+          <View
+            accessibilityLabel="Log your mood. How are you feeling today?"
+            accessibilityRole="text"
+            style={styles.logMood}>
+            <View style={styles.flex}>
+              <Text style={styles.logMoodTitle}>Log your mood</Text>
+              <Text style={styles.logMoodSub}>How are you feeling today?</Text>
             </View>
-          ))}
+            <Ionicons color={theme.colors.mutedText} name="chevron-forward" size={18} />
+          </View>
         </View>
-        <Text style={styles.cardBody}>
-          Your current goals are connected to the values that matter most to you.
-        </Text>
-        <TouchableOpacity
-          accessibilityRole="link"
-          activeOpacity={0.7}
-          onPress={() => router.push('/(tabs)/goals')}
-          style={styles.textLink}>
-          <Text style={styles.textLinkLabel}>Explore PurposeMap</Text>
-          <Ionicons color={theme.colors.deepGreen} name="arrow-forward" size={17} />
-        </TouchableOpacity>
+
+        <ReflectionJourneyCard reflection={data.reflection} />
+        <WaysToSaveCard />
+        <PathwayProgressCard items={data.pathwayProgress} />
+
+        <View style={styles.card}>
+          <Text style={styles.toolsEyebrow}>YOUR TOOLS</Text>
+          <Text style={styles.muted}>
+            You're on Starter (free): build the habit and log what you save by hand. Momentum opens
+            your PurposeMint account so saving happens automatically. Elevation unlocks Level 5
+            Pathways.
+          </Text>
+          <View style={styles.toolsGrid}>
+            {TOOLS.map((tool) => {
+              const hasMomentum =
+                data.user.tier === Tier.GROWTH || data.user.tier === Tier.ELEVATE;
+              const hasElevation = data.user.tier === Tier.ELEVATE;
+              const locked =
+                (tool.requires === 'momentum' && !hasMomentum) ||
+                (tool.requires === 'elevation' && !hasElevation);
+              const onPress =
+                tool.state === 'functional' ? () => setLogOpen(true) : undefined;
+              return (
+                <Pressable
+                  accessibilityLabel={locked ? `${tool.title}. Locked` : tool.title}
+                  accessibilityRole={onPress ? 'button' : 'text'}
+                  accessibilityState={locked ? { disabled: true } : undefined}
+                  disabled={locked || !onPress}
+                  key={tool.title}
+                  onPress={onPress}
+                  style={[styles.toolCard, locked && styles.toolLocked]}>
+                  <View style={styles.toolHeader}>
+                    <Ionicons color={theme.colors.deepGreen} name={tool.icon} size={18} />
+                    {locked ? (
+                      <Ionicons color={theme.colors.deepGreen} name="lock-closed" size={14} />
+                    ) : null}
+                  </View>
+                  <Text style={styles.toolTitle}>{tool.title}</Text>
+                  <Text style={styles.toolSub}>{tool.sub}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <View
+            accessibilityLabel="See More Tools. Monthly reflections, planners, coaching & more"
+            accessibilityRole="text"
+            style={styles.moreTools}>
+            <Text style={styles.moreToolsTitle}>See More Tools</Text>
+            <Text style={styles.muted}>Monthly reflections, planners, coaching & more</Text>
+          </View>
+          <View
+            accessibilityLabel="Lead Challenges for Your Community. Open the Community Challenge Board and save alongside your group"
+            accessibilityRole="text"
+            style={styles.leadChallenges}>
+            <Text style={styles.leadTitle}>Lead Challenges for Your Community</Text>
+            <Text style={styles.muted}>
+              Open the Community Challenge Board and save alongside your group
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <View style={styles.flex}>
+          <Text style={styles.footerTitle}>Level 5: Pathways</Text>
+          <Text style={styles.footerSub}>
+            Turn what you've saved into a car, a home, childcare, or training.
+          </Text>
+        </View>
+        <View
+          accessibilityLabel="Unlock Pathways. Locked"
+          accessibilityRole="text"
+          style={styles.unlockButton}>
+          <Ionicons color={theme.colors.white} name="lock-closed" size={14} />
+          <Text style={styles.unlockText}>Unlock Pathways</Text>
+        </View>
       </View>
 
-      <View style={styles.weekCard}>
-        <View style={styles.weekTitleRow}>
-          <View>
-            <Text style={styles.cardTitle}>Weekly rhythm</Text>
-            <Text style={styles.streak}>4-day streak</Text>
-          </View>
-          <View style={styles.flameIcon}>
-            <Ionicons color={theme.colors.coral} name="flame" size={25} />
-          </View>
-        </View>
-        <View style={styles.daysRow}>
-          {week.map((item, index) => (
-            <View key={`${item.day}-${index}`} style={styles.dayColumn}>
-              <View style={[styles.dayDot, item.done && styles.dayDotDone]}>
-                {item.done ? (
-                  <Ionicons color={theme.colors.white} name="checkmark" size={16} />
-                ) : (
-                  <View style={styles.dayEmpty} />
-                )}
-              </View>
-              <Text style={styles.dayText}>{item.day}</Text>
-            </View>
-          ))}
-        </View>
-        <Text style={styles.weekMessage}>Consistency matters more than perfection.</Text>
-      </View>
+      <LogSavingsModal
+        goalTitle={focus?.title ?? null}
+        onClose={() => setLogOpen(false)}
+        onSave={async (amount, note) => {
+          if (!focus) return;
+          await logSavings({ goalId: focus.id, amount, note });
+        }}
+        saving={loggingSavings}
+        visible={logOpen}
+      />
+      <ChangeGoalModal
+        focusGoalId={focus?.id ?? null}
+        goals={data.goals}
+        onClose={() => setChangeOpen(false)}
+        onSelect={(goalId) => {
+          void setFocusGoal(goalId);
+        }}
+        visible={changeOpen}
+      />
+    </SafeAreaView>
+  );
+}
 
-      <View style={styles.reflectionCard}>
-        <View style={styles.reflectionHeading}>
-          <View style={styles.reflectionIcon}>
-            <Ionicons color={theme.colors.deepGreen} name="heart-outline" size={22} />
-          </View>
-          <Text style={styles.cardTitle}>How are you feeling today?</Text>
-        </View>
-        <View style={styles.moodRow}>
-          {moods.map((mood) => {
-            const isSelected = selectedMood === mood;
-            return (
-              <Pressable
-                accessibilityLabel={`Select mood ${mood}`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-                key={mood}
-                onPress={() => setSelectedMood(mood)}
-                style={[styles.moodButton, isSelected && styles.moodButtonSelected]}>
-                <Text style={styles.mood}>{mood}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <TouchableOpacity
-          accessibilityRole="button"
-          activeOpacity={0.78}
-          onPress={() => router.push('/(tabs)/journal')}
-          style={styles.reflectionButton}>
-          <Text style={styles.reflectionButtonText}>Add reflection</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.badgeCard}>
-        <View style={styles.badgeVisual}>
-          <View style={styles.badgeInner}>
-            <Ionicons color={theme.colors.deepGreen} name="sparkles" size={25} />
-          </View>
-        </View>
-        <View style={styles.badgeCopy}>
-          <Text style={styles.badgeEyebrow}>ALMOST YOURS</Text>
-          <Text style={styles.badgeTitle}>Small Wins Starter</Text>
-          <Text style={styles.badgeBody}>Complete one more action to unlock this badge.</Text>
-        </View>
-      </View>
-    </AppScreen>
+function QuickPill({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={styles.pill}>
+      <Text style={styles.pillText}>{label}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    gap: theme.spacing.xl,
-  },
-  header: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  headerCopy: {
+  safeArea: {
+    backgroundColor: theme.colors.cream,
     flex: 1,
-    paddingRight: theme.spacing.sm,
   },
-  greeting: {
+  loading: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  content: {
+    gap: theme.spacing.md,
+    padding: theme.spacing.lg,
+    paddingBottom: 24,
+  },
+  heading: {
     color: theme.colors.text,
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '900',
     letterSpacing: -0.6,
   },
-  headerMessage: {
+  sub: {
+    color: theme.colors.mutedText,
+    fontSize: theme.fontSize.sm,
+    marginTop: -theme.spacing.xs,
+  },
+  headlineWord: {
+    color: theme.colors.plum,
+    fontWeight: '800',
+  },
+  pills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.xs,
+  },
+  pill: {
+    backgroundColor: theme.colors.white,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: theme.spacing.md,
+  },
+  pillText: {
+    color: theme.colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  card: {
+    backgroundColor: theme.colors.white,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.xl,
+    borderWidth: 1,
+    gap: theme.spacing.sm,
+    padding: theme.spacing.lg,
+  },
+  rowBetween: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  sectionTitle: {
+    color: theme.colors.text,
+    flex: 1,
+    fontSize: theme.fontSize.md,
+    fontWeight: '900',
+    paddingRight: theme.spacing.sm,
+  },
+  savedHero: {
+    color: theme.colors.text,
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  muted: {
     color: theme.colors.mutedText,
     fontSize: theme.fontSize.sm,
     lineHeight: 20,
-    marginTop: theme.spacing.xxs,
-    maxWidth: 280,
   },
-  headerActions: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: theme.spacing.xs,
-  },
-  headerButton: {
-    alignItems: 'center',
-    backgroundColor: theme.colors.white,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.pill,
-    borderWidth: 1,
-    height: 46,
-    justifyContent: 'center',
-    width: 46,
-  },
-  notificationDot: {
-    backgroundColor: theme.colors.coral,
-    borderColor: theme.colors.white,
-    borderRadius: 5,
-    borderWidth: 2,
-    height: 10,
-    position: 'absolute',
-    right: 9,
-    top: 8,
-    width: 10,
-  },
-  avatar: {
-    alignItems: 'center',
-    backgroundColor: theme.colors.deepGreen,
-    borderRadius: theme.radius.pill,
-    height: 46,
-    justifyContent: 'center',
-    width: 46,
-  },
-  avatarText: {
-    color: theme.colors.white,
-    fontSize: theme.fontSize.sm,
-    fontWeight: '900',
-  },
-  heroCard: {
-    backgroundColor: theme.colors.deepGreen,
-    borderRadius: theme.radius.xl,
-    minHeight: 370,
-    overflow: 'hidden',
-    padding: theme.spacing.lg,
-    ...theme.shadows.card,
-  },
-  heroContent: {
-    flex: 1,
-    maxWidth: 330,
-    zIndex: 1,
-  },
-  eyebrow: {
-    color: theme.colors.mint,
-    fontSize: theme.fontSize.xs,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-  },
-  heroTitle: {
-    color: theme.colors.white,
-    fontSize: 33,
-    fontWeight: '900',
-    letterSpacing: -1,
-    lineHeight: 38,
-    marginTop: theme.spacing.sm,
-    maxWidth: 300,
-  },
-  heroText: {
-    color: '#D9ECE7',
-    fontSize: theme.fontSize.sm,
-    lineHeight: 21,
-    marginTop: theme.spacing.sm,
-    maxWidth: 280,
-  },
-  progressCopy: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: theme.spacing.xs,
-    marginTop: theme.spacing.lg,
-  },
-  progressAmount: {
-    color: theme.colors.white,
-    fontSize: theme.fontSize.sm,
-    fontWeight: '800',
-  },
-  progressPercent: {
-    color: theme.colors.mint,
-    fontSize: theme.fontSize.sm,
-    fontWeight: '900',
-  },
-  heroProgressTrack: {
-    backgroundColor: 'rgba(255,255,255,0.22)',
-  },
-  heroProgressFill: {
-    backgroundColor: theme.colors.mint,
-  },
-  heroButton: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.radius.md,
-    flexDirection: 'row',
-    gap: theme.spacing.xs,
-    justifyContent: 'center',
-    marginTop: theme.spacing.lg,
-    minHeight: 50,
-    paddingHorizontal: theme.spacing.lg,
-  },
-  heroButtonText: {
-    color: theme.colors.deepGreen,
-    fontSize: theme.fontSize.sm,
-    fontWeight: '900',
-  },
-  heroMintBlob: {
-    backgroundColor: 'rgba(158,223,203,0.22)',
-    height: 230,
-    right: -84,
-    top: -48,
-    width: 230,
-  },
-  heroCoralBlob: {
-    backgroundColor: theme.colors.coral,
-    bottom: -52,
-    height: 150,
-    opacity: 0.9,
-    right: -24,
-    width: 150,
-  },
-  heroOutlineBlob: {
-    borderColor: 'rgba(255,255,255,0.18)',
-    borderWidth: 24,
-    bottom: -60,
-    height: 190,
-    left: -92,
-    width: 190,
-  },
-  section: {
-    gap: theme.spacing.md,
-  },
-  list: {
-    gap: theme.spacing.sm,
-  },
-  purposeCard: {
-    backgroundColor: theme.colors.white,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.xl,
-    borderWidth: 1,
-    padding: theme.spacing.lg,
-    ...theme.shadows.card,
-  },
-  purposeIcon: {
-    alignItems: 'center',
-    backgroundColor: theme.colors.lightMint,
-    borderRadius: theme.radius.md,
-    height: 48,
-    justifyContent: 'center',
-    marginBottom: theme.spacing.md,
-    width: 48,
-  },
-  cardTitle: {
-    color: theme.colors.text,
-    fontSize: theme.fontSize.lg,
-    fontWeight: '900',
-    letterSpacing: -0.4,
-  },
-  chipsWrap: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginVertical: theme.spacing.lg,
-    position: 'relative',
-  },
-  connector: {
-    backgroundColor: theme.colors.mint,
-    height: 2,
-    left: '12%',
-    position: 'absolute',
-    right: '12%',
-    top: 20,
-  },
-  valueChip: {
-    alignItems: 'center',
-    backgroundColor: theme.colors.lightMint,
-    borderColor: theme.colors.mint,
-    borderRadius: theme.radius.pill,
-    borderWidth: 1,
-    justifyContent: 'center',
-    minHeight: 42,
-    paddingHorizontal: theme.spacing.sm,
-    zIndex: 1,
-  },
-  familyChip: {
-    backgroundColor: theme.colors.lightCoral,
-    borderColor: theme.colors.coral,
-  },
-  valueText: {
-    color: theme.colors.darkGreenText,
-    fontSize: theme.fontSize.xs,
-    fontWeight: '800',
-  },
-  cardBody: {
+  italic: {
     color: theme.colors.mutedText,
-    fontSize: theme.fontSize.sm,
-    lineHeight: 21,
+    fontSize: theme.fontSize.xs,
+    fontStyle: 'italic',
+    lineHeight: 18,
   },
-  textLink: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    gap: theme.spacing.xs,
-    marginTop: theme.spacing.sm,
-    minHeight: 44,
-  },
-  textLinkLabel: {
-    color: theme.colors.deepGreen,
-    fontSize: theme.fontSize.sm,
-    fontWeight: '900',
-  },
-  weekCard: {
-    backgroundColor: theme.colors.white,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.xl,
-    borderWidth: 1,
-    padding: theme.spacing.lg,
-  },
-  weekTitleRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  streak: {
-    color: theme.colors.coral,
-    fontSize: theme.fontSize.sm,
-    fontWeight: '800',
-    marginTop: theme.spacing.xxs,
-  },
-  flameIcon: {
-    alignItems: 'center',
-    backgroundColor: theme.colors.lightCoral,
-    borderRadius: theme.radius.pill,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
-  },
-  daysRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: theme.spacing.lg,
-  },
-  dayColumn: {
-    alignItems: 'center',
-    gap: theme.spacing.xxs,
-  },
-  dayDot: {
+  currentGoal: {
     alignItems: 'center',
     backgroundColor: theme.colors.graphite,
-    borderRadius: theme.radius.pill,
-    height: 34,
-    justifyContent: 'center',
-    width: 34,
+    borderRadius: theme.radius.md,
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    padding: theme.spacing.sm,
   },
-  dayDotDone: {
-    backgroundColor: theme.colors.deepGreen,
+  goalEmoji: {
+    fontSize: 22,
   },
-  dayEmpty: {
-    backgroundColor: theme.colors.border,
-    borderRadius: 4,
-    height: 6,
-    width: 6,
+  flex: {
+    flex: 1,
   },
-  dayText: {
+  goalTitle: {
+    color: theme.colors.text,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '800',
+  },
+  currentLabel: {
     color: theme.colors.mutedText,
     fontSize: 11,
     fontWeight: '700',
   },
-  weekMessage: {
-    color: theme.colors.mutedText,
+  changeButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: theme.spacing.sm,
+  },
+  changeText: {
+    color: theme.colors.deepGreen,
     fontSize: theme.fontSize.sm,
-    marginTop: theme.spacing.md,
-    textAlign: 'center',
+    fontWeight: '800',
   },
-  reflectionCard: {
-    backgroundColor: theme.colors.lavender,
-    borderRadius: theme.radius.xl,
-    padding: theme.spacing.lg,
+  editHabits: {
+    minHeight: 44,
+    justifyContent: 'center',
   },
-  reflectionHeading: {
+  editHabitsText: {
+    color: theme.colors.deepGreen,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '800',
+  },
+  logSavings: {
+    backgroundColor: theme.colors.paleGold,
+    borderRadius: theme.radius.md,
+    minHeight: 64,
+    padding: theme.spacing.md,
+  },
+  logSavingsTitle: {
+    color: theme.colors.text,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '900',
+  },
+  logSavingsSub: {
+    color: theme.colors.mutedText,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  logMood: {
     alignItems: 'center',
+    backgroundColor: theme.colors.accentSoft,
+    borderRadius: theme.radius.md,
     flexDirection: 'row',
+    minHeight: 64,
+    padding: theme.spacing.md,
+  },
+  logMoodTitle: {
+    color: theme.colors.text,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '900',
+  },
+  logMoodSub: {
+    color: theme.colors.mutedText,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  toolsEyebrow: {
+    color: theme.colors.mutedText,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  toolsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: theme.spacing.sm,
   },
-  reflectionIcon: {
-    alignItems: 'center',
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.radius.pill,
-    height: 42,
-    justifyContent: 'center',
-    width: 42,
+  toolCard: {
+    backgroundColor: theme.colors.graphite,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.sm,
+    width: '48%',
   },
-  moodRow: {
+  toolLocked: {
+    opacity: 0.85,
+  },
+  toolHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginVertical: theme.spacing.lg,
+    marginBottom: 6,
   },
-  moodButton: {
+  toolTitle: {
+    color: theme.colors.text,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '800',
+  },
+  toolSub: {
+    color: theme.colors.mutedText,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  moreTools: {
+    backgroundColor: theme.colors.lightMint,
+    borderRadius: theme.radius.md,
+    minHeight: 64,
+    padding: theme.spacing.md,
+  },
+  moreToolsTitle: {
+    color: theme.colors.text,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '900',
+  },
+  leadChallenges: {
+    backgroundColor: theme.colors.accentSoft,
+    borderRadius: theme.radius.md,
+    minHeight: 64,
+    padding: theme.spacing.md,
+  },
+  leadTitle: {
+    color: theme.colors.text,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '900',
+  },
+  footer: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.72)',
-    borderColor: 'transparent',
-    borderRadius: theme.radius.pill,
-    borderWidth: 2,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
+    backgroundColor: theme.colors.lightMint,
+    borderTopColor: theme.colors.border,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
   },
-  moodButtonSelected: {
-    backgroundColor: theme.colors.white,
-    borderColor: theme.colors.deepGreen,
+  footerTitle: {
+    color: theme.colors.text,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '900',
   },
-  mood: {
-    fontSize: 23,
+  footerSub: {
+    color: theme.colors.mutedText,
+    fontSize: 11,
+    lineHeight: 16,
   },
-  reflectionButton: {
+  unlockButton: {
     alignItems: 'center',
     backgroundColor: theme.colors.deepGreen,
     borderRadius: theme.radius.md,
-    justifyContent: 'center',
-    minHeight: 50,
-  },
-  reflectionButtonText: {
-    color: theme.colors.white,
-    fontSize: theme.fontSize.sm,
-    fontWeight: '900',
-  },
-  badgeCard: {
-    alignItems: 'center',
-    backgroundColor: theme.colors.paleGold,
-    borderRadius: theme.radius.xl,
     flexDirection: 'row',
-    gap: theme.spacing.md,
-    padding: theme.spacing.lg,
+    gap: 6,
+    minHeight: 44,
+    paddingHorizontal: theme.spacing.md,
   },
-  badgeVisual: {
-    alignItems: 'center',
-    backgroundColor: theme.colors.gold,
-    borderRadius: theme.radius.pill,
-    height: 70,
-    justifyContent: 'center',
-    width: 70,
-  },
-  badgeInner: {
-    alignItems: 'center',
-    backgroundColor: theme.colors.paleGold,
-    borderRadius: theme.radius.pill,
-    height: 52,
-    justifyContent: 'center',
-    width: 52,
-  },
-  badgeCopy: {
-    flex: 1,
-  },
-  badgeEyebrow: {
-    color: '#826314',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.1,
-  },
-  badgeTitle: {
-    color: theme.colors.text,
-    fontSize: theme.fontSize.md,
-    fontWeight: '900',
-    marginTop: 3,
-  },
-  badgeBody: {
-    color: theme.colors.mutedText,
-    fontSize: theme.fontSize.xs,
-    lineHeight: 18,
-    marginTop: 3,
+  unlockText: {
+    color: theme.colors.white,
+    fontSize: 12,
+    fontWeight: '800',
   },
 });
