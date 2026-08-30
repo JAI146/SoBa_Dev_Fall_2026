@@ -23,6 +23,9 @@ export class SmtpConfig {
   @Column({ name: 'smtp_email_password', type: 'text' })
   smtpEmailPassword!: string;
 
+  @Column({ name: 'from_email', type: 'varchar', length: 255 })
+  fromEmail!: string;
+
   @Column({ name: 'smtp_bcc', type: 'varchar', length: 255, nullable: true })
   smtpBcc!: string | null;
 

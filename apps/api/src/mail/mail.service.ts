@@ -48,6 +48,13 @@ export class MailService {
       throw new Error('SMTP is not configured or is disabled');
     }
 
+    const fromEmail = config.fromEmail?.trim();
+    if (!fromEmail) {
+      throw new Error(
+        'SMTP fromEmail is not set. Set INITIAL_SMTP_FROM_EMAIL to a verified sender address (not the SMTP username) and re-seed smtp_config.',
+      );
+    }
+
     const transporter = nodemailer.createTransport({
       host: config.smtpServer,
       port: config.smtpPort,
@@ -59,7 +66,7 @@ export class MailService {
     });
 
     await transporter.sendMail({
-      from: `"PurposeMint" <${config.smtpEmailUser}>`,
+      from: `"PurposeMint" <${fromEmail}>`,
       to: message.to,
       bcc: config.smtpBcc ?? undefined,
       subject: message.subject,

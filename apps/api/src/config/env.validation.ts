@@ -72,6 +72,7 @@ export const envSchema = z.object({
   INITIAL_SMTP_PORT: z.string().optional(),
   INITIAL_SMTP_EMAIL_USER: z.string().optional(),
   INITIAL_SMTP_EMAIL_PASSWORD: z.string().optional(),
+  INITIAL_SMTP_FROM_EMAIL: z.string().optional(),
   INITIAL_SMTP_BCC: z.string().optional(),
   INITIAL_SMTP_ENABLED: booleanish.default(false),
 });

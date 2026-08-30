@@ -121,7 +121,16 @@ export class SeedService implements OnModuleInit {
     const smtpEmailPassword = this.config.get('INITIAL_SMTP_EMAIL_PASSWORD', {
       infer: true,
     });
-    if (!smtpServer || !smtpPort || !smtpEmailUser || !smtpEmailPassword) {
+    const fromEmail = this.config
+      .get('INITIAL_SMTP_FROM_EMAIL', { infer: true })
+      ?.trim();
+    if (
+      !smtpServer ||
+      !smtpPort ||
+      !smtpEmailUser ||
+      !smtpEmailPassword ||
+      !fromEmail
+    ) {
       return;
     }
 
@@ -131,6 +140,7 @@ export class SeedService implements OnModuleInit {
         smtpPort: Number(smtpPort),
         smtpEmailUser,
         smtpEmailPassword,
+        fromEmail,
         smtpBcc:
           this.config.get('INITIAL_SMTP_BCC', { infer: true })?.trim() || null,
         smtpEnabled: this.config.get('INITIAL_SMTP_ENABLED', { infer: true }),
