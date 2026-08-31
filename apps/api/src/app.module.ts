@@ -18,6 +18,7 @@ import { PathwaysModule } from './pathways/pathways.module';
 import { ReflectionsModule } from './reflections/reflections.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { CommunityChallengesModule } from './community-challenges/community-challenges.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { CommunityChallengesModule } from './community-challenges/community-chal
     ReflectionsModule,
     SubscriptionsModule,
     CommunityChallengesModule,
+    AdminModule,
     HealthModule,
   ],
   providers: [

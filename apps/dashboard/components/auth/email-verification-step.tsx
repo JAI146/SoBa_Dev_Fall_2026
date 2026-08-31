@@ -1,7 +1,11 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import type { AuthResponse } from "@purposemint/contracts";
+import {
+  ClientType,
+  type AuthResponse,
+  type MessageResponse,
+} from "@purposemint/contracts";
 import { OtpInput } from "@/components/auth/otp-input";
 import { apiRequest } from "@/lib/api-client";
 import styles from "../../app/auth.module.css";
@@ -26,7 +30,11 @@ export function EmailVerificationStep({
     try {
       const data = await apiRequest<AuthResponse>("/auth/verify-email", {
         method: "POST",
-        body: JSON.stringify({ email, otp }),
+        body: JSON.stringify({
+          email,
+          otp,
+          clientType: ClientType.DASHBOARD,
+        }),
       });
       onVerified(data);
     } catch (cause) {
@@ -45,7 +53,7 @@ export function EmailVerificationStep({
     setResent(false);
     setResending(true);
     try {
-      await apiRequest("/auth/resend-otp", {
+      await apiRequest<MessageResponse>("/auth/resend-verification", {
         method: "POST",
         body: JSON.stringify({ email }),
       });
@@ -73,7 +81,9 @@ export function EmailVerificationStep({
       </p>
       {error && <div className={styles["error-banner"]}>{error}</div>}
       {resent && (
-        <div className={styles["success-banner"]}>A new code has been sent.</div>
+        <div className={styles["success-banner"]}>
+          A new code has been sent.
+        </div>
       )}
       <form onSubmit={handleVerify}>
         <label className={styles["verify-otp-label"]}>Verification code</label>

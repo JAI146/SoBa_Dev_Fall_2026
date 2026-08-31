@@ -2,54 +2,33 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useMemo, useRef, useState } from "react";
-import type { AuthResponse } from "@purposemint/contracts";
+import { FormEvent, useMemo, useState } from "react";
+import {
+  UserType,
+  type AuthResponse,
+  type MessageResponse,
+  type RegisterPendingResponse,
+} from "@purposemint/contracts";
 import { EmailVerificationStep } from "@/components/auth/email-verification-step";
 import { AuthPageTitle } from "@/components/auth/auth-page-title";
 import { LocationFields } from "@/components/auth/location-fields";
 import { PasswordInput } from "@/components/auth/password-input";
 import { IconInput } from "@/components/forms/icon-field";
 import { apiRequest } from "@/lib/api-client";
-import { saveAuth } from "@/lib/auth";
+import { clearAuth, saveAuth } from "@/lib/auth";
 import {
-  buildRegisterFormData,
+  buildRegisterInput,
   emptyRegisterFormValues,
   type RegisterFormValues,
   validateRegisterForm,
 } from "@/lib/register-form-validation";
 import styles from "../auth.module.css";
 
-type RegisterPendingResponse = {
-  requiresVerification: true;
-  email: string;
-  message: string;
-};
-
-function UploadIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="17 8 12 3 7 8" />
-      <line x1="12" y1="3" x2="12" y2="15" />
-    </svg>
-  );
-}
-
 export default function RegisterPage() {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<RegisterFormValues>(emptyRegisterFormValues);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [fileName, setFileName] = useState<string | null>(null);
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const validation = useMemo(() => validateRegisterForm(form), [form]);
 
@@ -66,22 +45,11 @@ export default function RegisterPage() {
     setSubmitError(null);
     setLoading(true);
     try {
-      const data = await apiRequest<AuthResponse | RegisterPendingResponse>(
-        "/auth/register",
-        {
-          method: "POST",
-          body: buildRegisterFormData(
-            form,
-            fileInputRef.current?.files?.[0],
-          ),
-        },
-      );
-      if (!("accessToken" in data)) {
-        setPendingEmail(data.email);
-        return;
-      }
-      saveAuth(data, true);
-      router.push("/dashboard");
+      const data = await apiRequest<RegisterPendingResponse>("/auth/register", {
+        method: "POST",
+        body: JSON.stringify(buildRegisterInput(form)),
+      });
+      setPendingEmail(data.email);
     } catch (cause) {
       setSubmitError(
         cause instanceof Error
@@ -93,16 +61,38 @@ export default function RegisterPage() {
     }
   }
 
-  function handleVerified(data: AuthResponse) {
+  async function handleVerified(data: AuthResponse) {
+    if (data.user.userType !== UserType.ADMIN) {
+      await apiRequest<MessageResponse>(
+        "/auth/logout",
+        { method: "POST" },
+        data.accessToken,
+      ).catch(() => undefined);
+      clearAuth();
+      setPendingEmail(null);
+      setSubmitError(
+        "Your account is verified, but admin access is required to use this dashboard.",
+      );
+      return;
+    }
     saveAuth(data, true);
     router.push("/dashboard");
   }
 
   return (
-    <main className={[styles["auth-page"], styles["auth-page--register"]].join(" ")}>
-      <div className={[styles["auth-card"], styles["auth-card--register"]].join(" ")}>
+    <main
+      className={[styles["auth-page"], styles["auth-page--register"]].join(" ")}
+    >
+      <div
+        className={[styles["auth-card"], styles["auth-card--register"]].join(
+          " ",
+        )}
+      >
         {pendingEmail ? (
-          <EmailVerificationStep email={pendingEmail} onVerified={handleVerified} />
+          <EmailVerificationStep
+            email={pendingEmail}
+            onVerified={handleVerified}
+          />
         ) : (
           <>
             <AuthPageTitle icon="register">Create Account</AuthPageTitle>
@@ -114,7 +104,9 @@ export default function RegisterPage() {
                   icon="user"
                   id="firstName"
                   value={form.firstName}
-                  onChange={(event) => setField("firstName", event.target.value)}
+                  onChange={(event) =>
+                    setField("firstName", event.target.value)
+                  }
                 />
               </div>
               <div className={styles["form-group"]}>
@@ -161,39 +153,6 @@ export default function RegisterPage() {
                 onStateChange={(value) => setField("state", value)}
                 onCityChange={(value) => setField("city", value)}
               />
-
-              <div className={styles["file-upload-group"]}>
-                <span className={styles["file-upload-label"]}>
-                  Profile image <span className={styles.optional}>Optional</span>
-                </span>
-                <input
-                  ref={fileInputRef}
-                  id="profileImage"
-                  type="file"
-                  accept="image/*"
-                  className={styles["file-input-hidden"]}
-                  onChange={(event) =>
-                    setFileName(event.target.files?.[0]?.name ?? null)
-                  }
-                />
-                <label
-                  htmlFor="profileImage"
-                  className={[
-                    styles["file-upload-zone"],
-                    fileName ? styles["has-file"] : "",
-                  ].join(" ")}
-                >
-                  <div className={styles["file-upload-icon"]}>
-                    <UploadIcon />
-                  </div>
-                  <div className={styles["file-upload-title"]}>
-                    {fileName ?? "Choose a profile photo"}
-                  </div>
-                  <div className={styles["file-upload-hint"]}>
-                    PNG or JPG, up to 5 MB
-                  </div>
-                </label>
-              </div>
 
               <fieldset className={styles["policy-agreements"]}>
                 <legend>Agreements</legend>

@@ -46,7 +46,9 @@ export function LocationFields({
   return (
     <>
       <div className={styles["form-group"]}>
-        <label htmlFor="country">Country</label>
+        <label htmlFor="country">
+          Country <span className={styles.optional}>Optional</span>
+        </label>
         <IconSelect
           icon="globe"
           id="country"

@@ -3,16 +3,21 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  UserType,
+  userPublicSchema,
+  type MessageResponse,
+  type UserPublic,
+} from "@purposemint/contracts";
+import {
   DashboardShell,
   type DashboardNavItem,
 } from "@/components/dashboard/dashboard-shell";
 import {
   clearAuth,
-  getStoredUser,
   getToken,
   type DashboardUser,
-  type StoredUser,
 } from "@/lib/auth";
+import { apiRequest } from "@/lib/api-client";
 import styles from "./dashboard.module.css";
 
 export default function DashboardLayout({
@@ -20,34 +25,75 @@ export default function DashboardLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
   const router = useRouter();
-  // const [user, setUser] = useState<StoredUser | null>(null);
+  const [user, setUser] = useState<DashboardUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
-  // useEffect(() => {
-  //   const storedUser = getStoredUser();
-  //   if (!getToken() || !storedUser) {
-  //     clearAuth();
-  //     router.replace("/dashboard");
-  //     setAuthChecked(true);
-  //     return;
-  //   }
-  //   setUser(storedUser);
-  //   setAuthChecked(true);
-  // }, [router]);
+  useEffect(() => {
+    let cancelled = false;
+    const token = getToken();
+    if (!token) {
+      clearAuth();
+      router.replace("/login");
+      setAuthChecked(true);
+      return () => {
+        cancelled = true;
+      };
+    }
 
-  function handleLogout() {
-    clearAuth();
-    router.replace("/dashboard");
+    async function verifyAdminSession() {
+      try {
+        const currentUser = await apiRequest<UserPublic>(
+          "/users/me",
+          {},
+          token,
+          userPublicSchema,
+        );
+        if (cancelled) return;
+        if (currentUser.userType !== UserType.ADMIN) {
+          clearAuth();
+          router.replace("/login");
+          return;
+        }
+        setUser(currentUser);
+      } catch {
+        if (!cancelled) {
+          clearAuth();
+          router.replace("/login");
+        }
+      } finally {
+        if (!cancelled) setAuthChecked(true);
+      }
+    }
+    void verifyAdminSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  async function handleLogout() {
+    const token = getToken();
+    try {
+      if (token) {
+        await apiRequest<MessageResponse>(
+          "/auth/logout",
+          { method: "POST" },
+          token,
+        );
+      }
+    } finally {
+      clearAuth();
+      router.replace("/login");
+    }
   }
 
-  // if (!authChecked || !user) {
-  //   return (
-  //     <main className={styles["dashboard-loading"]}>
-  //       <span className={styles["loading-spinner"]} aria-hidden />
-  //       <p>{authChecked ? "Redirecting to sign in…" : "Loading dashboard…"}</p>
-  //     </main>
-  //   );
-  // }
+  if (!authChecked || !user) {
+    return (
+      <main className={styles["dashboard-loading"]}>
+        <span className={styles["loading-spinner"]} aria-hidden />
+        <p>{authChecked ? "Redirecting to sign in…" : "Loading dashboard…"}</p>
+      </main>
+    );
+  }
 
   const navItems: DashboardNavItem[] = [
     {
@@ -57,23 +103,31 @@ export default function DashboardLayout({
       active: pathname === "/dashboard",
     },
     {
-      href: "/dashboard/examples/crud",
-      label: "CRUD Reference",
-      icon: "crud",
-      active: pathname.startsWith("/dashboard/examples/crud"),
+      href: "/dashboard/pathway-applications",
+      label: "Pathway applications",
+      icon: "pathways",
+      active: pathname.startsWith("/dashboard/pathway-applications"),
+    },
+    {
+      href: "/dashboard/users",
+      label: "Users",
+      icon: "users",
+      active: pathname.startsWith("/dashboard/users"),
+    },
+    {
+      href: "/dashboard/upgrade-intents",
+      label: "Upgrade intents",
+      icon: "upgrades",
+      active: pathname.startsWith("/dashboard/upgrade-intents"),
     },
   ];
 
-  // Placeholder until the auth check above is switched back on.
-  const user: DashboardUser = {
-    firstName: "",
-    lastName: "",
-    email: "",
-    profileImageUrl: null,
-  };
-
   return (
-    <DashboardShell navItems={navItems} user={user} onLogout={handleLogout}>
+    <DashboardShell
+      navItems={navItems}
+      user={user}
+      onLogout={() => void handleLogout()}
+    >
       {children}
     </DashboardShell>
   );

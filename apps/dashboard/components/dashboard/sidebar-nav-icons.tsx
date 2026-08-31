@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export type SidebarNavIconName = "overview" | "crud";
+export type SidebarNavIconName = "overview" | "pathways" | "users" | "upgrades";
 
 function Svg({ children, className }: { children: ReactNode; className?: string }) {
   return (
@@ -26,15 +26,31 @@ export function SidebarNavIcon({
   name: SidebarNavIconName;
   className?: string;
 }) {
-  if (name === "crud") {
+  if (name === "pathways") {
     return (
       <Svg className={className}>
-        <path d="M4 5h16" />
-        <path d="M4 12h16" />
-        <path d="M4 19h16" />
-        <circle cx="7" cy="5" r="1" fill="currentColor" />
-        <circle cx="7" cy="12" r="1" fill="currentColor" />
-        <circle cx="7" cy="19" r="1" fill="currentColor" />
+        <path d="M4 19V5" />
+        <path d="M4 6h11l-2 4 2 4H4" />
+      </Svg>
+    );
+  }
+
+  if (name === "users") {
+    return (
+      <Svg className={className}>
+        <circle cx="9" cy="8" r="4" />
+        <path d="M2 21a7 7 0 0 1 14 0" />
+        <path d="M16 4a4 4 0 0 1 0 8" />
+        <path d="M19 15a6 6 0 0 1 3 6" />
+      </Svg>
+    );
+  }
+
+  if (name === "upgrades") {
+    return (
+      <Svg className={className}>
+        <path d="m12 3 7 7h-4v8H9v-8H5z" />
+        <path d="M5 21h14" />
       </Svg>
     );
   }

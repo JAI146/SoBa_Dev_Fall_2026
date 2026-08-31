@@ -190,6 +190,13 @@ export const AuditAction = {
   SESSION_REFRESH_REUSE_DETECTED: "session.refresh_reuse_detected",
   USER_DELETION_REQUESTED: "user.deletion_requested",
   USER_DELETION_CANCELLED: "user.deletion_cancelled",
+  ADMIN_OVERVIEW_VIEWED: "admin.overview_viewed",
+  ADMIN_USERS_LISTED: "admin.users_listed",
+  ADMIN_USER_VIEWED: "admin.user_viewed",
+  ADMIN_PATHWAY_APPLICATIONS_LISTED: "admin.pathway_applications_listed",
+  ADMIN_PATHWAY_APPLICATION_VIEWED: "admin.pathway_application_viewed",
+  ADMIN_PATHWAY_CHECKLIST_UPDATED: "admin.pathway_checklist_updated",
+  ADMIN_UPGRADE_INTENTS_LISTED: "admin.upgrade_intents_listed",
 } as const;
 
 export type AuditActionValue = (typeof AuditAction)[keyof typeof AuditAction];

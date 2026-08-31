@@ -1,6 +1,6 @@
 "use client";
 
-import type { AuthResponse } from "@purposemint/contracts";
+import { UserType, type AuthResponse } from "@purposemint/contracts";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { apiRequest } from "@/lib/api-client";
@@ -44,6 +44,10 @@ function HandoffContent() {
           importedTokenRef.current,
         );
         if (cancelled) return;
+        if (user.userType !== UserType.ADMIN) {
+          setError("Admin access is required to use this dashboard.");
+          return;
+        }
         saveAuth({ user, accessToken: importedTokenRef.current }, true);
         router.replace(safeNext(searchParams.get("next")));
       } catch (cause) {
@@ -74,7 +78,9 @@ function HandoffContent() {
             </a>
           </>
         ) : (
-          <p className={styles.subtitle}>Please wait while we open your dashboard.</p>
+          <p className={styles.subtitle}>
+            Please wait while we open your dashboard.
+          </p>
         )}
       </div>
     </main>
