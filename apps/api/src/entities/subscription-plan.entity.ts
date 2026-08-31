@@ -1,10 +1,10 @@
-import { Tier, type TierValue } from '@purposemint/contracts';
+import { type TierValue } from '@purposemint/contracts';
 import { Column, Entity, PrimaryColumn } from 'typeorm';
 import { numericTransformer } from '../common/numeric.transformer';
 
 @Entity('subscription_plans')
 export class SubscriptionPlan {
-  @PrimaryColumn({ type: 'enum', enum: Object.values(Tier) })
+  @PrimaryColumn({ type: 'varchar', length: 20 })
   key!: TierValue;
 
   @Column({ type: 'varchar', length: 100 }) name!: string;
@@ -17,9 +17,11 @@ export class SubscriptionPlan {
     transformer: numericTransformer,
   })
   priceMonthly!: number;
-  @Column({ type: 'varchar', length: 100, nullable: true }) badge!: string | null;
+  @Column({ type: 'varchar', length: 100, nullable: true }) badge!:
+    string | null;
   @Column({ type: 'varchar', length: 500 }) description!: string;
   @Column({ type: 'text', array: true }) features!: string[];
-  @Column({ name: 'cta_label', type: 'varchar', length: 100 }) ctaLabel!: string;
+  @Column({ name: 'cta_label', type: 'varchar', length: 100 })
+  ctaLabel!: string;
   @Column({ name: 'sort_order', type: 'int' }) sortOrder!: number;
 }

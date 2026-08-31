@@ -4,6 +4,7 @@ import {
   type CreateSavingsResponse,
   type DashboardPayload,
   type HabitCompleteResponse,
+  type JoinChallengeResponse,
   type UserGoalPublic,
 } from '@purposemint/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -78,6 +79,17 @@ export function useDashboard() {
     },
   });
 
+  const joinChallenge = useMutation({
+    mutationFn: (challengeId: string) =>
+      apiRequest<JoinChallengeResponse>(
+        `/community-challenges/${challengeId}/join`,
+        { authenticated: true, method: 'POST' },
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
+    },
+  });
+
   const createGoal = useMutation({
     mutationFn: (input: CreateGoalInput) =>
       apiRequest<UserGoalPublic, CreateGoalInput>('/goals', {
@@ -96,6 +108,8 @@ export function useDashboard() {
     createGoal: createGoal.mutateAsync,
     logSavings: logSavings.mutateAsync,
     loggingSavings: logSavings.isPending,
+    joinChallenge: joinChallenge.mutateAsync,
+    joiningChallenge: joinChallenge.isPending,
     setFocusGoal: setFocusGoal.mutateAsync,
   };
 }

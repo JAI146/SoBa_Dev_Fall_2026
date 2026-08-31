@@ -15,7 +15,7 @@ import {
   type UpdateHabitsInput,
   type UpdateValuesInput,
 } from '@purposemint/contracts';
-import { In, QueryFailedError, Repository } from 'typeorm';
+import { In, IsNull, Not, QueryFailedError, Repository } from 'typeorm';
 import {
   toUserGoalPublic,
   toValuePublic,
@@ -32,14 +32,9 @@ import { Value } from '../entities/value.entity';
 import { HabitTemplate } from '../entities/habit-template.entity';
 import { UsersService } from '../users/users.service';
 import { ReflectionsService } from '../reflections/reflections.service';
-
-const PATHWAY_TARGETS = [
-  { key: 'housing', label: 'Housing', targetAmount: 3000 },
-  { key: 'vehicle', label: 'Vehicle', targetAmount: 2500 },
-  { key: 'childcare', label: 'Childcare', targetAmount: 1200 },
-  { key: 'workforce', label: 'Workforce', targetAmount: 750 },
-  { key: 'business', label: 'Business', targetAmount: 2000 },
-] as const;
+import { Pathway } from '../entities/pathway.entity';
+import { PathwayApplication } from '../entities/pathway-application.entity';
+import { CommunityChallengesService } from '../community-challenges/community-challenges.service';
 
 function isUniqueViolation(error: unknown): boolean {
   if (!(error instanceof QueryFailedError)) return false;
@@ -69,8 +64,13 @@ export class DashboardService {
     private readonly savingsRepo: Repository<SavingsEntry>,
     @InjectRepository(HabitTemplate) private readonly habitTemplatesRepo: Repository<HabitTemplate>,
     @InjectRepository(Value) private readonly valuesRepo: Repository<Value>,
+    @InjectRepository(Pathway)
+    private readonly pathwaysRepo: Repository<Pathway>,
+    @InjectRepository(PathwayApplication)
+    private readonly pathwayApplicationsRepo: Repository<PathwayApplication>,
     private readonly usersService: UsersService,
     private readonly reflectionsService: ReflectionsService,
+    private readonly communityChallengesService: CommunityChallengesService,
   ) {}
 
   async updateHabits(userId: string, input: UpdateHabitsInput): Promise<DashboardPayload> {
@@ -111,7 +111,7 @@ export class DashboardService {
       );
     }
 
-    const [userValues, goals, habits] = await Promise.all([
+    const [userValues, goals, habits, pathways, pathwayApplications, communityChallenge] = await Promise.all([
       this.userValuesRepo.find({
         where: { userId },
         relations: { value: true },
@@ -125,6 +125,12 @@ export class DashboardService {
         relations: { sourceTemplate: true },
         order: { createdAt: 'ASC' },
       }),
+      this.pathwaysRepo.find({ order: { sortOrder: 'ASC' } }),
+      this.pathwayApplicationsRepo.find({
+        where: { userId, attestedAmount: Not(IsNull()) },
+        order: { updatedAt: 'DESC' },
+      }),
+      this.communityChallengesService.getCurrent(userId, user),
     ]);
 
     const values = userValues
@@ -148,6 +154,18 @@ export class DashboardService {
     const publicGoals = goals.map(toUserGoalPublic);
     const focusGoal = publicGoals.find((goal) => goal.isFocus) ?? null;
     const reflection = await this.reflectionsService.getSummary(userId, user);
+    const attestedByPathway = new Map<string, number>();
+    for (const application of pathwayApplications) {
+      if (
+        application.attestedAmount !== null &&
+        !attestedByPathway.has(application.pathwayKey)
+      ) {
+        attestedByPathway.set(
+          application.pathwayKey,
+          application.attestedAmount,
+        );
+      }
+    }
 
     return {
       user: toPublicUser(user),
@@ -173,22 +191,13 @@ export class DashboardService {
           },
         ];
       }),
-      communityChallenge: {
-        monthLabel: new Date().toLocaleString('en-US', {
-          month: 'long',
-          year: 'numeric',
-        }),
-        title: 'No-Spend Weekend Challenge',
-        description: 'Skip one weekend of spending & save the difference',
-        participantCount: 847,
-        completedPercent: 68,
-      },
+      communityChallenge,
       reflection,
-      pathwayProgress: PATHWAY_TARGETS.map((pathway) => ({
+      pathwayProgress: pathways.map((pathway) => ({
         key: pathway.key,
-        label: pathway.label,
-        savedAmount: 0,
-        targetAmount: pathway.targetAmount,
+        label: pathway.title.replace(/ Pathway$/, ''),
+        savedAmount: attestedByPathway.get(pathway.key) ?? 0,
+        targetAmount: pathway.minimumAmount,
       })),
     };
   }

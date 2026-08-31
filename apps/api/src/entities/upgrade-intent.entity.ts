@@ -1,4 +1,4 @@
-import { Tier, type TierValue } from '@purposemint/contracts';
+import { type TierValue } from '@purposemint/contracts';
 import {
   Column,
   CreateDateColumn,
@@ -19,7 +19,7 @@ export class UpgradeIntent {
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user?: User;
-  @Column({ name: 'plan_key', type: 'enum', enum: Object.values(Tier) })
+  @Column({ name: 'plan_key', type: 'varchar', length: 20 })
   planKey!: TierValue;
   @ManyToOne(() => SubscriptionPlan, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'plan_key' })

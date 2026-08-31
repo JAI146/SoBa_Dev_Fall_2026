@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AnimatedProgressBar } from '@/components/AnimatedProgressBar';
+import { FormNotice } from '@/components/FormNotice';
 import { theme } from '@/constants/theme';
 import { formatUsd } from '@/lib/format/money';
 import type {
@@ -26,26 +27,91 @@ function themeChipColor(colorToken: string) {
   return theme.colors.lightMint;
 }
 
-export function LockedRow({ title, subtitle }: { title: string; subtitle?: string }) {
-  return (
-    <View
-      accessibilityLabel={`${title}. Locked`}
-      accessibilityRole="text"
-      style={styles.lockedRow}>
+export function LockedRow({
+  title,
+  subtitle,
+  onPress,
+}: {
+  title: string;
+  subtitle?: string;
+  onPress?: () => void;
+}) {
+  const content = (
+    <>
       <Ionicons color={theme.colors.deepGreen} name="lock-closed" size={16} />
       <View style={styles.lockedCopy}>
         <Text style={styles.lockedTitle}>{title}</Text>
         {subtitle ? <Text style={styles.lockedSub}>{subtitle}</Text> : null}
       </View>
+      {onPress ? (
+        <Ionicons
+          color={theme.colors.mutedText}
+          name="chevron-forward"
+          size={17}
+        />
+      ) : null}
+    </>
+  );
+  return onPress ? (
+    <Pressable
+      accessibilityLabel={title}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={styles.lockedRow}
+    >
+      {content}
+    </Pressable>
+  ) : (
+    <View
+      accessibilityLabel={`${title}. Locked`}
+      accessibilityRole="text"
+      style={styles.lockedRow}>
+      {content}
     </View>
   );
 }
 
 export function CommunityChallengeCard({
   challenge,
+  joining,
+  onJoin,
+  onViewPlans,
 }: {
-  challenge: CommunityChallengePublic;
+  challenge: CommunityChallengePublic | null;
+  joining: boolean;
+  onJoin: (challengeId: string) => Promise<unknown>;
+  onViewPlans: () => void;
 }) {
+  const [error, setError] = useState<string | null>(null);
+  if (!challenge) {
+    return (
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Monthly Community Challenge</Text>
+        <Text style={styles.challengeTitle}>
+          A new challenge will meet you here soon.
+        </Text>
+        <Text style={styles.muted}>
+          Check back next month for another gentle way to save alongside the
+          community.
+        </Text>
+      </View>
+    );
+  }
+
+  const noParticipants = challenge.participantCount === 0;
+  const participantLabel = noParticipants
+    ? 'No participants yet'
+    : challenge.participantCount === 1
+      ? '1 participant'
+      : `${challenge.participantCount} participants`;
+  const progressLabel = noParticipants
+    ? challenge.viewerState === 'read_only'
+      ? 'No one has joined this month yet.'
+      : 'Be the first to join this month.'
+    : challenge.completedPercent === 0
+      ? 'This community is getting started.'
+      : `${challenge.completedPercent}% of participants completed this week!`;
+
   return (
     <View style={styles.card}>
       <View style={styles.rowBetween}>
@@ -53,22 +119,62 @@ export function CommunityChallengeCard({
           <Text style={styles.sectionTitle}>Monthly Community Challenge</Text>
           <Text style={styles.muted}>{challenge.monthLabel}</Text>
         </View>
-        <View style={styles.viewOnly}>
-          <Text style={styles.viewOnlyText}>View Only</Text>
-        </View>
+        {challenge.viewerState === 'read_only' ? (
+          <View style={styles.viewOnly}>
+            <Text style={styles.viewOnlyText}>View Only</Text>
+          </View>
+        ) : challenge.viewerState === 'joined' ? (
+          <View style={styles.joinedBadge}>
+            <Text style={styles.joinedBadgeText}>Joined</Text>
+          </View>
+        ) : null}
       </View>
       <Text style={styles.challengeTitle}>{challenge.title}</Text>
       <Text style={styles.muted}>{challenge.description}</Text>
       <View style={styles.rowBetween}>
         <Text style={styles.meta}>Community Progress</Text>
-        <Text style={styles.meta}>{challenge.participantCount} participants</Text>
+        <Text style={styles.meta}>{participantLabel}</Text>
       </View>
       <AnimatedProgressBar progress={challenge.completedPercent / 100} />
-      <Text style={styles.muted}>
-        {challenge.completedPercent}% of participants completed this week!
-      </Text>
-      <LockedRow title="Upgrade to Momentum to join challenges" />
-      <Text style={styles.footnote}>Free tier includes read-only access to 1 monthly challenge</Text>
+      <Text style={styles.muted}>{progressLabel}</Text>
+      {challenge.viewerState === 'read_only' ? (
+        <>
+          <LockedRow
+            onPress={onViewPlans}
+            title="Upgrade to Momentum to join challenges"
+          />
+          <Text style={styles.footnote}>
+            Free tier includes read-only access to 1 monthly challenge
+          </Text>
+        </>
+      ) : challenge.viewerState === 'eligible' ? (
+        <Pressable
+          accessibilityLabel="Join this challenge"
+          accessibilityRole="button"
+          accessibilityState={{ busy: joining, disabled: joining }}
+          disabled={joining}
+          onPress={() => {
+            setError(null);
+            void onJoin(challenge.id).catch((reason: unknown) =>
+              setError(
+                reason instanceof Error
+                  ? reason.message
+                  : 'The challenge could not be joined. Please try again.',
+              ),
+            );
+          }}
+          style={styles.joinButton}
+        >
+          <Text style={styles.joinButtonText}>
+            {joining ? 'Joining…' : 'Join this challenge'}
+          </Text>
+        </Pressable>
+      ) : (
+        <Text style={styles.joinedCopy}>
+          You're in. Take this challenge at the pace that works for you.
+        </Text>
+      )}
+      <FormNotice message={error ?? undefined} />
     </View>
   );
 }
@@ -202,7 +308,7 @@ const WAYS_TO_SAVE = [
   },
 ] as const;
 
-export function WaysToSaveCard() {
+export function WaysToSaveCard({ onViewPlans }: { onViewPlans: () => void }) {
   const [open, setOpen] = useState<string | null>(null);
 
   return (
@@ -230,6 +336,7 @@ export function WaysToSaveCard() {
         );
       })}
       <LockedRow
+        onPress={onViewPlans}
         title="Want automatic savings?"
         subtitle="Upgrade to Momentum for automatic transfers into a partner-bank account"
       />
@@ -239,8 +346,14 @@ export function WaysToSaveCard() {
 
 export function PathwayProgressCard({
   items,
+  isElevation,
+  onOpenPathways,
+  onViewPlans,
 }: {
   items: PathwayProgressPublic[];
+  isElevation: boolean;
+  onOpenPathways: () => void;
+  onViewPlans: () => void;
 }) {
   return (
     <View style={styles.card}>
@@ -254,7 +367,26 @@ export function PathwayProgressCard({
           </Text>
         </View>
       ))}
-      <LockedRow title="Level 5: Pathways — included with Elevation" />
+      {isElevation ? (
+        <Pressable
+          accessibilityLabel="Open Pathways"
+          accessibilityRole="button"
+          onPress={onOpenPathways}
+          style={styles.openPathways}
+        >
+          <Text style={styles.openPathwaysText}>Open Pathways</Text>
+          <Ionicons
+            color={theme.colors.deepGreen}
+            name="arrow-forward"
+            size={17}
+          />
+        </Pressable>
+      ) : (
+        <LockedRow
+          onPress={onViewPlans}
+          title="Level 5: Pathways — included with Elevation"
+        />
+      )}
     </View>
   );
 }
@@ -294,6 +426,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
   },
+  joinedBadge: {
+    backgroundColor: theme.colors.accentSoft,
+    borderRadius: theme.radius.pill,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 4,
+  },
+  joinedBadgeText: {
+    color: theme.colors.teal,
+    fontSize: 11,
+    fontWeight: '800',
+  },
   challengeTitle: {
     color: theme.colors.text,
     fontSize: theme.fontSize.md,
@@ -307,6 +450,27 @@ const styles = StyleSheet.create({
   footnote: {
     color: theme.colors.mutedText,
     fontSize: 12,
+  },
+  joinButton: {
+    alignItems: 'center',
+    backgroundColor: theme.colors.deepGreen,
+    borderRadius: theme.radius.md,
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: theme.spacing.md,
+  },
+  joinButtonText: {
+    color: theme.colors.white,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '900',
+  },
+  joinedCopy: {
+    backgroundColor: theme.colors.accentSoft,
+    borderRadius: theme.radius.md,
+    color: theme.colors.text,
+    fontSize: theme.fontSize.sm,
+    lineHeight: 20,
+    padding: theme.spacing.sm,
   },
   lockedRow: {
     alignItems: 'center',
@@ -451,5 +615,20 @@ const styles = StyleSheet.create({
     color: theme.colors.mutedText,
     fontSize: theme.fontSize.sm,
     fontWeight: '700',
+  },
+  openPathways: {
+    alignItems: 'center',
+    backgroundColor: theme.colors.accentSoft,
+    borderRadius: theme.radius.md,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: theme.spacing.md,
+  },
+  openPathwaysText: {
+    color: theme.colors.deepGreen,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '900',
+    marginRight: 8,
   },
 });

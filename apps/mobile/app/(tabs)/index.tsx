@@ -4,7 +4,6 @@ import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -100,6 +99,8 @@ export default function DashboardScreen() {
     error,
     isError,
     isLoading,
+    joinChallenge,
+    joiningChallenge,
     logSavings,
     loggingSavings,
     refetch,
@@ -107,7 +108,6 @@ export default function DashboardScreen() {
   } = useDashboard();
   const [logOpen, setLogOpen] = useState(false);
   const [changeOpen, setChangeOpen] = useState(false);
-  const [pathwaysLockedOpen, setPathwaysLockedOpen] = useState(false);
   const [moodOpen, setMoodOpen] = useState(false);
 
   if (!session || session.user.onboardingStatus !== OnboardingStatus.COMPLETED) {
@@ -205,7 +205,12 @@ export default function DashboardScreen() {
           )}
         </View>
 
-        <CommunityChallengeCard challenge={data.communityChallenge} />
+        <CommunityChallengeCard
+          challenge={data.communityChallenge}
+          joining={joiningChallenge}
+          onJoin={joinChallenge}
+          onViewPlans={() => router.push('/pricing')}
+        />
 
         <View style={styles.card}>
           <View style={styles.rowBetween}>
@@ -251,8 +256,13 @@ export default function DashboardScreen() {
         </View>
 
         <ReflectionJourneyCard reflection={data.reflection} />
-        <WaysToSaveCard />
-        <PathwayProgressCard items={data.pathwayProgress} />
+        <WaysToSaveCard onViewPlans={() => router.push('/pricing')} />
+        <PathwayProgressCard
+          isElevation={data.user.tier === Tier.ELEVATE}
+          items={data.pathwayProgress}
+          onOpenPathways={() => router.push('/(pathways)')}
+          onViewPlans={() => router.push('/pricing')}
+        />
 
         <View style={styles.card}>
           <Text style={styles.toolsEyebrow}>YOUR TOOLS</Text>
@@ -274,13 +284,21 @@ export default function DashboardScreen() {
                   ? () => setMoodOpen(true)
                   : tool.title === 'Log savings by hand'
                     ? () => setLogOpen(true)
+                    : tool.title === 'Level 5: Pathways'
+                      ? () =>
+                          hasElevation
+                            ? router.push('/(pathways)')
+                            : router.push('/pricing')
+                      : tool.title === 'Open an account' && locked
+                        ? () => router.push('/pricing')
                     : undefined;
               return (
                 <Pressable
-                  accessibilityLabel={locked ? `${tool.title}. Locked` : tool.title}
+                  accessibilityLabel={
+                    locked ? `${tool.title}. View membership plans` : tool.title
+                  }
                   accessibilityRole={onPress ? 'button' : 'text'}
-                  accessibilityState={locked ? { disabled: true } : undefined}
-                  disabled={locked || !onPress}
+                  disabled={!onPress}
                   key={tool.title}
                   onPress={onPress}
                   style={[styles.toolCard, locked && styles.toolLocked]}>
@@ -325,16 +343,12 @@ export default function DashboardScreen() {
         <Pressable
           accessibilityLabel={data.user.tier === Tier.ELEVATE ? 'Unlock Pathways' : 'Unlock Pathways. Requires Elevation'}
           accessibilityRole="button"
-          onPress={() => data.user.tier === Tier.ELEVATE ? router.push('/(pathways)') : setPathwaysLockedOpen(true)}
+          onPress={() => data.user.tier === Tier.ELEVATE ? router.push('/(pathways)') : router.push('/pricing')}
           style={styles.unlockButton}>
           <Ionicons color={theme.colors.white} name="lock-closed" size={14} />
           <Text style={styles.unlockText}>Unlock Pathways</Text>
         </Pressable>
       </View>
-
-      <Modal animationType="fade" onRequestClose={() => setPathwaysLockedOpen(false)} transparent visible={pathwaysLockedOpen}>
-        <View style={styles.modalOverlay}><Pressable accessibilityLabel="Close Pathways membership information" accessibilityRole="button" onPress={() => setPathwaysLockedOpen(false)} style={styles.modalBackdrop}/><View style={styles.lockedModal}><Ionicons color={theme.colors.deepGreen} name="lock-closed" size={28}/><Text style={styles.modalTitle}>Pathways requires Elevation</Text><Text style={styles.muted}>Your Starter membership keeps Pathways locked. Elevation unlocks readiness verification and partner matching for major life goals.</Text><Pressable accessibilityLabel="Close" accessibilityRole="button" onPress={() => setPathwaysLockedOpen(false)} style={styles.modalClose}><Text style={styles.unlockText}>Close</Text></Pressable></View></View>
-      </Modal>
 
       <LogSavingsModal
         goalTitle={focus?.title ?? null}
@@ -616,9 +630,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
-  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
-  modalBackdrop: { backgroundColor: 'rgba(38, 22, 15, 0.35)', flex: 1 },
-  lockedModal: { alignItems: 'center', backgroundColor: theme.colors.white, borderTopLeftRadius: theme.radius.xl, borderTopRightRadius: theme.radius.xl, gap: theme.spacing.sm, padding: theme.spacing.xl, paddingBottom: 36 },
-  modalTitle: { color: theme.colors.text, fontSize: theme.fontSize.lg, fontWeight: '900' },
-  modalClose: { alignItems: 'center', backgroundColor: theme.colors.deepGreen, borderRadius: theme.radius.md, justifyContent: 'center', minHeight: 44, minWidth: 120, paddingHorizontal: theme.spacing.md },
 });

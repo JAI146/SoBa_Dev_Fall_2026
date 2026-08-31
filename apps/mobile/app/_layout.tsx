@@ -49,6 +49,7 @@ function RootNavigator() {
         <Stack.Screen name="(pathways)" />
         <Stack.Screen name="manage-habits" />
         <Stack.Screen name="edit-values" />
+        <Stack.Screen name="pricing" />
       </Stack>
       <StatusBar style="dark" />
     </>

@@ -17,6 +17,9 @@ import { HabitsController } from './habits.controller';
 import { SavingsController } from './savings.controller';
 import { ValuesController } from './values.controller';
 import { ReflectionsModule } from '../reflections/reflections.module';
+import { Pathway } from '../entities/pathway.entity';
+import { PathwayApplication } from '../entities/pathway-application.entity';
+import { CommunityChallengesModule } from '../community-challenges/community-challenges.module';
 
 @Module({
   imports: [
@@ -29,9 +32,12 @@ import { ReflectionsModule } from '../reflections/reflections.module';
       UserHabit,
       HabitCompletion,
       SavingsEntry,
+      Pathway,
+      PathwayApplication,
     ]),
     UsersModule,
     ReflectionsModule,
+    CommunityChallengesModule,
   ],
   controllers: [
     DashboardController,

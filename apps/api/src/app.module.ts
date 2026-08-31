@@ -16,6 +16,8 @@ import { OnboardingModule } from './onboarding/onboarding.module';
 import { UsersModule } from './users/users.module';
 import { PathwaysModule } from './pathways/pathways.module';
 import { ReflectionsModule } from './reflections/reflections.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { CommunityChallengesModule } from './community-challenges/community-challenges.module';
 
 @Module({
   imports: [
@@ -47,6 +49,8 @@ import { ReflectionsModule } from './reflections/reflections.module';
     DashboardModule,
     PathwaysModule,
     ReflectionsModule,
+    SubscriptionsModule,
+    CommunityChallengesModule,
     HealthModule,
   ],
   providers: [
