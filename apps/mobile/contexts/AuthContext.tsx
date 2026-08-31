@@ -11,8 +11,8 @@ import {
   type ResetPasswordInput,
   type UserPublic,
   type VerifyEmailInput,
-} from '@purposemint/contracts';
-import { useQueryClient } from '@tanstack/react-query';
+} from "@purposemint/contracts";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
   type PropsWithChildren,
@@ -22,19 +22,19 @@ import {
   useMemo,
   useRef,
   useState,
-} from 'react';
+} from "react";
 
 import {
   apiRequest,
   ApiClientError,
   configureAuthBridge,
   refreshAuthSession,
-} from '@/lib/api/client';
+} from "@/lib/api/client";
 import {
   getStoredRefreshToken,
   removeStoredRefreshToken,
   storeRefreshToken,
-} from '@/lib/auth/token-storage';
+} from "@/lib/auth/token-storage";
 
 export type AuthSession = {
   expiresAt: number;
@@ -47,8 +47,11 @@ type AuthContextValue = {
   isBootstrapping: boolean;
   login: (input: LoginInput) => Promise<AuthResponse | RegisterPendingResponse>;
   logout: () => Promise<void>;
+  logoutAll: () => Promise<void>;
   register: (input: RegisterInput) => Promise<RegisterPendingResponse>;
-  resendVerification: (input: ResendVerificationInput) => Promise<MessageResponse>;
+  resendVerification: (
+    input: ResendVerificationInput,
+  ) => Promise<MessageResponse>;
   resetPassword: (input: ResetPasswordInput) => Promise<MessageResponse>;
   session: AuthSession | null;
   updateSessionUser: (user: UserPublic) => void;
@@ -82,7 +85,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       if (!nextSession.refreshToken) {
         await clearSession();
         throw new ApiClientError(
-          'We could not finish opening your session. Please try again.',
+          "We could not finish opening your session. Please try again.",
           0,
           ApiErrorCode.SERVICE_UNAVAILABLE,
         );
@@ -93,7 +96,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       } catch {
         await clearSession();
         throw new ApiClientError(
-          'We could not securely save your session on this device. Please try again.',
+          "We could not securely save your session on this device. Please try again.",
           0,
           ApiErrorCode.SERVICE_UNAVAILABLE,
         );
@@ -105,7 +108,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         expiresAt: Date.now() + nextSession.expiresIn * 1_000,
         user: nextSession.user,
       });
-      queryClient.setQueryData(['users', 'me'], nextSession.user);
+      queryClient.setQueryData(["users", "me"], nextSession.user);
     },
     [clearSession, queryClient],
   );
@@ -142,11 +145,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const result = await apiRequest<
         AuthResponse | RegisterPendingResponse,
         LoginInput
-      >('/auth/login', {
+      >("/auth/login", {
         body: { ...input, clientType: ClientType.MOBILE },
-        method: 'POST',
+        method: "POST",
       });
-      if ('accessToken' in result) {
+      if ("accessToken" in result) {
         await applySession(result);
       }
       return result;
@@ -156,19 +159,22 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const register = useCallback(
     (input: RegisterInput) =>
-      apiRequest<RegisterPendingResponse, RegisterInput>('/auth/register', {
+      apiRequest<RegisterPendingResponse, RegisterInput>("/auth/register", {
         body: { ...input, clientType: ClientType.MOBILE },
-        method: 'POST',
+        method: "POST",
       }),
     [],
   );
 
   const verifyEmail = useCallback(
     async (input: VerifyEmailInput) => {
-      const nextSession = await apiRequest<AuthResponse, VerifyEmailInput>('/auth/verify-email', {
-        body: { ...input, clientType: ClientType.MOBILE },
-        method: 'POST',
-      });
+      const nextSession = await apiRequest<AuthResponse, VerifyEmailInput>(
+        "/auth/verify-email",
+        {
+          body: { ...input, clientType: ClientType.MOBILE },
+          method: "POST",
+        },
+      );
       await applySession(nextSession);
       return nextSession;
     },
@@ -177,46 +183,60 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const resendVerification = useCallback(
     (input: ResendVerificationInput) =>
-      apiRequest<MessageResponse, ResendVerificationInput>('/auth/resend-verification', {
-        body: input,
-        method: 'POST',
-      }),
+      apiRequest<MessageResponse, ResendVerificationInput>(
+        "/auth/resend-verification",
+        {
+          body: input,
+          method: "POST",
+        },
+      ),
     [],
   );
 
   const forgotPassword = useCallback(
     (input: ForgotPasswordInput) =>
-      apiRequest<MessageResponse, ForgotPasswordInput>('/auth/forgot-password', {
-        body: input,
-        method: 'POST',
-      }),
+      apiRequest<MessageResponse, ForgotPasswordInput>(
+        "/auth/forgot-password",
+        {
+          body: input,
+          method: "POST",
+        },
+      ),
     [],
   );
 
   const resetPassword = useCallback(
     (input: ResetPasswordInput) =>
-      apiRequest<MessageResponse, ResetPasswordInput>('/auth/reset-password', {
+      apiRequest<MessageResponse, ResetPasswordInput>("/auth/reset-password", {
         body: input,
-        method: 'POST',
+        method: "POST",
       }),
     [],
   );
 
   const logout = useCallback(async () => {
     try {
-      await apiRequest<MessageResponse>('/auth/logout', {
+      await apiRequest<MessageResponse>("/auth/logout", {
         authenticated: true,
-        method: 'POST',
+        method: "POST",
       });
     } finally {
       await clearSession();
     }
   }, [clearSession]);
 
+  const logoutAll = useCallback(async () => {
+    await apiRequest<MessageResponse>("/auth/logout-all", {
+      authenticated: true,
+      method: "POST",
+    });
+    await clearSession();
+  }, [clearSession]);
+
   const updateSessionUser = useCallback(
     (user: UserPublic) => {
       setSession((current) => (current ? { ...current, user } : current));
-      queryClient.setQueryData(['users', 'me'], user);
+      queryClient.setQueryData(["users", "me"], user);
     },
     [queryClient],
   );
@@ -228,6 +248,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       isBootstrapping,
       login,
       logout,
+      logoutAll,
       register,
       resendVerification,
       resetPassword,
@@ -240,6 +261,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       isBootstrapping,
       login,
       logout,
+      logoutAll,
       register,
       resendVerification,
       resetPassword,
@@ -256,7 +278,7 @@ export function useAuth() {
   const context = useContext(AuthContext);
 
   if (!context) {
-    throw new Error('useAuth must be used inside AuthProvider.');
+    throw new Error("useAuth must be used inside AuthProvider.");
   }
 
   return context;
