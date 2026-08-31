@@ -16,6 +16,7 @@ import { GoalCreationService } from './goal-creation.service';
 import { HabitsController } from './habits.controller';
 import { SavingsController } from './savings.controller';
 import { ValuesController } from './values.controller';
+import { ReflectionsModule } from '../reflections/reflections.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { ValuesController } from './values.controller';
       SavingsEntry,
     ]),
     UsersModule,
+    ReflectionsModule,
   ],
   controllers: [
     DashboardController,

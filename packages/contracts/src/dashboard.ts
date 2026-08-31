@@ -1,7 +1,12 @@
 import { z } from "zod";
-import { habitCategoryValues, habitFrequencyValues } from "./enums";
+import {
+  habitCategoryValues,
+  habitFrequencyValues,
+  reflectionKindValues,
+} from "./enums";
 import { valuePublicSchema } from "./onboarding";
 import { userPublicSchema } from "./user";
+import { communityChallengePublicSchema } from "./membership";
 
 export const userGoalPublicSchema = z.object({
   id: z.string().uuid(),
@@ -35,18 +40,6 @@ export const userHabitPublicSchema = z.object({
 
 export type UserHabitPublic = z.infer<typeof userHabitPublicSchema>;
 
-export const communityChallengePublicSchema = z.object({
-  monthLabel: z.string(),
-  title: z.string(),
-  description: z.string(),
-  participantCount: z.number().int(),
-  completedPercent: z.number(),
-});
-
-export type CommunityChallengePublic = z.infer<
-  typeof communityChallengePublicSchema
->;
-
 export const pathwayProgressPublicSchema = z.object({
   key: z.string(),
   label: z.string(),
@@ -59,16 +52,36 @@ export type PathwayProgressPublic = z.infer<
 >;
 
 export const reflectionJourneyPublicSchema = z.object({
-  voiceCount: z.number().int(),
-  textCount: z.number().int(),
-  streakDays: z.number().int(),
+  voiceCount: z.number().int().min(0),
+  textCount: z.number().int().min(0),
+  streakDays: z.number().int().min(0),
   moodTrend: z.array(
-    z.object({ weekday: z.string(), mood: z.number().nullable() }),
+    z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      weekday: z.string(),
+      mood: z.number().min(1).max(5).nullable(),
+    }),
   ),
-  averageMood: z.number().nullable(),
-  themes: z.array(z.object({ label: z.string(), count: z.number().int() })),
+  averageMood: z.number().min(1).max(5).nullable(),
+  trendDescriptor: z.enum(["Rising", "Stable", "Falling"]).nullable(),
+  themes: z.array(
+    z.object({
+      key: z.string(),
+      label: z.string(),
+      colorToken: z.string(),
+      count: z.number().int().min(0),
+    }),
+  ),
+  encouragementLine: z.string().nullable(),
   recent: z.array(
-    z.object({ id: z.string(), excerpt: z.string(), dateLabel: z.string() }),
+    z.object({
+      id: z.string().uuid(),
+      kind: z.enum(reflectionKindValues),
+      excerpt: z.string(),
+      dateLabel: z.string(),
+      moodScore: z.number().int().min(1).max(5).nullable(),
+      durationSeconds: z.number().int().min(0).nullable(),
+    }),
   ),
 });
 
@@ -84,7 +97,7 @@ export const dashboardPayloadSchema = z.object({
   focusGoal: userGoalPublicSchema.nullable(),
   goals: z.array(userGoalPublicSchema),
   habits: z.array(userHabitPublicSchema),
-  communityChallenge: communityChallengePublicSchema,
+  communityChallenge: communityChallengePublicSchema.nullable(),
   reflection: reflectionJourneyPublicSchema,
   pathwayProgress: z.array(pathwayProgressPublicSchema),
 });

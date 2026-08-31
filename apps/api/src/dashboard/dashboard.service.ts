@@ -11,7 +11,6 @@ import {
   type DashboardPayload,
   type GoalsListResponse,
   type HabitCompleteResponse,
-  type ReflectionJourneyPublic,
   type UserGoalPublic,
   type UpdateHabitsInput,
   type UpdateValuesInput,
@@ -32,6 +31,7 @@ import { User } from '../entities/user.entity';
 import { Value } from '../entities/value.entity';
 import { HabitTemplate } from '../entities/habit-template.entity';
 import { UsersService } from '../users/users.service';
+import { ReflectionsService } from '../reflections/reflections.service';
 
 const PATHWAY_TARGETS = [
   { key: 'housing', label: 'Housing', targetAmount: 3000 },
@@ -40,16 +40,6 @@ const PATHWAY_TARGETS = [
   { key: 'workforce', label: 'Workforce', targetAmount: 750 },
   { key: 'business', label: 'Business', targetAmount: 2000 },
 ] as const;
-
-const EMPTY_MOOD_TREND: ReflectionJourneyPublic['moodTrend'] = [
-  'M',
-  'T',
-  'W',
-  'T',
-  'F',
-  'S',
-  'S',
-].map((weekday) => ({ weekday, mood: null }));
 
 function isUniqueViolation(error: unknown): boolean {
   if (!(error instanceof QueryFailedError)) return false;
@@ -80,6 +70,7 @@ export class DashboardService {
     @InjectRepository(HabitTemplate) private readonly habitTemplatesRepo: Repository<HabitTemplate>,
     @InjectRepository(Value) private readonly valuesRepo: Repository<Value>,
     private readonly usersService: UsersService,
+    private readonly reflectionsService: ReflectionsService,
   ) {}
 
   async updateHabits(userId: string, input: UpdateHabitsInput): Promise<DashboardPayload> {
@@ -156,6 +147,7 @@ export class DashboardService {
 
     const publicGoals = goals.map(toUserGoalPublic);
     const focusGoal = publicGoals.find((goal) => goal.isFocus) ?? null;
+    const reflection = await this.reflectionsService.getSummary(userId, user);
 
     return {
       user: toPublicUser(user),
@@ -191,15 +183,7 @@ export class DashboardService {
         participantCount: 847,
         completedPercent: 68,
       },
-      reflection: {
-        voiceCount: 0,
-        textCount: 0,
-        streakDays: 0,
-        moodTrend: EMPTY_MOOD_TREND,
-        averageMood: null,
-        themes: [],
-        recent: [],
-      },
+      reflection,
       pathwayProgress: PATHWAY_TARGETS.map((pathway) => ({
         key: pathway.key,
         label: pathway.label,

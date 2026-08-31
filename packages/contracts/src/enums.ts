@@ -114,6 +114,17 @@ export const ChecklistCategory = {
 export const checklistCategoryValues = [ChecklistCategory.DOCUMENTATION, ChecklistCategory.FINANCIAL_REVIEW, ChecklistCategory.CONSULTATION, ChecklistCategory.NEXT_STEPS] as const;
 export type ChecklistCategoryValue = (typeof ChecklistCategory)[keyof typeof ChecklistCategory];
 
+export const ReflectionKind = {
+  TEXT: "text",
+  VOICE: "voice",
+} as const;
+export const reflectionKindValues = [
+  ReflectionKind.TEXT,
+  ReflectionKind.VOICE,
+] as const;
+export type ReflectionKindValue =
+  (typeof ReflectionKind)[keyof typeof ReflectionKind];
+
 /** Which client asked for the session. Decides refresh TTL and delivery channel. */
 export const ClientType = {
   MOBILE: "mobile",

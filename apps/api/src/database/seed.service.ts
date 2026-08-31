@@ -20,6 +20,14 @@ import { Pathway } from '../entities/pathway.entity';
 import { Partner } from '../entities/partner.entity';
 import { ChecklistTemplate } from '../entities/checklist-template.entity';
 import { SEEDED_CHECKLIST_TEMPLATES, SEEDED_PARTNERS, SEEDED_PATHWAYS } from './pathways-seed-data';
+import { ReflectionTheme } from '../entities/reflection-theme.entity';
+import { SEEDED_REFLECTION_THEMES } from './reflection-seed-data';
+import { SubscriptionPlan } from '../entities/subscription-plan.entity';
+import { CommunityChallenge } from '../entities/community-challenge.entity';
+import {
+  SEEDED_COMMUNITY_CHALLENGES,
+  SEEDED_SUBSCRIPTION_PLANS,
+} from './membership-seed-data';
 import {
   SEEDED_GOAL_TEMPLATES,
   SEEDED_HABIT_TEMPLATES,
@@ -51,6 +59,12 @@ export class SeedService implements OnModuleInit {
     @InjectRepository(Pathway) private readonly pathwaysRepo: Repository<Pathway>,
     @InjectRepository(Partner) private readonly partnersRepo: Repository<Partner>,
     @InjectRepository(ChecklistTemplate) private readonly checklistTemplatesRepo: Repository<ChecklistTemplate>,
+    @InjectRepository(ReflectionTheme)
+    private readonly reflectionThemesRepo: Repository<ReflectionTheme>,
+    @InjectRepository(SubscriptionPlan)
+    private readonly subscriptionPlansRepo: Repository<SubscriptionPlan>,
+    @InjectRepository(CommunityChallenge)
+    private readonly communityChallengesRepo: Repository<CommunityChallenge>,
     private readonly config: ConfigService<Env, true>,
   ) {}
 
@@ -60,6 +74,8 @@ export class SeedService implements OnModuleInit {
     await this.seedSmtpConfig();
     await this.seedOnboardingContent();
     await this.seedPathways();
+    await this.seedReflectionThemes();
+    await this.seedMembership();
   }
 
   private async seedAdmin() {
@@ -203,5 +219,29 @@ export class SeedService implements OnModuleInit {
     await this.pathwaysRepo.upsert(SEEDED_PATHWAYS.map((row) => this.pathwaysRepo.create(row)), ['key']);
     if ((await this.partnersRepo.count()) === 0) await this.partnersRepo.save(SEEDED_PARTNERS.map((row) => this.partnersRepo.create(row)));
     if ((await this.checklistTemplatesRepo.count()) === 0) await this.checklistTemplatesRepo.save(SEEDED_CHECKLIST_TEMPLATES.map((row) => this.checklistTemplatesRepo.create(row)));
+  }
+
+  private async seedReflectionThemes() {
+    await this.reflectionThemesRepo.upsert(
+      SEEDED_REFLECTION_THEMES.map((theme) =>
+        this.reflectionThemesRepo.create(theme),
+      ),
+      ['key'],
+    );
+  }
+
+  private async seedMembership() {
+    await this.subscriptionPlansRepo.upsert(
+      SEEDED_SUBSCRIPTION_PLANS.map((plan) =>
+        this.subscriptionPlansRepo.create(plan),
+      ),
+      ['key'],
+    );
+    await this.communityChallengesRepo.upsert(
+      SEEDED_COMMUNITY_CHALLENGES.map((challenge) =>
+        this.communityChallengesRepo.create(challenge),
+      ),
+      ['key'],
+    );
   }
 }

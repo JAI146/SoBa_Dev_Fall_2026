@@ -22,6 +22,7 @@ import {
   WaysToSaveCard,
 } from '@/components/dashboard/DashboardSections';
 import { LogSavingsModal } from '@/components/dashboard/LogSavingsModal';
+import { MoodCheckInModal } from '@/components/reflections/MoodCheckInModal';
 import { HabitCheckCard } from '@/components/HabitCheckCard';
 import { QueryErrorState } from '@/components/QueryErrorState';
 import { theme } from '@/constants/theme';
@@ -42,7 +43,7 @@ const TOOLS: {
   {
     title: 'Daily check-in',
     sub: 'How are you feeling?',
-    state: 'display',
+    state: 'functional',
     requires: 'none',
     icon: 'sunny-outline',
   },
@@ -107,6 +108,7 @@ export default function DashboardScreen() {
   const [logOpen, setLogOpen] = useState(false);
   const [changeOpen, setChangeOpen] = useState(false);
   const [pathwaysLockedOpen, setPathwaysLockedOpen] = useState(false);
+  const [moodOpen, setMoodOpen] = useState(false);
 
   if (!session || session.user.onboardingStatus !== OnboardingStatus.COMPLETED) {
     return <Redirect href={postAuthHref(session?.user)} />;
@@ -230,16 +232,22 @@ export default function DashboardScreen() {
               Manual entry — no money moves in or out of any bank
             </Text>
           </Pressable>
-          <View
+          <Pressable
             accessibilityLabel="Log your mood. How are you feeling today?"
-            accessibilityRole="text"
-            style={styles.logMood}>
+            accessibilityRole="button"
+            onPress={() => setMoodOpen(true)}
+            style={styles.logMood}
+          >
             <View style={styles.flex}>
               <Text style={styles.logMoodTitle}>Log your mood</Text>
               <Text style={styles.logMoodSub}>How are you feeling today?</Text>
             </View>
-            <Ionicons color={theme.colors.mutedText} name="chevron-forward" size={18} />
-          </View>
+            <Ionicons
+              color={theme.colors.mutedText}
+              name="chevron-forward"
+              size={18}
+            />
+          </Pressable>
         </View>
 
         <ReflectionJourneyCard reflection={data.reflection} />
@@ -262,7 +270,11 @@ export default function DashboardScreen() {
                 (tool.requires === 'momentum' && !hasMomentum) ||
                 (tool.requires === 'elevation' && !hasElevation);
               const onPress =
-                tool.state === 'functional' ? () => setLogOpen(true) : undefined;
+                tool.title === 'Daily check-in'
+                  ? () => setMoodOpen(true)
+                  : tool.title === 'Log savings by hand'
+                    ? () => setLogOpen(true)
+                    : undefined;
               return (
                 <Pressable
                   accessibilityLabel={locked ? `${tool.title}. Locked` : tool.title}
@@ -342,6 +354,7 @@ export default function DashboardScreen() {
         onSelect={setFocusGoal}
         visible={changeOpen}
       />
+      <MoodCheckInModal onClose={() => setMoodOpen(false)} visible={moodOpen} />
     </SafeAreaView>
   );
 }

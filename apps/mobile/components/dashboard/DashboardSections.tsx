@@ -11,6 +11,21 @@ import type {
   ReflectionJourneyPublic,
 } from '@purposemint/contracts';
 
+function moodColor(mood: number) {
+  if (mood < 2) return theme.colors.danger;
+  if (mood < 3) return '#D97A43';
+  if (mood < 4) return theme.colors.gold;
+  if (mood < 5) return theme.colors.teal;
+  return theme.colors.deepGreen;
+}
+
+function themeChipColor(colorToken: string) {
+  if (colorToken === 'teal') return theme.colors.accentSoft;
+  if (colorToken === 'gold') return theme.colors.paleGold;
+  if (colorToken === 'plum') return theme.colors.lavender;
+  return theme.colors.lightMint;
+}
+
 export function LockedRow({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <View
@@ -80,7 +95,9 @@ export function ReflectionJourneyCard({
           {reflection.voiceCount} voice · {reflection.textCount} text
         </Text>
         {!hasStreak ? (
-          <Text style={styles.empty}>Your streak starts with the first reflection you log.</Text>
+          <Text style={styles.empty}>
+            Your streak starts with the first reflection you log.
+          </Text>
         ) : null}
       </View>
 
@@ -91,7 +108,12 @@ export function ReflectionJourneyCard({
             <View
               style={[
                 styles.moodBar,
-                { height: day.mood ? 12 + day.mood * 10 : 8 },
+                {
+                  backgroundColor: day.mood
+                    ? moodColor(day.mood)
+                    : theme.colors.border,
+                  height: day.mood ? 12 + day.mood * 10 : 8,
+                },
                 !day.mood && styles.moodBarEmpty,
               ]}
             />
@@ -101,18 +123,26 @@ export function ReflectionJourneyCard({
       </View>
       <Text style={styles.muted}>
         {hasMood
-          ? `Average mood ${reflection.averageMood} / 5.0`
+          ? `Average mood ${reflection.averageMood} / 5.0${reflection.trendDescriptor ? ` — ${reflection.trendDescriptor}` : ''}`
           : 'Average mood — / 5.0'}
       </Text>
       {!hasMood ? (
-        <Text style={styles.empty}>Log how you feel to see your week at a glance.</Text>
+        <Text style={styles.empty}>
+          Log how you feel to see your week at a glance.
+        </Text>
       ) : null}
 
       <Text style={styles.subhead}>Recurring Themes</Text>
       {hasThemes ? (
         <View style={styles.chips}>
           {reflection.themes.map((themeItem) => (
-            <View key={themeItem.label} style={styles.chip}>
+            <View
+              key={themeItem.key}
+              style={[
+                styles.chip,
+                { backgroundColor: themeChipColor(themeItem.colorToken) },
+              ]}
+            >
               <Text style={styles.chipText}>
                 {themeItem.label} ({themeItem.count})
               </Text>
@@ -120,19 +150,38 @@ export function ReflectionJourneyCard({
           ))}
         </View>
       ) : (
-        <Text style={styles.empty}>Themes will show up here as you reflect.</Text>
+        <Text style={styles.empty}>
+          Themes will show up here as you reflect.
+        </Text>
       )}
+      {reflection.encouragementLine ? (
+        <Text style={styles.encouragement}>{reflection.encouragementLine}</Text>
+      ) : null}
 
       <Text style={styles.subhead}>Recent Reflections</Text>
       {hasRecent ? (
         reflection.recent.map((item) => (
           <View key={item.id} style={styles.recentRow}>
-            <Text style={styles.recentExcerpt}>{item.excerpt}</Text>
-            <Text style={styles.muted}>{item.dateLabel}</Text>
+            <Ionicons
+              color={theme.colors.deepGreen}
+              name={
+                item.kind === 'voice' ? 'mic-outline' : 'document-text-outline'
+              }
+              size={17}
+            />
+            <View style={styles.recentCopy}>
+              <Text style={styles.recentExcerpt}>{item.excerpt}</Text>
+              <Text style={styles.muted}>
+                {item.dateLabel}
+                {item.moodScore ? ` · mood ${item.moodScore}/5` : ''}
+              </Text>
+            </View>
           </View>
         ))
       ) : (
-        <Text style={styles.empty}>No reflections yet. Your words will live here.</Text>
+        <Text style={styles.empty}>
+          No reflections yet. Your words will live here.
+        </Text>
       )}
     </View>
   );
@@ -344,11 +393,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   recentRow: {
-    gap: 2,
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: theme.spacing.xs,
   },
+  recentCopy: { flex: 1, gap: 2 },
   recentExcerpt: {
     color: theme.colors.text,
     fontSize: theme.fontSize.sm,
+  },
+  encouragement: {
+    backgroundColor: theme.colors.lightMint,
+    borderRadius: theme.radius.md,
+    color: theme.colors.text,
+    fontSize: 13,
+    fontStyle: 'italic',
+    lineHeight: 19,
+    padding: theme.spacing.sm,
   },
   accordion: {
     borderColor: theme.colors.border,

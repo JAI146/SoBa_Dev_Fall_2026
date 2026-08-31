@@ -10,6 +10,9 @@ import { SeedService } from './seed.service';
 import { Pathway } from '../entities/pathway.entity';
 import { Partner } from '../entities/partner.entity';
 import { ChecklistTemplate } from '../entities/checklist-template.entity';
+import { ReflectionTheme } from '../entities/reflection-theme.entity';
+import { SubscriptionPlan } from '../entities/subscription-plan.entity';
+import { CommunityChallenge } from '../entities/community-challenge.entity';
 
 @Module({
   imports: [
@@ -23,6 +26,9 @@ import { ChecklistTemplate } from '../entities/checklist-template.entity';
       Pathway,
       Partner,
       ChecklistTemplate,
+      ReflectionTheme,
+      SubscriptionPlan,
+      CommunityChallenge,
     ]),
   ],
   providers: [SeedService],
