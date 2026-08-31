@@ -13,6 +13,8 @@ import {
   type HabitCompleteResponse,
   type ReflectionJourneyPublic,
   type UserGoalPublic,
+  type UpdateHabitsInput,
+  type UpdateValuesInput,
 } from '@purposemint/contracts';
 import { In, QueryFailedError, Repository } from 'typeorm';
 import {
@@ -28,6 +30,7 @@ import { UserHabit } from '../entities/user-habit.entity';
 import { UserValue } from '../entities/user-value.entity';
 import { User } from '../entities/user.entity';
 import { Value } from '../entities/value.entity';
+import { HabitTemplate } from '../entities/habit-template.entity';
 import { UsersService } from '../users/users.service';
 
 const PATHWAY_TARGETS = [
@@ -74,8 +77,40 @@ export class DashboardService {
     private readonly completionsRepo: Repository<HabitCompletion>,
     @InjectRepository(SavingsEntry)
     private readonly savingsRepo: Repository<SavingsEntry>,
+    @InjectRepository(HabitTemplate) private readonly habitTemplatesRepo: Repository<HabitTemplate>,
+    @InjectRepository(Value) private readonly valuesRepo: Repository<Value>,
     private readonly usersService: UsersService,
   ) {}
+
+  async updateHabits(userId: string, input: UpdateHabitsInput): Promise<DashboardPayload> {
+    await this.requireCompleted(userId);
+    await this.userHabitsRepo.manager.transaction(async (manager) => {
+      await manager.findOneOrFail(User, { where: { id: userId }, lock: { mode: 'pessimistic_write' } });
+      const selected = [...new Set(input.templateIds)];
+      const templates = selected.length ? await manager.find(HabitTemplate, { where: { id: In(selected) } }) : [];
+      if (templates.length !== selected.length) throw new NotFoundException("One or more habits aren't available.");
+      const existing = await manager.find(UserHabit, { where: { userId } });
+      const byTemplate = new Map(existing.map((row) => [row.sourceTemplateId, row]));
+      for (const row of existing) { row.isActive = selected.includes(row.sourceTemplateId); }
+      await manager.save(existing);
+      const additions = selected.filter((id) => !byTemplate.has(id)).map((sourceTemplateId) => manager.create(UserHabit, { userId, sourceTemplateId, isActive: true }));
+      if (additions.length) await manager.save(additions);
+    });
+    return this.getDashboard(userId);
+  }
+
+  async updateValues(userId: string, input: UpdateValuesInput): Promise<DashboardPayload> {
+    await this.requireCompleted(userId);
+    await this.userValuesRepo.manager.transaction(async (manager) => {
+      await manager.findOneOrFail(User, { where: { id: userId }, lock: { mode: 'pessimistic_write' } });
+      const keys = [...new Set(input.valueKeys)];
+      const values = await manager.find(Value, { where: { key: In(keys) } });
+      if (values.length !== keys.length) throw new NotFoundException("One or more values aren't available.");
+      await manager.delete(UserValue, { userId });
+      await manager.insert(UserValue, values.map((value) => ({ userId, valueId: value.id })));
+    });
+    return this.getDashboard(userId);
+  }
 
   async getDashboard(userId: string): Promise<DashboardPayload> {
     const user = await this.usersService.getByIdOrFail(userId);

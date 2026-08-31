@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HabitCompletion } from '../entities/habit-completion.entity';
 import { GoalTemplate } from '../entities/goal-template.entity';
+import { HabitTemplate } from '../entities/habit-template.entity';
+import { Value } from '../entities/value.entity';
 import { SavingsEntry } from '../entities/savings-entry.entity';
 import { UserGoal } from '../entities/user-goal.entity';
 import { UserHabit } from '../entities/user-habit.entity';
@@ -13,12 +15,15 @@ import { GoalsController } from './goals.controller';
 import { GoalCreationService } from './goal-creation.service';
 import { HabitsController } from './habits.controller';
 import { SavingsController } from './savings.controller';
+import { ValuesController } from './values.controller';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       UserValue,
       GoalTemplate,
+      HabitTemplate,
+      Value,
       UserGoal,
       UserHabit,
       HabitCompletion,
@@ -31,6 +36,7 @@ import { SavingsController } from './savings.controller';
     HabitsController,
     SavingsController,
     GoalsController,
+    ValuesController,
   ],
   providers: [DashboardService, GoalCreationService],
   exports: [DashboardService, GoalCreationService],

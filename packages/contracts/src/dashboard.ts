@@ -135,6 +135,11 @@ export type HabitCompleteResponse = z.infer<
   typeof habitCompleteResponseSchema
 >;
 
+export const updateHabitsSchema = z.object({ templateIds: z.array(z.string().uuid()) });
+export const updateValuesSchema = z.object({ valueKeys: z.array(z.string().trim().min(1).max(100)).min(1, "Pick at least one value to save.") });
+export type UpdateHabitsInput = z.infer<typeof updateHabitsSchema>;
+export type UpdateValuesInput = z.infer<typeof updateValuesSchema>;
+
 export const updateGoalSchema = z.object({
   isFocus: z.literal(true),
 });

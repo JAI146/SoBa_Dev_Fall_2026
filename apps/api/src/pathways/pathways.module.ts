@@ -1,0 +1,4 @@
+import { Module } from '@nestjs/common'; import { TypeOrmModule } from '@nestjs/typeorm';
+import { ChecklistTemplate } from '../entities/checklist-template.entity'; import { Partner } from '../entities/partner.entity'; import { PathwayApplicationPartner } from '../entities/pathway-application-partner.entity'; import { PathwayApplication } from '../entities/pathway-application.entity'; import { PathwayChecklistItem } from '../entities/pathway-checklist-item.entity'; import { Pathway } from '../entities/pathway.entity';
+import { PathwaysController } from './pathways.controller'; import { PathwaysService } from './pathways.service';
+@Module({imports:[TypeOrmModule.forFeature([Pathway,Partner,ChecklistTemplate,PathwayApplication,PathwayApplicationPartner,PathwayChecklistItem])],controllers:[PathwaysController],providers:[PathwaysService]}) export class PathwaysModule{}

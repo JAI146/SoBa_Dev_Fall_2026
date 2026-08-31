@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { OnboardingStatus, Tier } from '@purposemint/contracts';
-import { Redirect } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -105,6 +106,7 @@ export default function DashboardScreen() {
   } = useDashboard();
   const [logOpen, setLogOpen] = useState(false);
   const [changeOpen, setChangeOpen] = useState(false);
+  const [pathwaysLockedOpen, setPathwaysLockedOpen] = useState(false);
 
   if (!session || session.user.onboardingStatus !== OnboardingStatus.COMPLETED) {
     return <Redirect href={postAuthHref(session?.user)} />;
@@ -152,6 +154,8 @@ export default function DashboardScreen() {
 
         <View style={styles.pills}>
           <QuickPill label="Update Goals" onPress={() => setChangeOpen(true)} />
+          <QuickPill label="Update Habits" onPress={() => router.push('/manage-habits')} />
+          <QuickPill label="Edit Values" onPress={() => router.push('/edit-values')} />
         </View>
 
         <View style={styles.card}>
@@ -204,6 +208,7 @@ export default function DashboardScreen() {
         <View style={styles.card}>
           <View style={styles.rowBetween}>
             <Text style={styles.sectionTitle}>Today's Habits</Text>
+            <Pressable accessibilityLabel="Edit Habits" accessibilityRole="button" onPress={() => router.push('/manage-habits')} style={styles.changeButton}><Text style={styles.changeText}>Edit Habits</Text></Pressable>
           </View>
           {data.habits.map((habit) => (
             <HabitCheckCard
@@ -305,14 +310,19 @@ export default function DashboardScreen() {
             Turn what you've saved into a car, a home, childcare, or training.
           </Text>
         </View>
-        <View
-          accessibilityLabel="Unlock Pathways. Locked"
-          accessibilityRole="text"
+        <Pressable
+          accessibilityLabel={data.user.tier === Tier.ELEVATE ? 'Unlock Pathways' : 'Unlock Pathways. Requires Elevation'}
+          accessibilityRole="button"
+          onPress={() => data.user.tier === Tier.ELEVATE ? router.push('/(pathways)') : setPathwaysLockedOpen(true)}
           style={styles.unlockButton}>
           <Ionicons color={theme.colors.white} name="lock-closed" size={14} />
           <Text style={styles.unlockText}>Unlock Pathways</Text>
-        </View>
+        </Pressable>
       </View>
+
+      <Modal animationType="fade" onRequestClose={() => setPathwaysLockedOpen(false)} transparent visible={pathwaysLockedOpen}>
+        <View style={styles.modalOverlay}><Pressable accessibilityLabel="Close Pathways membership information" accessibilityRole="button" onPress={() => setPathwaysLockedOpen(false)} style={styles.modalBackdrop}/><View style={styles.lockedModal}><Ionicons color={theme.colors.deepGreen} name="lock-closed" size={28}/><Text style={styles.modalTitle}>Pathways requires Elevation</Text><Text style={styles.muted}>Your Starter membership keeps Pathways locked. Elevation unlocks readiness verification and partner matching for major life goals.</Text><Pressable accessibilityLabel="Close" accessibilityRole="button" onPress={() => setPathwaysLockedOpen(false)} style={styles.modalClose}><Text style={styles.unlockText}>Close</Text></Pressable></View></View>
+      </Modal>
 
       <LogSavingsModal
         goalTitle={focus?.title ?? null}
@@ -593,4 +603,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
+  modalBackdrop: { backgroundColor: 'rgba(38, 22, 15, 0.35)', flex: 1 },
+  lockedModal: { alignItems: 'center', backgroundColor: theme.colors.white, borderTopLeftRadius: theme.radius.xl, borderTopRightRadius: theme.radius.xl, gap: theme.spacing.sm, padding: theme.spacing.xl, paddingBottom: 36 },
+  modalTitle: { color: theme.colors.text, fontSize: theme.fontSize.lg, fontWeight: '900' },
+  modalClose: { alignItems: 'center', backgroundColor: theme.colors.deepGreen, borderRadius: theme.radius.md, justifyContent: 'center', minHeight: 44, minWidth: 120, paddingHorizontal: theme.spacing.md },
 });

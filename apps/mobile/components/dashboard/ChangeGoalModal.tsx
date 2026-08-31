@@ -84,12 +84,17 @@ export function ChangeGoalModal({
           style={styles.backdrop}
         />
         <View style={styles.sheet}>
-          <Text style={styles.title}>Change current goal</Text>
-          {goals.length === 0 ? (
+          <Text style={styles.title}>Manage goals</Text>
+          {goals.map((goal) => {
+            const selected = goal.id === focusGoalId;
+            return (
+              <Pressable accessibilityLabel={goal.title} accessibilityRole="button" accessibilityState={{ busy: pendingGoalId === goal.id, selected }} disabled={pendingGoalId !== null} key={goal.id} onPress={() => void selectGoal(goal.id)} style={[styles.row, selected && styles.rowSelected]}>
+                <Text style={styles.emoji}>{goal.iconEmoji}</Text><View style={styles.copy}><Text style={styles.goalTitle}>{goal.title}</Text><Text style={styles.meta}>{formatUsdExact(goal.savedAmount)} / {formatUsdExact(goal.targetAmount)}</Text></View>
+              </Pressable>
+            );
+          })}
             <View style={styles.form}>
-              <Text style={styles.empty}>
-                Create your first savings goal so you can start logging what you set aside.
-              </Text>
+              <Text style={styles.empty}>{goals.length === 0 ? 'Create your first savings goal so you can start logging what you set aside.' : 'Add another savings goal.'}</Text>
               <Text style={styles.label}>What are you saving for?</Text>
               <TextInput
                 accessibilityLabel="What are you saving for?"
@@ -122,29 +127,6 @@ export function ChangeGoalModal({
                 variant="gold"
               />
             </View>
-          ) : (
-            goals.map((goal) => {
-              const selected = goal.id === focusGoalId;
-              return (
-                <Pressable
-                  accessibilityLabel={goal.title}
-                  accessibilityRole="button"
-                  accessibilityState={{ busy: pendingGoalId === goal.id, selected }}
-                  disabled={pendingGoalId !== null}
-                  key={goal.id}
-                  onPress={() => void selectGoal(goal.id)}
-                  style={[styles.row, selected && styles.rowSelected]}>
-                  <Text style={styles.emoji}>{goal.iconEmoji}</Text>
-                  <View style={styles.copy}>
-                    <Text style={styles.goalTitle}>{goal.title}</Text>
-                    <Text style={styles.meta}>
-                      {formatUsdExact(goal.savedAmount)} / {formatUsdExact(goal.targetAmount)}
-                    </Text>
-                  </View>
-                </Pressable>
-              );
-            })
-          )}
           {error ? (
             <Text accessibilityRole="alert" style={styles.error}>
               {error}

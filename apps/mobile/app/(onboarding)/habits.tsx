@@ -1,29 +1,20 @@
-import { HabitCategory, type HabitCategoryValue } from '@purposemint/contracts';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/AppButton';
 import { AppScreen } from '@/components/AppScreen';
 import { FormNotice } from '@/components/FormNotice';
 import { OnboardingLoading } from '@/components/onboarding/OnboardingLoading';
+import { HabitTemplatePicker } from '@/components/onboarding/HabitTemplatePicker';
 import { QueryErrorState } from '@/components/QueryErrorState';
 import { theme } from '@/constants/theme';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { formatUsdExact } from '@/lib/format/money';
-import { frequencyLabel } from '@/lib/onboarding/labels';
-
-const FILTERS: { id: 'all' | HabitCategoryValue; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: HabitCategory.MONEY, label: 'Money' },
-  { id: HabitCategory.MINDSET, label: 'Mindset' },
-  { id: HabitCategory.MOTIVATION, label: 'Motivation' },
-];
 
 export default function HabitsScreen() {
   const { complete, content, errorMessage, isLoading, refresh, saveHabits } = useOnboarding();
   const [selected, setSelected] = useState<string[]>([]);
-  const [filter, setFilter] = useState<'all' | HabitCategoryValue>('all');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -32,12 +23,6 @@ export default function HabitsScreen() {
       setSelected(content.progress.habitTemplateIds);
     }
   }, [content?.progress.habitTemplateIds]);
-
-  const visibleHabits = useMemo(() => {
-    if (!content) return [];
-    if (filter === 'all') return content.habitTemplates;
-    return content.habitTemplates.filter((habit) => habit.category === filter);
-  }, [content, filter]);
 
   const selectedHabits = useMemo(() => {
     if (!content) return [];
@@ -51,12 +36,6 @@ export default function HabitsScreen() {
   if (isLoading || !content) {
     return <OnboardingLoading />;
   }
-
-  const toggle = (id: string) => {
-    setSelected((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
-    );
-  };
 
   const onStart = async () => {
     setError(null);
@@ -89,58 +68,7 @@ export default function HabitsScreen() {
         </View>
       ) : null}
 
-      <View style={styles.filters}>
-        {FILTERS.map((item) => {
-          const isActive = filter === item.id;
-          return (
-            <Pressable
-              accessibilityLabel={item.label}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isActive }}
-              key={item.id}
-              onPress={() => setFilter(item.id)}
-              style={[styles.filter, isActive && styles.filterActive]}>
-              <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
-                {item.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <View style={styles.chooseRow}>
-        <Text style={styles.chooseLabel}>CHOOSE YOUR HABITS</Text>
-        <View style={styles.countPill}>
-          <Text style={styles.countText}>{selected.length} selected</Text>
-        </View>
-      </View>
-
-      {visibleHabits.map((habit) => {
-        const isSelected = selected.includes(habit.id);
-        return (
-          <Pressable
-            accessibilityLabel={habit.title}
-            accessibilityRole="button"
-            accessibilityState={{ selected: isSelected }}
-            key={habit.id}
-            onPress={() => toggle(habit.id)}
-            style={[styles.habitCard, isSelected && styles.habitCardSelected]}>
-            <View style={[styles.check, isSelected && styles.checkSelected]}>
-              {isSelected ? (
-                <Text style={styles.checkMark}>✓</Text>
-              ) : null}
-            </View>
-            <Text style={styles.habitEmoji}>{habit.iconEmoji}</Text>
-            <View style={styles.habitCopy}>
-              <Text style={styles.habitTitle}>{habit.title}</Text>
-              <Text style={styles.habitBody}>{habit.description}</Text>
-            </View>
-            <View style={styles.frequency}>
-              <Text style={styles.frequencyText}>{frequencyLabel(habit.frequency)}</Text>
-            </View>
-          </Pressable>
-        );
-      })}
+      <HabitTemplatePicker templates={content.habitTemplates} selected={selected} onChange={setSelected} />
 
       <View style={styles.proTip}>
         <Text style={styles.proTipText}>

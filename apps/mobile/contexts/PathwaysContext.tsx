@@ -1,0 +1,20 @@
+import type { ChecklistItemPublic, CreatePathwayApplicationInput, PartnerPublic, PartnersListResponse, PathwayApplicationPublic, PathwayPublic, PathwaysListResponse, SelectPathwayPartnersInput, UpdateChecklistItemInput, VerifyPathwayApplicationInput } from '@purposemint/contracts';
+import { createContext, type PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { apiRequest } from '@/lib/api/client';
+
+type PathwaysValue={pathways:PathwayPublic[];selected:PathwayPublic|null;application:PathwayApplicationPublic|null;partners:PartnerPublic[];loading:boolean;error:string|null;select:(p:PathwayPublic)=>void;start:()=>Promise<void>;verify:(input:VerifyPathwayApplicationInput)=>Promise<void>;savePartners:(ids:string[])=>Promise<void>;submit:()=>Promise<void>;toggleChecklist:(item:ChecklistItemPublic)=>Promise<void>;retry:()=>Promise<void>;reset:()=>void};
+const Context=createContext<PathwaysValue|null>(null);
+export function PathwaysProvider({children}:PropsWithChildren){
+ const [pathways,setPathways]=useState<PathwayPublic[]>([]),[selected,setSelected]=useState<PathwayPublic|null>(null),[application,setApplication]=useState<PathwayApplicationPublic|null>(null),[partners,setPartners]=useState<PartnerPublic[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState<string|null>(null);
+ const load=useCallback(async()=>{setError(null);setLoading(true);try{const data=await apiRequest<PathwaysListResponse>('/pathways',{authenticated:true});setPathways(data.pathways)}catch(e){setError(e instanceof Error?e.message:'Please try again.')}finally{setLoading(false)}},[]);
+ useEffect(()=>{void load()},[load]);
+ const start=useCallback(async()=>{if(!selected)return;setError(null);try{const app=await apiRequest<PathwayApplicationPublic,CreatePathwayApplicationInput>('/pathways/applications',{authenticated:true,method:'POST',body:{pathwayKey:selected.key}});setApplication(app)}catch(e){setError(e instanceof Error?e.message:'Please try again.');throw e}},[selected]);
+ const verify=useCallback(async(input:VerifyPathwayApplicationInput)=>{if(!application)return;const app=await apiRequest<PathwayApplicationPublic,VerifyPathwayApplicationInput>(`/pathways/applications/${application.id}/verify`,{authenticated:true,method:'PATCH',body:input});setApplication(app);const list=await apiRequest<PartnersListResponse>(`/pathways/${app.pathway.key}/partners`,{authenticated:true});setPartners(list.partners)},[application]);
+ const savePartners=useCallback(async(partnerIds:string[])=>{if(!application)return;setApplication(await apiRequest<PathwayApplicationPublic,SelectPathwayPartnersInput>(`/pathways/applications/${application.id}/partners`,{authenticated:true,method:'PATCH',body:{partnerIds}}))},[application]);
+ const submit=useCallback(async()=>{if(!application)return;setApplication(await apiRequest<PathwayApplicationPublic>(`/pathways/applications/${application.id}/submit`,{authenticated:true,method:'POST'}))},[application]);
+ const toggleChecklist=useCallback(async(item:ChecklistItemPublic)=>{if(!application)return;const saved=await apiRequest<ChecklistItemPublic,UpdateChecklistItemInput>(`/pathways/checklist-items/${item.id}`,{authenticated:true,method:'PATCH',body:{isComplete:!item.isComplete}});setApplication(current=>current?{...current,checklistItems:current.checklistItems.map(row=>row.id===saved.id?saved:row)}:current)},[application]);
+ const reset=useCallback(()=>{setSelected(null);setApplication(null);setPartners([]);setError(null)},[]);
+ const value=useMemo(()=>({pathways,selected,application,partners,loading,error,select:setSelected,start,verify,savePartners,submit,toggleChecklist,retry:load,reset}),[pathways,selected,application,partners,loading,error,start,verify,savePartners,submit,toggleChecklist,load,reset]);
+ return <Context.Provider value={value}>{children}</Context.Provider>;
+}
+export function usePathways(){const value=useContext(Context);if(!value)throw new Error('usePathways must be used inside PathwaysProvider.');return value}

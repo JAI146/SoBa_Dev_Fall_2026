@@ -94,6 +94,26 @@ export const habitCategoryValues = [
 export type HabitCategoryValue =
   (typeof HabitCategory)[keyof typeof HabitCategory];
 
+export const PathwayApplicationStatus = {
+  DRAFT: "draft",
+  SUBMITTED: "submitted",
+} as const;
+export const pathwayApplicationStatusValues = [PathwayApplicationStatus.DRAFT, PathwayApplicationStatus.SUBMITTED] as const;
+export type PathwayApplicationStatusValue = (typeof PathwayApplicationStatus)[keyof typeof PathwayApplicationStatus];
+
+export const PathwayVerificationMethod = { SELF_ATTESTED: "self_attested" } as const;
+export const pathwayVerificationMethodValues = [PathwayVerificationMethod.SELF_ATTESTED] as const;
+export type PathwayVerificationMethodValue = (typeof PathwayVerificationMethod)[keyof typeof PathwayVerificationMethod];
+
+export const ChecklistCategory = {
+  DOCUMENTATION: "documentation",
+  FINANCIAL_REVIEW: "financial_review",
+  CONSULTATION: "consultation",
+  NEXT_STEPS: "next_steps",
+} as const;
+export const checklistCategoryValues = [ChecklistCategory.DOCUMENTATION, ChecklistCategory.FINANCIAL_REVIEW, ChecklistCategory.CONSULTATION, ChecklistCategory.NEXT_STEPS] as const;
+export type ChecklistCategoryValue = (typeof ChecklistCategory)[keyof typeof ChecklistCategory];
+
 /** Which client asked for the session. Decides refresh TTL and delivery channel. */
 export const ClientType = {
   MOBILE: "mobile",

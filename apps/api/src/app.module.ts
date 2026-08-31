@@ -14,6 +14,7 @@ import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { UsersModule } from './users/users.module';
+import { PathwaysModule } from './pathways/pathways.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     OnboardingModule,
     DashboardModule,
+    PathwaysModule,
     HealthModule,
   ],
   providers: [

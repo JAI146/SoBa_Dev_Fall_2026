@@ -1,18 +1,15 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 import { AppButton } from '@/components/AppButton';
 import { AppScreen } from '@/components/AppScreen';
 import { FormNotice } from '@/components/FormNotice';
 import { OnboardingLoading } from '@/components/onboarding/OnboardingLoading';
+import { ValuePicker } from '@/components/onboarding/ValuePicker';
 import { QueryErrorState } from '@/components/QueryErrorState';
 import { theme } from '@/constants/theme';
 import { useOnboarding } from '@/contexts/OnboardingContext';
-import { colorForToken } from '@/lib/onboarding/labels';
-
-type IoniconName = keyof typeof Ionicons.glyphMap;
 
 export default function ValuesScreen() {
   const { content, errorMessage, isLoading, refresh, saveValues } = useOnboarding();
@@ -33,12 +30,6 @@ export default function ValuesScreen() {
   if (isLoading || !content) {
     return <OnboardingLoading />;
   }
-
-  const toggle = (key: string) => {
-    setSelected((current) =>
-      current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
-    );
-  };
 
   const onNext = async () => {
     if (selected.length === 0) return;
@@ -62,37 +53,7 @@ export default function ValuesScreen() {
         No wrong answers. Pick what feels real to your life today. You can pick multiple.
       </Text>
 
-      <View style={styles.grid}>
-        {content.values.map((value) => {
-          const isSelected = selected.includes(value.key);
-          return (
-            <Pressable
-              accessibilityLabel={value.label}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isSelected }}
-              key={value.key}
-              onPress={() => toggle(value.key)}
-              style={[styles.card, isSelected && styles.cardSelected]}>
-              <View style={styles.cardTop}>
-                <View
-                  style={[
-                    styles.icon,
-                    { backgroundColor: colorForToken(value.colorToken) },
-                  ]}>
-                  <Ionicons color={theme.colors.white} name={value.iconName as IoniconName} size={18} />
-                </View>
-                <View style={[styles.check, isSelected && styles.checkSelected]}>
-                  {isSelected ? (
-                    <Ionicons color={theme.colors.white} name="checkmark" size={12} />
-                  ) : null}
-                </View>
-              </View>
-              <Text style={styles.cardTitle}>{value.label}</Text>
-              <Text style={styles.cardBody}>{value.description}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <ValuePicker values={content.values} selected={selected} onChange={setSelected} />
 
       <Text style={styles.hint}>Tap on one or more values to continue</Text>
       <FormNotice message={error ?? undefined} />

@@ -16,6 +16,10 @@ import { GoalTemplate } from '../entities/goal-template.entity';
 import { HabitTemplate } from '../entities/habit-template.entity';
 import { User } from '../entities/user.entity';
 import { Value } from '../entities/value.entity';
+import { Pathway } from '../entities/pathway.entity';
+import { Partner } from '../entities/partner.entity';
+import { ChecklistTemplate } from '../entities/checklist-template.entity';
+import { SEEDED_CHECKLIST_TEMPLATES, SEEDED_PARTNERS, SEEDED_PATHWAYS } from './pathways-seed-data';
 import {
   SEEDED_GOAL_TEMPLATES,
   SEEDED_HABIT_TEMPLATES,
@@ -44,6 +48,9 @@ export class SeedService implements OnModuleInit {
     private readonly goalTemplatesRepo: Repository<GoalTemplate>,
     @InjectRepository(HabitTemplate)
     private readonly habitTemplatesRepo: Repository<HabitTemplate>,
+    @InjectRepository(Pathway) private readonly pathwaysRepo: Repository<Pathway>,
+    @InjectRepository(Partner) private readonly partnersRepo: Repository<Partner>,
+    @InjectRepository(ChecklistTemplate) private readonly checklistTemplatesRepo: Repository<ChecklistTemplate>,
     private readonly config: ConfigService<Env, true>,
   ) {}
 
@@ -52,6 +59,7 @@ export class SeedService implements OnModuleInit {
     await this.seedS3Config();
     await this.seedSmtpConfig();
     await this.seedOnboardingContent();
+    await this.seedPathways();
   }
 
   private async seedAdmin() {
@@ -189,5 +197,11 @@ export class SeedService implements OnModuleInit {
       );
       this.logger.log('Seeded habit templates.');
     }
+  }
+
+  private async seedPathways() {
+    await this.pathwaysRepo.upsert(SEEDED_PATHWAYS.map((row) => this.pathwaysRepo.create(row)), ['key']);
+    if ((await this.partnersRepo.count()) === 0) await this.partnersRepo.save(SEEDED_PARTNERS.map((row) => this.partnersRepo.create(row)));
+    if ((await this.checklistTemplatesRepo.count()) === 0) await this.checklistTemplatesRepo.save(SEEDED_CHECKLIST_TEMPLATES.map((row) => this.checklistTemplatesRepo.create(row)));
   }
 }

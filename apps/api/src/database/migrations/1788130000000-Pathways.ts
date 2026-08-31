@@ -1,0 +1,33 @@
+import { MigrationInterface, QueryRunner } from 'typeorm';
+
+export class Pathways1788130000000 implements MigrationInterface {
+  name = 'Pathways1788130000000';
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`CREATE TABLE "pathways" ("key" character varying(100) NOT NULL, "title" character varying(150) NOT NULL, "description" character varying(500) NOT NULL, "minimum_amount" numeric(10,2) NOT NULL, "icon_emoji" character varying(16) NOT NULL, "why_this_amount_body" text NOT NULL, "why_this_amount_breakdown" jsonb NOT NULL, "source_label" character varying(150) NOT NULL, "source_url" character varying(500) NOT NULL, "sort_order" integer NOT NULL, CONSTRAINT "PK_pathways_key" PRIMARY KEY ("key"))`);
+    await queryRunner.query(`CREATE TABLE "partners" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying(180) NOT NULL, "partner_type" character varying(100) NOT NULL, "description" character varying(500) NOT NULL, "location_label" character varying(150) NOT NULL, "capability_tags" text array NOT NULL DEFAULT '{}', "pathway_key" character varying(100) NOT NULL, "is_active" boolean NOT NULL DEFAULT true, "sort_order" integer NOT NULL, CONSTRAINT "PK_partners_id" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "idx_partners_pathway_active" ON "partners" ("pathway_key", "is_active")`);
+    await queryRunner.query(`CREATE TYPE "public"."checklist_templates_category_enum" AS ENUM('documentation','financial_review','consultation','next_steps')`);
+    await queryRunner.query(`CREATE TABLE "checklist_templates" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "pathway_key" character varying(100) NOT NULL, "category" "public"."checklist_templates_category_enum" NOT NULL, "title" character varying(180) NOT NULL, "description" character varying(500) NOT NULL, "sort_order" integer NOT NULL, CONSTRAINT "PK_checklist_templates_id" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "idx_checklist_templates_pathway" ON "checklist_templates" ("pathway_key")`);
+    await queryRunner.query(`CREATE TYPE "public"."pathway_applications_verification_method_enum" AS ENUM('self_attested')`);
+    await queryRunner.query(`CREATE TYPE "public"."pathway_applications_status_enum" AS ENUM('draft','submitted')`);
+    await queryRunner.query(`CREATE TABLE "pathway_applications" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "pathway_key" character varying(100) NOT NULL, "attested_amount" numeric(10,2), "attestation_accepted_at" TIMESTAMP WITH TIME ZONE, "verification_method" "public"."pathway_applications_verification_method_enum" NOT NULL DEFAULT 'self_attested', "status" "public"."pathway_applications_status_enum" NOT NULL DEFAULT 'draft', "submitted_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_pathway_applications_id" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "idx_pathway_applications_user" ON "pathway_applications" ("user_id")`);
+    await queryRunner.query(`CREATE UNIQUE INDEX "uq_pathway_applications_draft" ON "pathway_applications" ("user_id", "pathway_key") WHERE "status" = 'draft'`);
+    await queryRunner.query(`CREATE TABLE "pathway_application_partners" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "application_id" uuid NOT NULL, "partner_id" uuid NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_pathway_application_partners_id" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE UNIQUE INDEX "uq_pathway_application_partner" ON "pathway_application_partners" ("application_id", "partner_id")`);
+    await queryRunner.query(`CREATE TABLE "pathway_checklist_items" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "application_id" uuid NOT NULL, "checklist_template_id" uuid NOT NULL, "is_complete" boolean NOT NULL DEFAULT false, "completed_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_pathway_checklist_items_id" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE UNIQUE INDEX "uq_pathway_checklist_template" ON "pathway_checklist_items" ("application_id", "checklist_template_id")`);
+    await queryRunner.query(`ALTER TABLE "partners" ADD CONSTRAINT "FK_partners_pathway" FOREIGN KEY ("pathway_key") REFERENCES "pathways"("key") ON DELETE CASCADE`);
+    await queryRunner.query(`ALTER TABLE "checklist_templates" ADD CONSTRAINT "FK_checklist_templates_pathway" FOREIGN KEY ("pathway_key") REFERENCES "pathways"("key") ON DELETE CASCADE`);
+    await queryRunner.query(`ALTER TABLE "pathway_applications" ADD CONSTRAINT "FK_pathway_applications_user" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE`);
+    await queryRunner.query(`ALTER TABLE "pathway_applications" ADD CONSTRAINT "FK_pathway_applications_pathway" FOREIGN KEY ("pathway_key") REFERENCES "pathways"("key") ON DELETE RESTRICT`);
+    await queryRunner.query(`ALTER TABLE "pathway_application_partners" ADD CONSTRAINT "FK_application_partners_application" FOREIGN KEY ("application_id") REFERENCES "pathway_applications"("id") ON DELETE CASCADE`);
+    await queryRunner.query(`ALTER TABLE "pathway_application_partners" ADD CONSTRAINT "FK_application_partners_partner" FOREIGN KEY ("partner_id") REFERENCES "partners"("id") ON DELETE RESTRICT`);
+    await queryRunner.query(`ALTER TABLE "pathway_checklist_items" ADD CONSTRAINT "FK_checklist_items_application" FOREIGN KEY ("application_id") REFERENCES "pathway_applications"("id") ON DELETE CASCADE`);
+    await queryRunner.query(`ALTER TABLE "pathway_checklist_items" ADD CONSTRAINT "FK_checklist_items_template" FOREIGN KEY ("checklist_template_id") REFERENCES "checklist_templates"("id") ON DELETE RESTRICT`);
+  }
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP TABLE "pathway_checklist_items"`); await queryRunner.query(`DROP TABLE "pathway_application_partners"`); await queryRunner.query(`DROP TABLE "pathway_applications"`); await queryRunner.query(`DROP TYPE "public"."pathway_applications_status_enum"`); await queryRunner.query(`DROP TYPE "public"."pathway_applications_verification_method_enum"`); await queryRunner.query(`DROP TABLE "checklist_templates"`); await queryRunner.query(`DROP TYPE "public"."checklist_templates_category_enum"`); await queryRunner.query(`DROP TABLE "partners"`); await queryRunner.query(`DROP TABLE "pathways"`);
+  }
+}

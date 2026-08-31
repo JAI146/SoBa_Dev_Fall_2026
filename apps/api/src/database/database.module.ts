@@ -7,6 +7,9 @@ import { SmtpConfig } from '../entities/smtp-config.entity';
 import { User } from '../entities/user.entity';
 import { Value } from '../entities/value.entity';
 import { SeedService } from './seed.service';
+import { Pathway } from '../entities/pathway.entity';
+import { Partner } from '../entities/partner.entity';
+import { ChecklistTemplate } from '../entities/checklist-template.entity';
 
 @Module({
   imports: [
@@ -17,6 +20,9 @@ import { SeedService } from './seed.service';
       Value,
       GoalTemplate,
       HabitTemplate,
+      Pathway,
+      Partner,
+      ChecklistTemplate,
     ]),
   ],
   providers: [SeedService],
