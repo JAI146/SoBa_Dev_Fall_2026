@@ -70,6 +70,10 @@ export class User {
   @Column({ type: 'varchar', length: 100, nullable: true })
   city!: string | null;
 
+  /** IANA zone captured from the device during onboarding. */
+  @Column({ name: 'time_zone', type: 'varchar', length: 100, nullable: true })
+  timeZone!: string | null;
+
   @Column({
     name: 'user_type',
     type: 'enum',

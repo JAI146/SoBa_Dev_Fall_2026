@@ -47,7 +47,7 @@ function RootNavigator() {
         <Stack.Screen name="(onboarding)" />
         <Stack.Screen name="(tabs)" />
       </Stack>
-      <StatusBar backgroundColor="transparent" style="dark" translucent />
+      <StatusBar style="dark" />
     </>
   );
 }

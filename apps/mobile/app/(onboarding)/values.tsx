@@ -7,6 +7,7 @@ import { AppButton } from '@/components/AppButton';
 import { AppScreen } from '@/components/AppScreen';
 import { FormNotice } from '@/components/FormNotice';
 import { OnboardingLoading } from '@/components/onboarding/OnboardingLoading';
+import { QueryErrorState } from '@/components/QueryErrorState';
 import { theme } from '@/constants/theme';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { colorForToken } from '@/lib/onboarding/labels';
@@ -14,7 +15,7 @@ import { colorForToken } from '@/lib/onboarding/labels';
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
 export default function ValuesScreen() {
-  const { content, isLoading, saveValues } = useOnboarding();
+  const { content, errorMessage, isLoading, refresh, saveValues } = useOnboarding();
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -24,6 +25,10 @@ export default function ValuesScreen() {
       setSelected(content.progress.valueKeys);
     }
   }, [content?.progress.valueKeys]);
+
+  if (errorMessage && !content) {
+    return <QueryErrorState message={errorMessage} onRetry={() => void refresh()} />;
+  }
 
   if (isLoading || !content) {
     return <OnboardingLoading />;

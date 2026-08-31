@@ -20,6 +20,7 @@ export function toPublicUser(user: User): UserPublic {
     country: user.country,
     state: user.state,
     city: user.city,
+    timeZone: user.timeZone,
     userType: user.userType,
     adminRole: user.adminRole,
     status: user.status,

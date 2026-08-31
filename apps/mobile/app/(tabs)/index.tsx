@@ -22,11 +22,12 @@ import {
 } from '@/components/dashboard/DashboardSections';
 import { LogSavingsModal } from '@/components/dashboard/LogSavingsModal';
 import { HabitCheckCard } from '@/components/HabitCheckCard';
+import { QueryErrorState } from '@/components/QueryErrorState';
 import { theme } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDashboard } from '@/hooks/use-dashboard';
 import { postAuthHref } from '@/lib/auth/post-auth-href';
-import { formatUsd } from '@/lib/format/money';
+import { formatUsdExact } from '@/lib/format/money';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
@@ -90,13 +91,34 @@ const TOOLS: {
 
 export default function DashboardScreen() {
   const { session } = useAuth();
-  const { data, isLoading, completeHabit, logSavings, loggingSavings, setFocusGoal } =
-    useDashboard();
+  const {
+    completeHabit,
+    createGoal,
+    data,
+    error,
+    isError,
+    isLoading,
+    logSavings,
+    loggingSavings,
+    refetch,
+    setFocusGoal,
+  } = useDashboard();
   const [logOpen, setLogOpen] = useState(false);
   const [changeOpen, setChangeOpen] = useState(false);
 
   if (!session || session.user.onboardingStatus !== OnboardingStatus.COMPLETED) {
     return <Redirect href={postAuthHref(session?.user)} />;
+  }
+
+  if (isError) {
+    return (
+      <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <QueryErrorState
+          message={error instanceof Error ? error.message : 'Please try again.'}
+          onRetry={() => void refetch()}
+        />
+      </SafeAreaView>
+    );
   }
 
   if (isLoading || !data) {
@@ -130,8 +152,6 @@ export default function DashboardScreen() {
 
         <View style={styles.pills}>
           <QuickPill label="Update Goals" onPress={() => setChangeOpen(true)} />
-          <QuickPill label="Update Habits" onPress={() => undefined} />
-          <QuickPill label="Edit Values" onPress={() => undefined} />
         </View>
 
         <View style={styles.card}>
@@ -139,14 +159,14 @@ export default function DashboardScreen() {
             <>
               <View style={styles.rowBetween}>
                 <Text style={styles.sectionTitle}>
-                  Progress: {focus.progressPercent}% towards {formatUsd(focus.targetAmount)}
+                  Progress: {focus.progressPercent}% towards {formatUsdExact(focus.targetAmount)}
                 </Text>
-                <Text style={styles.savedHero}>{formatUsd(focus.savedAmount)}</Text>
+                <Text style={styles.savedHero}>{formatUsdExact(focus.savedAmount)}</Text>
               </View>
               <AnimatedProgressBar progress={focus.progressPercent / 100} />
               <Text style={styles.muted}>
-                {formatUsd(focus.savedAmount)} saved · {formatUsd(focus.remainingAmount)} left to
-                reach your {formatUsd(focus.targetAmount)} goal
+                {formatUsdExact(focus.savedAmount)} saved · {formatUsdExact(focus.remainingAmount)} left to
+                reach your {formatUsdExact(focus.targetAmount)} goal
               </Text>
               <Text style={styles.italic}>
                 You log these amounts yourself on Starter. Nothing is withdrawn from a bank
@@ -184,13 +204,6 @@ export default function DashboardScreen() {
         <View style={styles.card}>
           <View style={styles.rowBetween}>
             <Text style={styles.sectionTitle}>Today's Habits</Text>
-            <Pressable
-              accessibilityLabel="Edit Habits"
-              accessibilityRole="button"
-              onPress={() => undefined}
-              style={styles.editHabits}>
-              <Text style={styles.editHabitsText}>Edit Habits</Text>
-            </Pressable>
           </View>
           {data.habits.map((habit) => (
             <HabitCheckCard
@@ -315,9 +328,8 @@ export default function DashboardScreen() {
         focusGoalId={focus?.id ?? null}
         goals={data.goals}
         onClose={() => setChangeOpen(false)}
-        onSelect={(goalId) => {
-          void setFocusGoal(goalId);
-        }}
+        onCreate={createGoal}
+        onSelect={setFocusGoal}
         visible={changeOpen}
       />
     </SafeAreaView>
@@ -451,15 +463,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.sm,
   },
   changeText: {
-    color: theme.colors.deepGreen,
-    fontSize: theme.fontSize.sm,
-    fontWeight: '800',
-  },
-  editHabits: {
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  editHabitsText: {
     color: theme.colors.deepGreen,
     fontSize: theme.fontSize.sm,
     fontWeight: '800',

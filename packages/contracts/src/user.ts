@@ -1,10 +1,10 @@
 import { z } from "zod";
-import type {
-  AdminRoleValue,
-  OnboardingStatusValue,
-  TierValue,
-  UserStatusValue,
-  UserTypeValue,
+import {
+  adminRoleValues,
+  onboardingStatusValues,
+  tierValues,
+  userStatusValues,
+  userTypeValues,
 } from "./enums";
 
 /**
@@ -53,15 +53,24 @@ export const policyDocumentKeyValues = [
 export type PolicyDocumentKeyValue =
   (typeof PolicyDocumentKey)[keyof typeof PolicyDocumentKey];
 
-export interface PolicyAgreementRecord {
-  version: string;
+export const policyAgreementRecordSchema = z.object({
+  version: z.string(),
   /** ISO-8601 timestamp, always stamped server-side. */
-  agreedAt: string;
-}
+  agreedAt: z.string().datetime(),
+});
 
-export type PolicyAgreements = Partial<
-  Record<PolicyDocumentKeyValue, PolicyAgreementRecord>
+export type PolicyAgreementRecord = z.infer<
+  typeof policyAgreementRecordSchema
 >;
+
+export const policyAgreementsSchema = z
+  .object({
+    [PolicyDocumentKey.TERMS_OF_USE]: policyAgreementRecordSchema,
+    [PolicyDocumentKey.PRIVACY_POLICY]: policyAgreementRecordSchema,
+  })
+  .partial();
+
+export type PolicyAgreements = z.infer<typeof policyAgreementsSchema>;
 
 export const recordPolicyAgreementSchema = z.object({
   documentKey: z.enum(policyDocumentKeyValues),
@@ -77,37 +86,54 @@ export type RecordPolicyAgreementInput = z.infer<
 >;
 
 /** The only user shape that ever leaves the API. No hashes, no tokens. */
-export interface UserPublic {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  profileImageUrl: string | null;
-  country: string | null;
-  state: string | null;
-  city: string | null;
-  userType: UserTypeValue;
-  adminRole: AdminRoleValue | null;
-  status: UserStatusValue;
-  displayName: string | null;
-  onboardingStatus: OnboardingStatusValue;
-  onboardingCompletedAt: string | null;
-  tier: TierValue;
-  emailVerifiedAt: string | null;
-  lastLoginAt: string | null;
-  deleteAccountRequestedAt: string | null;
-  notificationPreferences: NotificationPreferences;
-  policyAgreements: PolicyAgreements;
-  createdAt: string;
-}
+export const userPublicSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  firstName: z.string(),
+  lastName: z.string(),
+  profileImageUrl: z.string().nullable(),
+  country: z.string().nullable(),
+  state: z.string().nullable(),
+  city: z.string().nullable(),
+  timeZone: z.string().nullable(),
+  userType: z.enum(userTypeValues),
+  adminRole: z.enum(adminRoleValues).nullable(),
+  status: z.enum(userStatusValues),
+  displayName: z.string().nullable(),
+  onboardingStatus: z.enum(onboardingStatusValues),
+  onboardingCompletedAt: z.string().datetime().nullable(),
+  tier: z.enum(tierValues),
+  emailVerifiedAt: z.string().datetime().nullable(),
+  lastLoginAt: z.string().datetime().nullable(),
+  deleteAccountRequestedAt: z.string().datetime().nullable(),
+  notificationPreferences: notificationPreferencesSchema,
+  policyAgreements: policyAgreementsSchema,
+  createdAt: z.string().datetime(),
+});
+
+export type UserPublic = z.infer<typeof userPublicSchema>;
+
+export const timeZoneSchema = z
+  .string()
+  .trim()
+  .min(1, "Choose a valid time zone.")
+  .max(100)
+  .refine((value) => {
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: value }).format();
+      return true;
+    } catch {
+      return false;
+    }
+  }, "Choose a valid time zone.");
 
 const optionalPlace = z
   .string()
   .trim()
   .max(100)
-  .optional()
   .nullable()
-  .transform((value) => (value ? value : null));
+  .transform((value) => (value ? value : null))
+  .optional();
 
 export const updateProfileSchema = z
   .object({
@@ -132,6 +158,7 @@ export const updateProfileSchema = z
     country: optionalPlace,
     state: optionalPlace,
     city: optionalPlace,
+    timeZone: timeZoneSchema.optional().nullable(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "Pick at least one detail to update.",

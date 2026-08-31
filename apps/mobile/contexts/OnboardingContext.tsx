@@ -32,7 +32,7 @@ type OnboardingContextValue = {
   saveGoal: (input: SaveOnboardingGoalInput) => Promise<OnboardingContentResponse>;
   saveHabits: (input: SaveOnboardingHabitsInput) => Promise<OnboardingContentResponse>;
   saveValues: (input: SaveOnboardingValuesInput) => Promise<OnboardingContentResponse>;
-  saveWelcome: (displayName: string) => Promise<void>;
+  saveWelcome: (displayName: string, timeZone: string | null) => Promise<void>;
   complete: () => Promise<DashboardPayload>;
 };
 
@@ -59,10 +59,16 @@ export function OnboardingProvider({ children }: PropsWithChildren) {
   );
 
   const saveWelcomeMutation = useMutation({
-    mutationFn: (displayName: string) =>
+    mutationFn: ({
+      displayName,
+      timeZone,
+    }: {
+      displayName: string;
+      timeZone: string | null;
+    }) =>
       apiRequest<UserPublic, UpdateProfileInput>('/users/me', {
         authenticated: true,
-        body: { displayName },
+        body: { displayName, timeZone },
         method: 'PATCH',
       }),
     onSuccess: async (user) => {
@@ -146,8 +152,8 @@ export function OnboardingProvider({ children }: PropsWithChildren) {
       saveGoal: saveGoalMutation.mutateAsync,
       saveHabits: saveHabitsMutation.mutateAsync,
       saveValues: saveValuesMutation.mutateAsync,
-      saveWelcome: async (displayName: string) => {
-        await saveWelcomeMutation.mutateAsync(displayName);
+      saveWelcome: async (displayName: string, timeZone: string | null) => {
+        await saveWelcomeMutation.mutateAsync({ displayName, timeZone });
       },
     }),
     [

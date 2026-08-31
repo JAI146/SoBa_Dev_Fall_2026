@@ -1,14 +1,16 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type {
-  DashboardPayload,
-  OnboardingContentResponse,
+import {
+  saveOnboardingGoalSchema,
+  type DashboardPayload,
+  type OnboardingContentResponse,
+  type SaveOnboardingGoalInput,
 } from '@purposemint/contracts';
 import type { AuthPrincipal } from '../auth/auth-principal';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { VerifiedEmailGuard } from '../auth/guards/verified-email.guard';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
-  SaveOnboardingGoalDto,
   SaveOnboardingHabitsDto,
   SaveOnboardingValuesDto,
 } from './dto/onboarding.dto';
@@ -44,7 +46,8 @@ export class OnboardingController {
   })
   saveGoal(
     @CurrentUser() principal: AuthPrincipal,
-    @Body() body: SaveOnboardingGoalDto,
+    @Body(new ZodValidationPipe(saveOnboardingGoalSchema))
+    body: SaveOnboardingGoalInput,
   ): Promise<OnboardingContentResponse> {
     return this.onboardingService.saveGoal(principal.userId, body);
   }

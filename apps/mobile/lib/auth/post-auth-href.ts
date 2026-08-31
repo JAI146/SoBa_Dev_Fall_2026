@@ -6,7 +6,7 @@ export function postAuthHref(user: UserPublic | null | undefined): Href {
     return '/(auth)/login';
   }
   if (user.onboardingStatus !== OnboardingStatus.COMPLETED) {
-    return '/(onboarding)';
+    return '/(onboarding)/index';
   }
   return '/(tabs)';
 }

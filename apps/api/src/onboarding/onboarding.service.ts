@@ -17,6 +17,7 @@ import {
   toValuePublic,
 } from '../common/mappers/onboarding.mapper';
 import { DashboardService } from '../dashboard/dashboard.service';
+import { GoalCreationService } from '../dashboard/goal-creation.service';
 import { GoalTemplate } from '../entities/goal-template.entity';
 import { HabitTemplate } from '../entities/habit-template.entity';
 import { User } from '../entities/user.entity';
@@ -43,6 +44,7 @@ export class OnboardingService {
     private readonly userHabitsRepo: Repository<UserHabit>,
     private readonly usersService: UsersService,
     private readonly dashboardService: DashboardService,
+    private readonly goalCreationService: GoalCreationService,
   ) {}
 
   async getContent(userId: string): Promise<OnboardingContentResponse> {
@@ -138,6 +140,13 @@ export class OnboardingService {
   ): Promise<OnboardingContentResponse> {
     if ('skip' in input) {
       await this.userGoalsRepo.manager.transaction(async (manager) => {
+        const user = await manager.findOne(User, {
+          where: { id: userId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!user) {
+          throw new BadRequestException("We couldn't find that account.");
+        }
         await manager.update(
           UserGoal,
           { userId, isFocus: true },
@@ -152,61 +161,9 @@ export class OnboardingService {
       });
       return this.getContent(userId);
     }
-
-    let title: string;
-    let targetAmount: number;
-    let isPathwayEligible: boolean;
-    let iconEmoji: string;
-    let sourceTemplateId: string | null;
-
-    if ('templateId' in input) {
-      const template = await this.goalTemplatesRepo.findOne({
-        where: { id: input.templateId },
-      });
-      if (!template) {
-        throw new BadRequestException(
-          "We couldn't find that savings goal. Pick another, or create your own.",
-        );
-      }
-      title = template.title;
-      targetAmount = Number(template.targetAmount);
-      isPathwayEligible = template.isPathwayEligible;
-      iconEmoji = template.iconEmoji;
-      sourceTemplateId = template.id;
-    } else {
-      title = input.title;
-      targetAmount = input.targetAmount;
-      isPathwayEligible = false;
-      iconEmoji = '🎯';
-      sourceTemplateId = null;
-    }
-
-    await this.userGoalsRepo.manager.transaction(async (manager) => {
-      await manager.update(
-        UserGoal,
-        { userId, isFocus: true },
-        { isFocus: false },
-      );
-      await manager.save(
-        UserGoal,
-        manager.create(UserGoal, {
-          userId,
-          title,
-          targetAmount,
-          savedAmount: 0,
-          sourceTemplateId,
-          isActive: true,
-          isFocus: true,
-          isPathwayEligible,
-          iconEmoji,
-        }),
-      );
-      await manager.update(
-        User,
-        { id: userId },
-        { onboardingGoalSkipped: false },
-      );
-      await this.markInProgress(manager, userId);
+    await this.goalCreationService.create(userId, input, {
+      markOnboardingProgress: true,
+      replaceFocus: true,
     });
 
     return this.getContent(userId);
@@ -261,18 +218,28 @@ export class OnboardingService {
 
   async complete(userId: string) {
     const content = await this.getContent(userId);
-    if (content.progress.valueKeys.length === 0) {
+    if (
+      !content.progress.displayName ||
+      content.progress.valueKeys.length === 0 ||
+      (!content.progress.goal && !content.progress.goalSkipped)
+    ) {
       throw new BadRequestException(
-        'Pick at least one value before we open your dashboard.',
+        'Finish your name, values, and goal choice before we open your dashboard.',
       );
     }
 
-    const user = await this.usersService.getByIdOrFail(userId);
-    if (user.onboardingStatus !== OnboardingStatus.COMPLETED) {
+    await this.userGoalsRepo.manager.transaction(async (manager) => {
+      const user = await manager.findOne(User, {
+        where: { id: userId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!user) {
+        throw new BadRequestException("We couldn't find that account.");
+      }
       user.onboardingStatus = OnboardingStatus.COMPLETED;
-      user.onboardingCompletedAt = new Date();
-      await this.usersService.save(user);
-    }
+      user.onboardingCompletedAt ??= new Date();
+      await manager.save(user);
+    });
 
     return this.dashboardService.getDashboard(userId);
   }

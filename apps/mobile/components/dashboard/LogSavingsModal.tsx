@@ -33,16 +33,29 @@ export function LogSavingsModal({
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
-    const value = Number(amount);
-    if (!Number.isFinite(value) || value <= 0) {
-      setError('Enter an amount greater than zero.');
+    const amountText = amount.trim();
+    const value = Number(amountText);
+    const hasValidPrecision = /^\d+(\.\d{1,2})?$/.test(amountText);
+    if (
+      !Number.isFinite(value) ||
+      value < 0.01 ||
+      value > 10_000 ||
+      !hasValidPrecision
+    ) {
+      setError(
+        'Enter an amount from $0.01 to $10,000 using no more than two decimal places.',
+      );
       return;
     }
     setError(null);
-    await onSave(value, note.trim() || undefined);
-    setNote('');
-    setAmount('5');
-    onClose();
+    try {
+      await onSave(value, note.trim() || undefined);
+      setNote('');
+      setAmount('5');
+      onClose();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Please try again.');
+    }
   };
 
   return (
@@ -70,6 +83,7 @@ export function LogSavingsModal({
           <Text style={styles.label}>Amount ($)</Text>
           <TextInput
             accessibilityLabel="Amount in dollars"
+            accessibilityRole="text"
             editable={Boolean(goalTitle)}
             keyboardType="decimal-pad"
             onChangeText={setAmount}
@@ -79,6 +93,7 @@ export function LogSavingsModal({
           <Text style={styles.label}>Note (optional)</Text>
           <TextInput
             accessibilityLabel="Note"
+            accessibilityRole="text"
             editable={Boolean(goalTitle)}
             onChangeText={setNote}
             placeholder="What did you skip or set aside?"

@@ -7,6 +7,8 @@ export class OnboardingAndDashboard1788125600000 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "users" ADD "display_name" character varying(100)`);
         await queryRunner.query(`ALTER TABLE "users" ADD "onboarding_completed_at" TIMESTAMP WITH TIME ZONE`);
         await queryRunner.query(`ALTER TABLE "users" ADD "onboarding_goal_skipped" boolean NOT NULL DEFAULT false`);
+        await queryRunner.query(`ALTER TABLE "users" ADD "time_zone" character varying(100)`);
+        await queryRunner.query(`UPDATE "users" SET "onboarding_completed_at" = COALESCE("updated_at", now()) WHERE "onboarding_status" = 'completed' AND "onboarding_completed_at" IS NULL`);
 
         await queryRunner.query(`CREATE TABLE "values" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "key" character varying(100) NOT NULL, "label" character varying(100) NOT NULL, "description" character varying(255) NOT NULL, "icon_name" character varying(80) NOT NULL, "color_token" character varying(40) NOT NULL, "sort_order" integer NOT NULL, CONSTRAINT "PK_values_id" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE UNIQUE INDEX "uq_values_key" ON "values" ("key")`);
@@ -92,6 +94,7 @@ export class OnboardingAndDashboard1788125600000 implements MigrationInterface {
         await queryRunner.query(`DROP INDEX "public"."uq_values_key"`);
         await queryRunner.query(`DROP TABLE "values"`);
 
+        await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "time_zone"`);
         await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "onboarding_goal_skipped"`);
         await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "onboarding_completed_at"`);
         await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "display_name"`);

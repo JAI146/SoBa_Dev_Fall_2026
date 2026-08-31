@@ -7,6 +7,7 @@ import { AppButton } from '@/components/AppButton';
 import { AppScreen } from '@/components/AppScreen';
 import { FormNotice } from '@/components/FormNotice';
 import { OnboardingLoading } from '@/components/onboarding/OnboardingLoading';
+import { QueryErrorState } from '@/components/QueryErrorState';
 import { theme } from '@/constants/theme';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { formatUsd } from '@/lib/format/money';
@@ -34,8 +35,18 @@ const PATHWAYS: { title: string; description: string; icon: keyof typeof Ionicon
 
 type Selection = { type: 'skip' } | { type: 'template'; id: string } | { type: 'custom' };
 
+function isValidGoalAmount(amountText: string): boolean {
+  const value = Number(amountText);
+  return (
+    /^\d+(\.\d{1,2})?$/.test(amountText) &&
+    Number.isFinite(value) &&
+    value >= 1 &&
+    value <= 10_000
+  );
+}
+
 export default function PurposeMapScreen() {
-  const { content, isLoading, saveGoal } = useOnboarding();
+  const { content, errorMessage, isLoading, refresh, saveGoal } = useOnboarding();
   const [selection, setSelection] = useState<Selection | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [customTitle, setCustomTitle] = useState('');
@@ -67,6 +78,10 @@ export default function PurposeMapScreen() {
     return content.goalTemplates.filter((goal) => keys.has(goal.valueKey));
   }, [content]);
 
+  if (errorMessage && !content) {
+    return <QueryErrorState message={errorMessage} onRetry={() => void refresh()} />;
+  }
+
   if (isLoading || !content) {
     return <OnboardingLoading />;
   }
@@ -83,9 +98,12 @@ export default function PurposeMapScreen() {
       } else if (selection.type === 'template') {
         await saveGoal({ templateId: selection.id });
       } else {
-        const amount = Number(customAmount);
-        if (!customTitle.trim() || !Number.isFinite(amount)) {
-          setError('Add a goal name and a target between $1 and $10,000.');
+        const amountText = customAmount.trim();
+        const amount = Number(amountText);
+        if (!customTitle.trim() || !isValidGoalAmount(amountText)) {
+          setError(
+            'Add a goal name and a target between $1 and $10,000 using no more than two decimal places.',
+          );
           setSaving(false);
           return;
         }
@@ -100,9 +118,10 @@ export default function PurposeMapScreen() {
   };
 
   const addCustomGoal = () => {
-    const amount = Number(customAmount);
-    if (!customTitle.trim() || !Number.isFinite(amount) || amount < 1 || amount > 10_000) {
-      setError('Add a goal name and a target between $1 and $10,000.');
+    if (!customTitle.trim() || !isValidGoalAmount(customAmount.trim())) {
+      setError(
+        'Add a goal name and a target between $1 and $10,000 using no more than two decimal places.',
+      );
       return;
     }
     setError(null);
@@ -213,6 +232,7 @@ export default function PurposeMapScreen() {
           <Text style={styles.fieldLabel}>What are you saving for?</Text>
           <TextInput
             accessibilityLabel="What are you saving for?"
+            accessibilityRole="text"
             maxLength={50}
             onChangeText={setCustomTitle}
             placeholder="e.g., School supplies, Car repair"
@@ -223,8 +243,9 @@ export default function PurposeMapScreen() {
           <Text style={styles.counter}>{customTitle.length}/50 characters</Text>
           <Text style={styles.fieldLabel}>Target amount ($)</Text>
           <TextInput
-            accessibilityLabel="Target amount in dollars"
-            keyboardType="numeric"
+              accessibilityLabel="Target amount in dollars"
+              accessibilityRole="text"
+              keyboardType="decimal-pad"
             onChangeText={setCustomAmount}
             placeholder="e.g., 50"
             placeholderTextColor={theme.colors.disabled}

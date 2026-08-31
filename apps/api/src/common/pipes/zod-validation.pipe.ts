@@ -54,10 +54,14 @@ function toFieldErrors(error: ZodError): ApiFieldError[] {
  */
 @Injectable()
 export class ZodValidationPipe implements PipeTransform {
-  transform(value: unknown, metadata: ArgumentMetadata): unknown {
-    if (!hasZodSchema(metadata.metatype)) return value;
+  constructor(private readonly schema?: ZodTypeAny) {}
 
-    const result = metadata.metatype.zodSchema.safeParse(value);
+  transform(value: unknown, metadata: ArgumentMetadata): unknown {
+    const schema = this.schema ??
+      (hasZodSchema(metadata.metatype) ? metadata.metatype.zodSchema : null);
+    if (!schema) return value;
+
+    const result = schema.safeParse(value);
     if (result.success) return result.data;
     throw new ZodValidationException(toFieldErrors(result.error));
   }

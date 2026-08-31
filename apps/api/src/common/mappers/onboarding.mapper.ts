@@ -1,12 +1,40 @@
 import { OnboardingStep, type OnboardingStepValue, type UserGoalPublic, type ValuePublic } from '@purposemint/contracts';
-import { VALUE_HEADLINE_WORDS } from '../database/onboarding-seed-data';
-import type { GoalTemplate } from '../entities/goal-template.entity';
-import type { User } from '../entities/user.entity';
-import type { UserGoal } from '../entities/user-goal.entity';
-import type { Value } from '../entities/value.entity';
+import { VALUE_HEADLINE_WORDS } from '../../database/onboarding-seed-data';
+import type { GoalTemplate } from '../../entities/goal-template.entity';
+import type { User } from '../../entities/user.entity';
+import type { UserGoal } from '../../entities/user-goal.entity';
+import type { Value } from '../../entities/value.entity';
 
-export function utcToday(): string {
-  return new Date().toISOString().slice(0, 10);
+export function todayInTimeZone(
+  timeZone: string | null | undefined,
+  date = new Date(),
+): string {
+  const resolvedTimeZone = timeZone ?? 'UTC';
+  let formatter: Intl.DateTimeFormat;
+  try {
+    formatter = new Intl.DateTimeFormat('en-US', {
+      day: '2-digit',
+      month: '2-digit',
+      timeZone: resolvedTimeZone,
+      year: 'numeric',
+    });
+  } catch {
+    formatter = new Intl.DateTimeFormat('en-US', {
+      day: '2-digit',
+      month: '2-digit',
+      timeZone: 'UTC',
+      year: 'numeric',
+    });
+  }
+
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+  if (!year || !month || !day) {
+    return date.toISOString().slice(0, 10);
+  }
+  return `${year}-${month}-${day}`;
 }
 
 export function toValuePublic(value: Value): ValuePublic {

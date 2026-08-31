@@ -8,9 +8,11 @@ import { AppInput } from '@/components/AppInput';
 import { AppScreen } from '@/components/AppScreen';
 import { FormNotice } from '@/components/FormNotice';
 import { OnboardingLoading } from '@/components/onboarding/OnboardingLoading';
+import { QueryErrorState } from '@/components/QueryErrorState';
 import { theme } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOnboarding } from '@/contexts/OnboardingContext';
+import { getDeviceTimeZone } from '@/lib/time/device-time-zone';
 
 const LEVELS: {
   level: number;
@@ -61,14 +63,18 @@ const LEVELS: {
 
 export default function WelcomeScreen() {
   const { session } = useAuth();
-  const { isLoading, saveWelcome } = useOnboarding();
+  const { content, errorMessage, isLoading, refresh, saveWelcome } = useOnboarding();
   const [name, setName] = useState(
     session?.user.displayName ?? session?.user.firstName ?? '',
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  if (isLoading) {
+  if (errorMessage && !content) {
+    return <QueryErrorState message={errorMessage} onRetry={() => void refresh()} />;
+  }
+
+  if (isLoading || !content) {
     return <OnboardingLoading />;
   }
 
@@ -81,7 +87,7 @@ export default function WelcomeScreen() {
     setError(null);
     setSaving(true);
     try {
-      await saveWelcome(trimmed);
+      await saveWelcome(trimmed, getDeviceTimeZone());
       router.push('/(onboarding)/values');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Please try again.');

@@ -1,4 +1,5 @@
 import {
+  type CreateGoalInput,
   type CreateSavingsInput,
   type CreateSavingsResponse,
   type DashboardPayload,
@@ -77,9 +78,22 @@ export function useDashboard() {
     },
   });
 
+  const createGoal = useMutation({
+    mutationFn: (input: CreateGoalInput) =>
+      apiRequest<UserGoalPublic, CreateGoalInput>('/goals', {
+        authenticated: true,
+        body: input,
+        method: 'POST',
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
+    },
+  });
+
   return {
     ...query,
     completeHabit: completeHabit.mutate,
+    createGoal: createGoal.mutateAsync,
     logSavings: logSavings.mutateAsync,
     loggingSavings: logSavings.isPending,
     setFocusGoal: setFocusGoal.mutateAsync,

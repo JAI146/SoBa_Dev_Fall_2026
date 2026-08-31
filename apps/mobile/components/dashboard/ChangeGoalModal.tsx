@@ -1,16 +1,19 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import type { UserGoalPublic } from '@purposemint/contracts';
+import type { CreateGoalInput, UserGoalPublic } from '@purposemint/contracts';
 
+import { AppButton } from '@/components/AppButton';
 import { theme } from '@/constants/theme';
-import { formatUsd } from '@/lib/format/money';
+import { formatUsdExact } from '@/lib/format/money';
 
 type ChangeGoalModalProps = {
   visible: boolean;
   goals: UserGoalPublic[];
   focusGoalId: string | null;
   onClose: () => void;
-  onSelect: (goalId: string) => void;
+  onCreate: (input: CreateGoalInput) => Promise<UserGoalPublic>;
+  onSelect: (goalId: string) => Promise<UserGoalPublic>;
 };
 
 export function ChangeGoalModal({
@@ -18,8 +21,59 @@ export function ChangeGoalModal({
   goals,
   focusGoalId,
   onClose,
+  onCreate,
   onSelect,
 }: ChangeGoalModalProps) {
+  const [customTitle, setCustomTitle] = useState('');
+  const [customAmount, setCustomAmount] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [pendingGoalId, setPendingGoalId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const selectGoal = async (goalId: string) => {
+    setError(null);
+    setPendingGoalId(goalId);
+    try {
+      await onSelect(goalId);
+      onClose();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Please try again.');
+    } finally {
+      setPendingGoalId(null);
+    }
+  };
+
+  const createGoal = async () => {
+    const amountText = customAmount.trim();
+    const amount = Number(amountText);
+    const hasValidPrecision = /^\d+(\.\d{1,2})?$/.test(amountText);
+    if (
+      !customTitle.trim() ||
+      !Number.isFinite(amount) ||
+      amount < 1 ||
+      amount > 10_000 ||
+      !hasValidPrecision
+    ) {
+      setError(
+        'Add a goal name and a target between $1 and $10,000 using no more than two decimal places.',
+      );
+      return;
+    }
+
+    setError(null);
+    setCreating(true);
+    try {
+      await onCreate({ title: customTitle.trim(), targetAmount: amount });
+      setCustomTitle('');
+      setCustomAmount('');
+      onClose();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Please try again.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <Modal animationType="fade" onRequestClose={onClose} transparent visible={visible}>
       <View style={styles.overlay}>
@@ -32,9 +86,42 @@ export function ChangeGoalModal({
         <View style={styles.sheet}>
           <Text style={styles.title}>Change current goal</Text>
           {goals.length === 0 ? (
-            <Text style={styles.empty}>
-              You don’t have a savings goal yet. You can add one when you’re ready.
-            </Text>
+            <View style={styles.form}>
+              <Text style={styles.empty}>
+                Create your first savings goal so you can start logging what you set aside.
+              </Text>
+              <Text style={styles.label}>What are you saving for?</Text>
+              <TextInput
+                accessibilityLabel="What are you saving for?"
+                accessibilityRole="text"
+                maxLength={50}
+                onChangeText={setCustomTitle}
+                placeholder="e.g., School supplies, Car repair"
+                placeholderTextColor={theme.colors.disabled}
+                style={styles.input}
+                value={customTitle}
+              />
+              <Text style={styles.counter}>{customTitle.length}/50 characters</Text>
+              <Text style={styles.label}>Target amount ($)</Text>
+              <TextInput
+                accessibilityLabel="Target amount in dollars"
+                accessibilityRole="text"
+                keyboardType="decimal-pad"
+                onChangeText={setCustomAmount}
+                placeholder="e.g., 50"
+                placeholderTextColor={theme.colors.disabled}
+                style={styles.input}
+                value={customAmount}
+              />
+              <Text style={styles.empty}>Between $1 and $10,000</Text>
+              <AppButton
+                accessibilityLabel="Add This Goal"
+                loading={creating}
+                onPress={() => void createGoal()}
+                title="Add This Goal"
+                variant="gold"
+              />
+            </View>
           ) : (
             goals.map((goal) => {
               const selected = goal.id === focusGoalId;
@@ -42,24 +129,27 @@ export function ChangeGoalModal({
                 <Pressable
                   accessibilityLabel={goal.title}
                   accessibilityRole="button"
-                  accessibilityState={{ selected }}
+                  accessibilityState={{ busy: pendingGoalId === goal.id, selected }}
+                  disabled={pendingGoalId !== null}
                   key={goal.id}
-                  onPress={() => {
-                    onSelect(goal.id);
-                    onClose();
-                  }}
+                  onPress={() => void selectGoal(goal.id)}
                   style={[styles.row, selected && styles.rowSelected]}>
                   <Text style={styles.emoji}>{goal.iconEmoji}</Text>
                   <View style={styles.copy}>
                     <Text style={styles.goalTitle}>{goal.title}</Text>
                     <Text style={styles.meta}>
-                      {formatUsd(goal.savedAmount)} / {formatUsd(goal.targetAmount)}
+                      {formatUsdExact(goal.savedAmount)} / {formatUsdExact(goal.targetAmount)}
                     </Text>
                   </View>
                 </Pressable>
               );
             })
           )}
+          {error ? (
+            <Text accessibilityRole="alert" style={styles.error}>
+              {error}
+            </Text>
+          ) : null}
         </View>
       </View>
     </Modal>
@@ -92,6 +182,34 @@ const styles = StyleSheet.create({
     color: theme.colors.mutedText,
     fontSize: theme.fontSize.sm,
     lineHeight: 20,
+  },
+  form: {
+    gap: theme.spacing.xs,
+  },
+  label: {
+    color: theme.colors.text,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '700',
+  },
+  input: {
+    backgroundColor: theme.colors.inputBackground,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    color: theme.colors.text,
+    fontSize: theme.fontSize.md,
+    minHeight: 48,
+    paddingHorizontal: theme.spacing.md,
+  },
+  counter: {
+    color: theme.colors.mutedText,
+    fontSize: 11,
+    textAlign: 'right',
+  },
+  error: {
+    color: theme.colors.danger,
+    fontSize: theme.fontSize.xs,
+    lineHeight: 18,
   },
   row: {
     alignItems: 'center',

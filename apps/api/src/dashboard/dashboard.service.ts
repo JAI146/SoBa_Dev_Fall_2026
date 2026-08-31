@@ -14,11 +14,11 @@ import {
   type ReflectionJourneyPublic,
   type UserGoalPublic,
 } from '@purposemint/contracts';
-import { In, Repository } from 'typeorm';
+import { In, QueryFailedError, Repository } from 'typeorm';
 import {
   toUserGoalPublic,
   toValuePublic,
-  utcToday,
+  todayInTimeZone,
 } from '../common/mappers/onboarding.mapper';
 import { toPublicUser } from '../common/mappers/user.mapper';
 import { HabitCompletion } from '../entities/habit-completion.entity';
@@ -26,6 +26,7 @@ import { SavingsEntry } from '../entities/savings-entry.entity';
 import { UserGoal } from '../entities/user-goal.entity';
 import { UserHabit } from '../entities/user-habit.entity';
 import { UserValue } from '../entities/user-value.entity';
+import { User } from '../entities/user.entity';
 import { Value } from '../entities/value.entity';
 import { UsersService } from '../users/users.service';
 
@@ -46,6 +47,19 @@ const EMPTY_MOOD_TREND: ReflectionJourneyPublic['moodTrend'] = [
   'S',
   'S',
 ].map((weekday) => ({ weekday, mood: null }));
+
+function isUniqueViolation(error: unknown): boolean {
+  if (!(error instanceof QueryFailedError)) return false;
+  const driverError: unknown = error.driverError;
+  if (
+    typeof driverError !== 'object' ||
+    driverError === null ||
+    !('code' in driverError)
+  ) {
+    return false;
+  }
+  return driverError.code === '23505';
+}
 
 @Injectable()
 export class DashboardService {
@@ -93,7 +107,7 @@ export class DashboardService {
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map(toValuePublic);
 
-    const today = utcToday();
+    const today = todayInTimeZone(user.timeZone);
     const habitIds = habits.map((habit) => habit.id);
     const todaysCompletions =
       habitIds.length === 0
@@ -171,56 +185,69 @@ export class DashboardService {
 
   async setFocusGoal(userId: string, goalId: string): Promise<UserGoalPublic> {
     await this.requireCompleted(userId);
-    const goal = await this.userGoalsRepo.findOne({
-      where: { id: goalId, userId, isActive: true },
-    });
-    if (!goal) {
-      throw new NotFoundException("We couldn't find that savings goal.");
-    }
-
-    await this.userGoalsRepo.manager.transaction(async (manager) => {
+    return this.userGoalsRepo.manager.transaction(async (manager) => {
+      await manager.findOneOrFail(User, {
+        where: { id: userId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const goal = await manager.findOne(UserGoal, {
+        where: { id: goalId, userId, isActive: true },
+      });
+      if (!goal) {
+        throw new NotFoundException("We couldn't find that savings goal.");
+      }
       await manager.update(
         UserGoal,
         { userId, isFocus: true },
         { isFocus: false },
       );
       await manager.update(UserGoal, { id: goal.id }, { isFocus: true });
+      const saved = await manager.findOneByOrFail(UserGoal, { id: goal.id });
+      return toUserGoalPublic(saved);
     });
-
-    const saved = await this.userGoalsRepo.findOneByOrFail({ id: goal.id });
-    return toUserGoalPublic(saved);
   }
 
   async toggleHabitCompletion(
     userId: string,
     userHabitId: string,
   ): Promise<HabitCompleteResponse> {
-    await this.requireCompleted(userId);
-    const habit = await this.userHabitsRepo.findOne({
-      where: { id: userHabitId, userId, isActive: true },
-    });
-    if (!habit) {
-      throw new NotFoundException("We couldn't find that habit.");
+    const user = await this.requireCompleted(userId);
+    const today = todayInTimeZone(user.timeZone);
+
+    try {
+      return await this.completionsRepo.manager.transaction(async (manager) => {
+        const habit = await manager.findOne(UserHabit, {
+          where: { id: userHabitId, userId, isActive: true },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!habit) {
+          throw new NotFoundException("We couldn't find that habit.");
+        }
+
+        const existing = await manager.findOne(HabitCompletion, {
+          where: { userId, userHabitId, completedOn: today },
+        });
+        if (existing) {
+          await manager.remove(existing);
+          return { userHabitId, completedToday: false, completedOn: null };
+        }
+
+        await manager.save(
+          HabitCompletion,
+          manager.create(HabitCompletion, {
+            userId,
+            userHabitId,
+            completedOn: today,
+          }),
+        );
+        return { userHabitId, completedToday: true, completedOn: today };
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return { userHabitId, completedToday: true, completedOn: today };
+      }
+      throw error;
     }
-
-    const today = utcToday();
-    const existing = await this.completionsRepo.findOne({
-      where: { userHabitId, completedOn: today },
-    });
-
-    if (existing) {
-      await this.completionsRepo.remove(existing);
-      return { userHabitId, completedToday: false, completedOn: null };
-    }
-
-    await this.completionsRepo.save(
-      this.completionsRepo.create({
-        userId,
-        userHabitId,
-        completedOn: today,
-      }),
-    );
-    return { userHabitId, completedToday: true, completedOn: today };
   }
 
   async addSavings(
@@ -228,14 +255,14 @@ export class DashboardService {
     input: CreateSavingsInput,
   ): Promise<CreateSavingsResponse> {
     await this.requireCompleted(userId);
-    const goal = await this.userGoalsRepo.findOne({
-      where: { id: input.goalId, userId, isActive: true },
-    });
-    if (!goal) {
-      throw new NotFoundException("We couldn't find that savings goal.");
-    }
-
     const saved = await this.savingsRepo.manager.transaction(async (manager) => {
+      const goal = await manager.findOne(UserGoal, {
+        where: { id: input.goalId, userId, isActive: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!goal) {
+        throw new NotFoundException("We couldn't find that savings goal.");
+      }
       const entry = await manager.save(
         SavingsEntry,
         manager.create(SavingsEntry, {
@@ -274,12 +301,13 @@ export class DashboardService {
     };
   }
 
-  private async requireCompleted(userId: string) {
+  private async requireCompleted(userId: string): Promise<User> {
     const user = await this.usersService.getByIdOrFail(userId);
     if (user.onboardingStatus !== OnboardingStatus.COMPLETED) {
       throw new ForbiddenException(
         "Let's finish setting up your account first — you're almost there.",
       );
     }
+    return user;
   }
 }

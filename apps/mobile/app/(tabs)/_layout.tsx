@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { OnboardingStatus } from '@purposemint/contracts';
 import { Redirect, Tabs } from 'expo-router';
-import { Platform } from 'react-native';
+import { Platform, type ColorValue } from 'react-native';
 
 import { theme } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,7 +9,15 @@ import { postAuthHref } from '@/lib/auth/post-auth-href';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
-function TabIcon({ color, focused, name }: { color: string; focused: boolean; name: IoniconName }) {
+function TabIcon({
+  color,
+  focused,
+  name,
+}: {
+  color: ColorValue;
+  focused: boolean;
+  name: IoniconName;
+}) {
   return (
     <Ionicons
       color={color}

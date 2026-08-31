@@ -7,9 +7,10 @@ import { AppButton } from '@/components/AppButton';
 import { AppScreen } from '@/components/AppScreen';
 import { FormNotice } from '@/components/FormNotice';
 import { OnboardingLoading } from '@/components/onboarding/OnboardingLoading';
+import { QueryErrorState } from '@/components/QueryErrorState';
 import { theme } from '@/constants/theme';
 import { useOnboarding } from '@/contexts/OnboardingContext';
-import { formatUsd } from '@/lib/format/money';
+import { formatUsdExact } from '@/lib/format/money';
 import { frequencyLabel } from '@/lib/onboarding/labels';
 
 const FILTERS: { id: 'all' | HabitCategoryValue; label: string }[] = [
@@ -20,7 +21,7 @@ const FILTERS: { id: 'all' | HabitCategoryValue; label: string }[] = [
 ];
 
 export default function HabitsScreen() {
-  const { complete, content, isLoading, saveHabits } = useOnboarding();
+  const { complete, content, errorMessage, isLoading, refresh, saveHabits } = useOnboarding();
   const [selected, setSelected] = useState<string[]>([]);
   const [filter, setFilter] = useState<'all' | HabitCategoryValue>('all');
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +43,10 @@ export default function HabitsScreen() {
     if (!content) return [];
     return content.habitTemplates.filter((habit) => selected.includes(habit.id));
   }, [content, selected]);
+
+  if (errorMessage && !content) {
+    return <QueryErrorState message={errorMessage} onRetry={() => void refresh()} />;
+  }
 
   if (isLoading || !content) {
     return <OnboardingLoading />;
@@ -80,7 +85,7 @@ export default function HabitsScreen() {
         <View style={styles.focusBanner}>
           <Text style={styles.focusLabel}>Your Focus Goal</Text>
           <Text style={styles.focusTitle}>{focusGoal.title}</Text>
-          <Text style={styles.focusTarget}>Target: {formatUsd(focusGoal.targetAmount)}</Text>
+          <Text style={styles.focusTarget}>Target: {formatUsdExact(focusGoal.targetAmount)}</Text>
         </View>
       ) : null}
 
