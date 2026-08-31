@@ -1,6 +1,9 @@
 import type { ApiErrorResponse } from "@purposemint/contracts";
 
-const API_BASE = "/api/backend/api";
+const API_ORIGIN = (
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
+).replace(/\/+$/, "");
+const API_BASE = `${API_ORIGIN}/api`;
 
 export type ResponseSchema<T> = {
   safeParse(value: unknown): { success: true; data: T } | { success: false };
@@ -54,6 +57,7 @@ export async function apiRequest<T>(
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
+    credentials: "include",
   });
 
   return parseResponse<T>(res, schema);

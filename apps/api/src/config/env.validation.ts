@@ -56,7 +56,7 @@ export const envSchema = z.object({
   THROTTLE_TTL_SECONDS: z.coerce.number().int().min(1).default(60),
   THROTTLE_LIMIT: z.coerce.number().int().min(1).default(120),
 
-  DASHBOARD_URL: z.string().url().default('http://localhost:3001'),
+  DASHBOARD_URL: z.string().url().default('http://localhost:3000'),
   /** Comma-separated. Merged with DASHBOARD_URL to form the CORS allowlist. */
   CORS_ORIGINS: z.string().default(''),
 
