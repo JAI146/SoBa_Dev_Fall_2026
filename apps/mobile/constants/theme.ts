@@ -2,40 +2,43 @@ import { Platform } from 'react-native';
 
 export const theme = {
   colors: {
-    deepGreen: '#C20A72',
-    deepGreenPressed: '#9F075D',
-    darkGreenText: '#26160F',
-    mint: '#087A8C',
-    mintDark: '#006879',
-    lightMint: '#FFF0F7',
+    deepGreen: '#DC0D7F',
+    deepGreenPressed: '#3E022C',
+    darkGreenText: '#3E022C',
+    mint: '#14DA94',
+    mintDark: '#016171',
+    lightPink: '#FFE7F3',
+    lightMint: '#D2F9EB',
+    lightTeal: '#D2F9EB',
+    lightGold: '#FFF8E0',
     cream: '#FFFBFD',
     lavender: '#F6EFF8',
-    coral: '#F3CF18',
-    lightCoral: '#FFF8CD',
+    coral: '#DBA731',
+    lightCoral: '#FFF8E0',
     white: '#FFFFFF',
     text: '#2B1A15',
     mutedText: '#75666F',
     border: '#EFDFE8',
     disabled: '#B9AAB2',
     danger: '#A90855',
-    gold: '#F3CF18',
-    paleGold: '#FFF8CD',
+    gold: '#DBA731',
+    paleGold: '#FFF8E0',
     tabInactive: '#927F8A',
-    plum: '#57106F',
-    teal: '#087A8C',
+    plum: '#3E022C',
+    teal: '#016171',
 
     // Backward-compatible aliases for the starter components that remain in the project.
-    primary: '#C20A72',
-    primaryDark: '#9F075D',
-    primarySoft: '#FFF0F7',
-    accent: '#087A8C',
-    accentDark: '#006879',
-    accentSoft: '#E8F6F7',
+    primary: '#DC0D7F',
+    primaryDark: '#3E022C',
+    primarySoft: '#FFE7F3',
+    accent: '#016171',
+    accentDark: '#016171',
+    accentSoft: '#D2F9EB',
     background: '#FFFBFD',
     backgroundSoft: '#F6EFF8',
     card: '#FFFFFF',
-    cardAlt: '#FFF0F7',
-    success: '#087A8C',
+    cardAlt: '#FFE7F3',
+    success: '#14DA94',
     inputBackground: '#FFFCFE',
     chip: '#FAF2F7',
     ink: '#26160F',
@@ -71,7 +74,7 @@ export const theme = {
     card:
       Platform.select({
         ios: {
-          shadowColor: '#57106F',
+          shadowColor: '#3E022C',
           shadowOffset: { width: 0, height: 10 },
           shadowOpacity: 0.09,
           shadowRadius: 20,
@@ -80,7 +83,7 @@ export const theme = {
           elevation: 4,
         },
         default: {
-          shadowColor: '#57106F',
+          shadowColor: '#3E022C',
           shadowOffset: { width: 0, height: 8 },
           shadowOpacity: 0.08,
           shadowRadius: 16,
@@ -89,7 +92,7 @@ export const theme = {
     button:
       Platform.select({
         ios: {
-          shadowColor: '#C20A72',
+          shadowColor: '#DC0D7F',
           shadowOffset: { width: 0, height: 8 },
           shadowOpacity: 0.18,
           shadowRadius: 14,
@@ -98,7 +101,7 @@ export const theme = {
           elevation: 3,
         },
         default: {
-          shadowColor: '#C20A72',
+          shadowColor: '#DC0D7F',
           shadowOffset: { width: 0, height: 6 },
           shadowOpacity: 0.15,
           shadowRadius: 12,
@@ -130,19 +133,19 @@ export const Colors = {
 
 export const Fonts = Platform.select({
   ios: {
-    sans: 'system-ui',
+    sans: 'Poppins_400Regular',
     serif: 'ui-serif',
     rounded: 'ui-rounded',
     mono: 'ui-monospace',
   },
   default: {
-    sans: 'normal',
+    sans: 'Poppins_400Regular',
     serif: 'serif',
     rounded: 'normal',
     mono: 'monospace',
   },
   web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+    sans: "'Poppins_400Regular', system-ui, sans-serif",
     serif: "Georgia, 'Times New Roman', serif",
     rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
     mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",

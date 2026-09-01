@@ -1,10 +1,10 @@
 # PurposeMint Expo Native Development and Build Guide
 
-> **Repository:** pnpm workspaces + Turborepo  
-> **Mobile app:** `apps/mobile`  
-> **Package:** `@purposemint/mobile`  
-> **Recommended workflow:** Expo development builds + Prebuild/CNG + EAS Build  
-> **Primary workstation:** Windows with PowerShell  
+> **Repository:** pnpm workspaces + Turborepo
+> **Mobile app:** `apps/mobile`
+> **Package:** `@purposemint/mobile`
+> **Recommended workflow:** Expo development builds + Prebuild/CNG + EAS Build
+> **Primary workstation:** Windows with PowerShell
 > **Reviewed:** July 2026
 
 ---
@@ -114,12 +114,6 @@ Modern Expo detects pnpm workspaces automatically. Do not add old Metro monorepo
 
 ### Monorepo root
 
-Example:
-
-```text
-C:\Users\hp\Desktop\Work\Techxudo\muakhaa
-```
-
 Run these from the root:
 
 - create `apps/mobile`
@@ -166,13 +160,7 @@ pnpm exec eas build --platform android --profile preview
 
 ## 4. Verify the Monorepo
 
-Open PowerShell in the monorepo root:
-
-```powershell
-cd "C:\Users\hp\Desktop\Work\Techxudo\muakhaa"
-```
-
-Confirm location and required files:
+Open PowerShell in the monorepo root and confirm required files:
 
 ```powershell
 Get-Location
@@ -214,8 +202,6 @@ Use the root `packageManager` and `engines` fields as the source of truth.
 
 ### Run from the monorepo root
 
-As of July 2026, Expo's documented current template is SDK 57:
-
 ```powershell
 pnpm dlx create-expo-app@latest --template default@sdk-57 apps/mobile
 ```
@@ -239,13 +225,7 @@ pnpm -r list --depth -1
 
 ## 6. Rename the Workspace Package
 
-Open:
-
-```text
-apps/mobile/package.json
-```
-
-Set:
+Open `apps/mobile/package.json` and set:
 
 ```json
 {
@@ -275,16 +255,8 @@ pnpm --filter @purposemint/mobile exec expo --version
 
 ## 7. Install `expo-dev-client`
 
-### From the monorepo root
-
 ```powershell
 pnpm --filter @purposemint/mobile exec expo install expo-dev-client
-```
-
-Equivalent from `apps/mobile`:
-
-```powershell
-pnpm exec expo install expo-dev-client
 ```
 
 This package makes debug builds into custom Expo development builds and allows arbitrary native SDKs and native configuration.
@@ -292,8 +264,6 @@ This package makes debug builds into custom Expo development builds and allows a
 ---
 
 ## 8. Install EAS CLI
-
-### Recommended: mobile workspace dev dependency
 
 Run from the monorepo root:
 
@@ -307,25 +277,13 @@ Verify:
 pnpm --filter @purposemint/mobile exec eas --version
 ```
 
-This pins EAS CLI for the project and avoids requiring a global installation.
-
-Alternative global installation:
-
-```powershell
-pnpm add --global eas-cli
-```
-
-The rest of this guide uses the local version through:
-
-```powershell
-pnpm exec eas
-```
+This pins EAS CLI for the project and avoids requiring a global installation. Use `pnpm exec eas` throughout.
 
 ---
 
 ## 9. Recommended Mobile Scripts
 
-In `apps/mobile/package.json`, preserve generated dependencies and use scripts similar to:
+In `apps/mobile/package.json`:
 
 ```json
 {
@@ -354,12 +312,12 @@ In `apps/mobile/package.json`, preserve generated dependencies and use scripts s
 
 ## 10. Root Convenience Scripts
 
-In the monorepo root `package.json`, add:
+In the monorepo root `package.json`:
 
 ```json
 {
   "scripts": {
-    "dev:mobile": "pnpm --filter @purposemint/mobile start",
+    "dev:mobile": "pnpm --filter @purposemint/contracts build && pnpm --filter @purposemint/mobile start",
     "dev:mobile:clear": "pnpm --filter @purposemint/mobile start:clear",
     "mobile:android": "pnpm --filter @purposemint/mobile android",
     "mobile:doctor": "pnpm --filter @purposemint/mobile doctor"
@@ -367,27 +325,13 @@ In the monorepo root `package.json`, add:
 }
 ```
 
-When `packages/contracts` must be compiled first:
-
-```json
-{
-  "scripts": {
-    "dev:mobile": "pnpm --filter @purposemint/contracts build && pnpm --filter @purposemint/mobile start"
-  }
-}
-```
+`packages/contracts` must be compiled before Metro starts, since the mobile app imports from its `dist` output.
 
 ---
 
 ## 11. Base Expo Configuration
 
-Open:
-
-```text
-apps/mobile/app.json
-```
-
-Preserve generated icons, plugins, Router configuration, experiments, and splash assets. Update the base identity:
+Open `apps/mobile/app.json`. Preserve generated icons, plugins, Router configuration, experiments, and splash assets. Update the base identity:
 
 ```json
 {
@@ -511,16 +455,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
 When `APP_VARIANT` is absent, local builds default to `development`.
 
-
 ---
 
 ## 13. Local Environment Variables
 
-Create:
-
-```text
-apps/mobile/.env.local
-```
+Create `apps/mobile/.env.local`.
 
 ### Android emulator
 
@@ -536,19 +475,18 @@ APP_VARIANT=development
 EXPO_PUBLIC_API_URL=http://192.168.1.50:4000
 ```
 
-Replace the LAN IP with the computer's address:
-
-```powershell
-ipconfig
-```
-
-Inside a phone or emulator, `localhost` points to that device, not the computer.
+Replace the LAN IP with the computer's address (`ipconfig`). Inside a phone or emulator, `localhost` points to that device, not the computer.
 
 ```text
 Android emulator -> http://10.0.2.2:<port>
 Physical phone   -> http://<computer-LAN-IP>:<port>
 Production       -> https://api.your-domain.com
 ```
+
+An alternative to chasing the LAN IP every time you switch networks is
+`adb reverse tcp:<port> tcp:<port>`, which makes the phone's `localhost:<port>`
+forward to the same port on the development machine over the adb connection —
+`EXPO_PUBLIC_API_URL=http://localhost:<port>` then works regardless of network.
 
 Anything prefixed with `EXPO_PUBLIC_` is bundled into the client and must be treated as public.
 
@@ -580,11 +518,7 @@ apps/mobile/.env.local
 apps/mobile/.env.*.local
 ```
 
-Commit an example:
-
-```text
-apps/mobile/.env.example
-```
+Commit an example, `apps/mobile/.env.example`:
 
 ```env
 APP_VARIANT=development
@@ -595,32 +529,19 @@ EXPO_PUBLIC_API_URL=http://10.0.2.2:4000
 
 ## 14. Configure EAS
 
-### Run from `apps/mobile`
+Run from `apps/mobile`.
 
 ```powershell
 cd .\apps\mobile
-```
-
-Log in:
-
-```powershell
 pnpm exec eas login
 pnpm exec eas whoami
-```
-
-Link or create the Expo project:
-
-```powershell
 pnpm exec eas init
 ```
 
-This normally adds an EAS project ID under:
-
-```text
-extra.eas.projectId
-```
-
-Do not remove that value. Because this guide also uses a dynamic `app.config.ts`, EAS CLI may tell you that it cannot edit the dynamic config automatically. In that case, copy the project ID shown by EAS into the static `app.json`:
+`eas init` normally adds an EAS project ID under `extra.eas.projectId`. Do not
+remove that value. Because this guide also uses a dynamic `app.config.ts`, EAS
+CLI may tell you it cannot edit the dynamic config automatically — in that case,
+copy the project ID shown by EAS into the static `app.json`:
 
 ```json
 {
@@ -642,11 +563,7 @@ Generate EAS configuration:
 pnpm exec eas build:configure
 ```
 
-This creates:
-
-```text
-apps/mobile/eas.json
-```
+This creates `apps/mobile/eas.json`.
 
 ---
 
@@ -687,25 +604,15 @@ apps/mobile/eas.json
 }
 ```
 
-### `development`
-
-Use for engineering and native SDK work. It contains `expo-dev-client` and connects to Metro.
-
-### `preview`
-
-Use for QA, client testing, and demos. Android produces an installable APK that runs without Metro.
-
-### `production`
-
-Use for app stores. Android normally produces an AAB.
+- **development** — engineering and native SDK work. Contains `expo-dev-client`, connects to Metro.
+- **preview** — QA, client testing, demos. Android produces an installable APK, no Metro required.
+- **production** — app stores. Android normally produces an AAB.
 
 ---
 
 ## 16. EAS Environment Variables
 
 Run from `apps/mobile`.
-
-Development:
 
 ```powershell
 pnpm exec eas env:create `
@@ -715,37 +622,10 @@ pnpm exec eas env:create `
   --visibility plaintext
 ```
 
-Preview:
-
-```powershell
-pnpm exec eas env:create `
-  --name EXPO_PUBLIC_API_URL `
-  --value https://staging-api.example.com `
-  --environment preview `
-  --visibility plaintext
-```
-
-Production:
-
-```powershell
-pnpm exec eas env:create `
-  --name EXPO_PUBLIC_API_URL `
-  --value https://api.example.com `
-  --environment production `
-  --visibility plaintext
-```
-
-List values:
+Repeat per environment (`preview`, `production`) with the matching URL.
 
 ```powershell
 pnpm exec eas env:list --environment development
-pnpm exec eas env:list --environment preview
-pnpm exec eas env:list --environment production
-```
-
-Pull development variables locally:
-
-```powershell
 pnpm exec eas env:pull --environment development --path .env.local
 ```
 
@@ -755,20 +635,11 @@ EAS secret visibility does not make an `EXPO_PUBLIC_*` value private once it is 
 
 ## 17. Windows Android Toolchain
 
-EAS cloud builds do not require Android Studio.
-
-Local Android builds require:
-
-- JDK 17
-- Android Studio
-- Android SDK Platform 36
-- Build Tools
-- Platform Tools
-- Android Emulator or a physical device
+EAS cloud builds do not require Android Studio. Local Android builds require
+JDK 17, Android Studio, Android SDK Platform 36, Build Tools, Platform Tools,
+and an emulator or physical device.
 
 ### Install JDK 17
-
-With Chocolatey:
 
 ```powershell
 choco install -y microsoft-openjdk17
@@ -783,24 +654,10 @@ javac -version
 
 ### Install Android Studio
 
-During setup, include:
+During setup, include Android Studio, the Android SDK, and an Android Virtual
+Device. In **Settings → Languages & Frameworks → Android SDK**, install:
 
-- Android Studio
-- Android SDK
-- Android Virtual Device
-
-In Android Studio:
-
-```text
-Settings
--> Languages & Frameworks
--> Android SDK
-```
-
-Install:
-
-- Android 16 / API 36
-- Sources for Android 36
+- Android 16 / API 36 (plus sources)
 - Android SDK Build-Tools
 - Android SDK Platform-Tools
 - Android Emulator
@@ -808,20 +665,10 @@ Install:
 
 ### Set `ANDROID_HOME`
 
-The usual Windows path is:
+Usual Windows path: `C:\Users\<username>\AppData\Local\Android\Sdk`
 
-```text
-C:\Users\<username>\AppData\Local\Android\Sdk
-```
-
-Create a user environment variable:
-
-```text
-Name:  ANDROID_HOME
-Value: C:\Users\<username>\AppData\Local\Android\Sdk
-```
-
-Add these to the user `Path`:
+Create a user environment variable `ANDROID_HOME` with that value, and add to
+`Path`:
 
 ```text
 %ANDROID_HOME%\platform-tools
@@ -837,149 +684,66 @@ adb --version
 
 ### Create an emulator
 
-```text
-Android Studio
--> Device Manager
--> Create device
--> choose a Pixel device
--> choose/install a system image
--> Finish
--> Start
-```
-
-Verify:
+Android Studio → Device Manager → Create device → choose a Pixel device →
+choose/install a system image → Finish → Start.
 
 ```powershell
 adb devices
 ```
 
-Expected:
-
-```text
-List of devices attached
-emulator-5554    device
-```
+Expected: `emulator-5554    device`
 
 ### Physical Android device
 
-Enable:
-
-```text
-Developer options
-USB debugging
-```
-
-Connect the device:
-
-```powershell
-adb devices
-```
-
-Accept the authorization prompt on the phone.
+Enable Developer options → USB debugging, connect, run `adb devices`, and
+accept the authorization prompt on the phone.
 
 ---
 
 ## 18. First Local Native Development Build
 
-Start an emulator or connect a phone.
-
-### Run from `apps/mobile`
+Start an emulator or connect a phone, then from `apps/mobile`:
 
 ```powershell
 cd .\apps\mobile
 pnpm exec expo run:android
 ```
 
-This command:
-
-1. detects the missing Android project
-2. runs Android Prebuild automatically
-3. generates `android/`
-4. compiles through Gradle
-5. installs the debug APK
-6. starts Metro
-7. opens PurposeMint Dev
-
-React Native CLI comparison:
-
-```text
-npx react-native run-android
-           ≈
-pnpm exec expo run:android
-```
-
-You do not need to run Prebuild separately before the first `run:android`.
+This detects the missing Android project, runs Prebuild automatically,
+generates `android/`, compiles through Gradle, installs the debug APK, starts
+Metro, and opens PurposeMint Dev. Equivalent to
+`npx react-native run-android` for a React Native CLI developer. No separate
+Prebuild step is needed before the first `run:android`.
 
 ---
 
 ## 19. Daily Development
 
-After the development build is installed, normal JavaScript and TypeScript work does not require another native build.
-
-### From the monorepo root
-
-```powershell
-pnpm dev:mobile
-```
-
-### From `apps/mobile`
+After the development build is installed, normal JS/TS work does not require
+another native build.
 
 ```powershell
-pnpm start
+pnpm dev:mobile          # from monorepo root
+pnpm start                # from apps/mobile
+pnpm exec expo start --dev-client   # force dev-client mode
+pnpm exec expo start --dev-client --clear   # clear Metro cache
 ```
 
-Force development-client mode:
-
-```powershell
-pnpm exec expo start --dev-client
-```
-
-Clear Metro cache:
-
-```powershell
-pnpm exec expo start --dev-client --clear
-```
-
-Useful terminal controls:
-
-```text
-A         open Android
-Shift+A   choose an Android device
-R         reload
-M         open development menu
-J         open React Native DevTools
-S         switch between Expo Go and development build
-```
+Terminal controls: `A` open Android, `Shift+A` choose device, `R` reload,
+`M` dev menu, `J` React Native DevTools, `S` switch Expo Go / dev build.
 
 ---
 
 ## 20. When a Native Rebuild Is Required
 
-No rebuild is normally required for:
+No rebuild needed for React components, TypeScript, styles, API calls, state
+management, form validation, most navigation, or business logic.
 
-- React components
-- TypeScript
-- styles
-- API calls
-- state management
-- form validation
-- most navigation code
-- business logic
-
-Rebuild after:
-
-- adding/removing a native package
-- changing permissions
-- changing the Android application ID
-- changing the iOS bundle identifier
-- changing URL schemes or deep links
-- adding Apple Pay or Google Pay
-- changing push notification setup
-- modifying config plugins
-- changing Gradle or entitlements
-- upgrading Expo SDK or React Native
-
-Recommended clean rebuild:
+Rebuild after: adding/removing a native package, changing permissions, changing
+the Android application ID or iOS bundle identifier, changing URL schemes or
+deep links, adding Apple/Google Pay, changing push notification setup,
+modifying config plugins, changing Gradle/entitlements, or upgrading Expo
+SDK/React Native.
 
 ```powershell
 cd .\apps\mobile
@@ -987,41 +751,21 @@ pnpm exec expo prebuild --clean --platform android
 pnpm exec expo run:android
 ```
 
-`prebuild --clean` deletes and regenerates the native project. Important manual native changes can be lost, so use app config and config plugins.
+`prebuild --clean` deletes and regenerates the native project — manual native
+changes can be lost, so use app config and config plugins instead of editing
+generated native files.
 
 ---
 
 ## 21. Installing Packages
 
-### Expo SDK library
+**Expo SDK library** — `pnpm --filter @purposemint/mobile exec expo install <pkg>` (chooses an SDK-compatible version).
 
-From the monorepo root:
+**Normal dependency** — `pnpm --filter @purposemint/mobile add <pkg>`
 
-```powershell
-pnpm --filter @purposemint/mobile exec expo install expo-secure-store
-```
+**Dev dependency** — `pnpm --filter @purposemint/mobile add -D <pkg>`
 
-Or from `apps/mobile`:
-
-```powershell
-pnpm exec expo install expo-secure-store
-```
-
-`expo install` chooses an SDK-compatible version.
-
-### Normal JavaScript dependency
-
-```powershell
-pnpm --filter @purposemint/mobile add <package>
-```
-
-### Development dependency
-
-```powershell
-pnpm --filter @purposemint/mobile add -D <package>
-```
-
-### Native third-party dependency
+**Native third-party dependency:**
 
 ```powershell
 pnpm --filter @purposemint/mobile add <native-package>
@@ -1036,34 +780,18 @@ Never install mobile-only libraries in the root package.
 
 ## 22. Shared Contracts
 
-Add the workspace package from the monorepo root:
-
 ```powershell
 pnpm --filter @purposemint/mobile add @purposemint/contracts@workspace:*
 ```
 
-Import by package name:
-
 ```ts
-import {
-  type AuthResponse,
-  type GoalResponse,
-} from "@purposemint/contracts";
+import { type AuthResponse, type GoalResponse } from "@purposemint/contracts";
 ```
 
-Do not import another application's source:
-
-```ts
-// Not allowed
-import { something } from "../../api/src";
-```
-
-If Metro cannot resolve a shared package:
-
-1. confirm it is in mobile dependencies
-2. confirm it declares every dependency it imports
-3. confirm its `exports` are valid
-4. reinstall and clear Metro
+Never import another application's source (`../../api/src`). If Metro cannot
+resolve a shared package: confirm it's in mobile dependencies, confirm it
+declares every dependency it imports, confirm its `exports` are valid, then
+reinstall and clear Metro:
 
 ```powershell
 pnpm install
@@ -1073,218 +801,97 @@ pnpm exec expo start --clear
 
 Modern Expo normally requires no manual monorepo Metro hacks.
 
-
 ---
 
 ## 23. Build an Android APK Locally
 
-“Local APK” can mean different things.
-
 ### A. Local debug APK
-
-This is the unlimited local developer build.
-
-From `apps/mobile`:
 
 ```powershell
 pnpm exec expo run:android
 ```
 
-The APK is normally generated at:
+Output: `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`
 
-```text
-apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
-```
-
-Build it directly with Gradle:
+Or directly with Gradle:
 
 ```powershell
 cd .\apps\mobile
 pnpm exec expo prebuild --clean --platform android
 cd .\android
 .\gradlew.bat assembleDebug
-```
-
-Output:
-
-```text
-app\build\outputs\apk\debug\app-debug.apk
-```
-
-Install manually:
-
-```powershell
 adb install -r .\app\build\outputs\apk\debug\app-debug.apk
 ```
 
-A debug APK is:
+Debug-signed; suitable for developers, not Play Store production.
 
-- installable
-- debug-signed
-- suitable for developers
-- not appropriate for Play Store production
-
-### B. EAS preview APK
-
-This is the recommended signed APK for QA and clients.
-
-From `apps/mobile`:
+### B. EAS preview APK (recommended for QA/clients)
 
 ```powershell
 pnpm exec eas build --platform android --profile preview
 ```
 
-It is:
-
-- cloud-built
-- installable directly
-- signed
-- independent of Metro
-- appropriate for internal testing
+Cloud-built, signed, installable directly, independent of Metro.
 
 ### C. Fully local signed release APK
 
-A release APK requires:
-
-- generated Android project
-- private keystore
-- Gradle signing configuration
-- secure password management
-- a release Gradle build
-
-CNG can replace manual native changes after `prebuild --clean`, so EAS-managed signing is recommended unless company policy requires local signing.
+Requires a generated Android project, a private keystore, Gradle signing
+configuration, and secure password management. EAS-managed signing is
+recommended unless company policy requires local signing.
 
 ---
 
 ## 24. Build an Android AAB Locally
 
-Google Play normally expects an AAB.
-
-Set the production variant and generate Android:
-
 ```powershell
 cd .\apps\mobile
 $env:APP_VARIANT = "production"
 pnpm exec expo prebuild --clean --platform android
-```
-
-After configuring a private upload key and Gradle release signing:
-
-```powershell
 cd .\android
 .\gradlew.bat app:bundleRelease
 ```
 
-Output:
+Output: `android/app/build/outputs/bundle/release/app-release.aab`
 
-```text
-android/app/build/outputs/bundle/release/app-release.aab
-```
+Never commit `*.jks`, `*.keystore`, or `credentials.json`.
 
-Never commit:
-
-```text
-*.jks
-*.keystore
-credentials.json
-```
-
-The simpler recommended production command is:
-
-```powershell
-pnpm exec eas build --platform android --profile production
-```
+Simpler recommended path: `pnpm exec eas build --platform android --profile production`
 
 ---
 
 ## 25. EAS Cloud Build Commands
 
-All EAS commands run from `apps/mobile`.
-
-### Android development client
+All run from `apps/mobile`.
 
 ```powershell
-pnpm exec eas build --platform android --profile development
+pnpm exec eas build --platform android --profile development   # dev client, connects to Metro
+pnpm exec eas build --platform android --profile preview         # QA/demo APK
+pnpm exec eas build --platform android --profile production      # Google Play AAB
+pnpm exec eas build --platform ios --profile development         # requires Apple signing
+pnpm exec eas build --platform ios --profile production          # TestFlight/App Store
+pnpm exec eas build --platform all --profile production          # configure/verify each platform first
 ```
-
-Install it and connect it to Metro with:
-
-```powershell
-pnpm start
-```
-
-### Android preview APK
-
-```powershell
-pnpm exec eas build --platform android --profile preview
-```
-
-Use for QA, demos, and client testing.
-
-### Android production AAB
-
-```powershell
-pnpm exec eas build --platform android --profile production
-```
-
-Use for Google Play.
-
-### iOS development build
-
-```powershell
-pnpm exec eas build --platform ios --profile development
-```
-
-A physical iPhone development build generally requires Apple signing and a paid Apple Developer account.
-
-### iOS production build
-
-```powershell
-pnpm exec eas build --platform ios --profile production
-```
-
-Use for TestFlight/App Store distribution.
-
-### Both platforms
-
-```powershell
-pnpm exec eas build --platform all --profile production
-```
-
-Configure and verify each platform separately before relying on `all`.
 
 ---
 
 ## 26. Install EAS Android Builds
 
-After a build completes:
-
-- open the build link
-- scan the QR code
-- download the APK
-- install it on Android
-
-Or use ADB:
+After a build completes, open the build link, scan the QR code, download the
+APK, and install — or:
 
 ```powershell
 adb install -r .\PurposeMint-preview.apk
 ```
 
-With distinct application IDs, development, preview, and production can coexist.
+Distinct application IDs let development, preview, and production coexist on
+one device.
 
 ---
 
 ## 27. `eas build --local` on Windows
 
-EAS supports:
-
-```powershell
-eas build --platform android --local
-```
-
-Windows does not have first-class local EAS Build support. WSL may work, but it introduces extra toolchain complexity.
-
-Recommended Windows workflows:
+Windows does not have first-class local EAS Build support; WSL may work but
+adds toolchain complexity. Recommended Windows workflow:
 
 ```text
 Local development client  -> expo run:android
@@ -1299,76 +906,34 @@ Use `eas build --local` mainly on Linux/macOS or dedicated build infrastructure.
 
 ## 28. iOS From Windows
 
-Windows cannot run:
-
-```powershell
-pnpm exec expo run:ios
-```
-
-Local iOS compilation requires macOS and Xcode.
-
-From Windows, use EAS cloud:
-
-```powershell
-pnpm exec eas build --platform ios --profile development
-pnpm exec eas build --platform ios --profile production
-```
-
-You still need:
-
-- Apple Developer account
-- bundle identifier
-- certificates/provisioning
-- real-device testing
-- App Store Connect access
-
-A Mac remains valuable for difficult native iOS debugging and profiling.
+Windows cannot run `expo run:ios`. Local iOS compilation requires macOS and
+Xcode. From Windows, use EAS cloud builds — you still need an Apple Developer
+account, bundle identifier, certificates/provisioning, and App Store Connect
+access. A Mac remains valuable for difficult native iOS debugging.
 
 ---
 
 ## 29. Native Folder Strategy
 
-### Recommended initial approach: CNG
-
-Ignore generated folders:
+**Recommended initial approach: CNG.** Ignore generated folders:
 
 ```gitignore
 apps/mobile/android/
 apps/mobile/ios/
 ```
 
-Source of truth:
+Source of truth: `app.json`, `app.config.ts`, config plugins, `package.json`.
+Benefits: reproducible native generation, easier Expo SDK upgrades, fewer
+accidental Gradle/CocoaPods edits, cleaner repository.
 
-```text
-app.json
-app.config.ts
-config plugins
-package.json
-```
-
-Benefits:
-
-- reproducible native generation
-- easier Expo SDK upgrades
-- fewer accidental Gradle/CocoaPods edits
-- cleaner repository
-
-### When to commit native folders
-
-Consider committing them only when:
-
-- a banking SDK requires extensive unsupported setup
-- the team intentionally maintains Swift/Kotlin code
-- config plugins are not a clean solution
-- native build files become a deliberate source of truth
-
-Expo libraries and EAS remain usable even when native folders are committed.
+Commit native folders only when a banking SDK requires extensive unsupported
+setup, the team intentionally maintains Swift/Kotlin code, config plugins
+aren't a clean solution, or native build files become a deliberate source of
+truth.
 
 ---
 
 ## 30. `.gitignore`
-
-Recommended root entries:
 
 ```gitignore
 # Expo
@@ -1393,248 +958,112 @@ node_modules/
 coverage/
 ```
 
-Do not casually commit Firebase files or native signing credentials. Decide how they will be securely delivered to EAS before adding Firebase.
+Do not casually commit Firebase files or native signing credentials.
 
 ---
 
 ## 31. Validation
 
-### From the monorepo root
-
 ```powershell
+# monorepo root
 pnpm install
 pnpm --filter @purposemint/mobile doctor
 pnpm --filter @purposemint/mobile exec expo config --type public
-```
 
-### From `apps/mobile`
-
-```powershell
+# apps/mobile
 pnpm exec expo start --clear
 pnpm exec expo run:android
-```
 
-### Whole monorepo
-
-```powershell
+# whole monorepo
 pnpm lint
 pnpm check-types
 pnpm build
 ```
 
-Use the actual script names defined in the repository.
-
 ---
 
 ## 32. Common Problems
 
-### No Android device found
+**No Android device found** — `adb devices`; start an emulator or enable USB debugging.
 
-```powershell
-adb devices
-```
+**SDK location not found** — check `$env:ANDROID_HOME`; if needed create
+`apps/mobile/android/local.properties` with `sdk.dir=...` (never commit it).
 
-Start an emulator or enable USB debugging.
+**`adb` not recognized** — add `%ANDROID_HOME%\platform-tools` to Path, open a new terminal.
 
-### SDK location not found
-
-```powershell
-$env:ANDROID_HOME
-```
-
-Expected:
-
-```text
-C:\Users\<username>\AppData\Local\Android\Sdk
-```
-
-If needed, create:
-
-```text
-apps/mobile/android/local.properties
-```
-
-```properties
-sdk.dir=C:\\Users\\<username>\\AppData\\Local\\Android\\Sdk
-```
-
-Never commit `local.properties`.
-
-### `adb` not recognized
-
-Add:
-
-```text
-%ANDROID_HOME%\platform-tools
-```
-
-to Windows Path and open a new terminal.
-
-### Native package installed but unavailable at runtime
-
-The installed development client does not include it yet.
+**Native package installed but unavailable at runtime** — the installed dev client doesn't include it yet:
 
 ```powershell
 pnpm exec expo prebuild --clean --platform android
 pnpm exec expo run:android
 ```
 
-### App cannot reach NestJS
+**App cannot reach NestJS** — confirm the right `EXPO_PUBLIC_API_URL` for
+emulator vs. physical device, that NestJS listens on `0.0.0.0`, that Windows
+Firewall allows the port, and that phone and computer share a network (or use
+`adb reverse`).
 
-Android emulator:
+**EAS cannot find workspace files** — confirm the command ran from
+`apps/mobile`, `pnpm-lock.yaml` is committed, shared packages are declared in
+mobile dependencies, and workspace package builds have been performed when
+required.
 
-```env
-EXPO_PUBLIC_API_URL=http://10.0.2.2:4000
-```
-
-Physical phone:
-
-```env
-EXPO_PUBLIC_API_URL=http://<computer-LAN-IP>:4000
-```
-
-Confirm:
-
-- NestJS listens on `0.0.0.0`
-- Windows Firewall allows the port
-- phone and computer share a network
-- development HTTP cleartext requirements are handled
-
-### EAS cannot find workspace files
-
-Confirm:
-
-- EAS command ran from `apps/mobile`
-- `pnpm-lock.yaml` is committed
-- shared packages are declared in mobile dependencies
-- workspace package builds are performed when required
-
-### Wrong package manager detected
-
-Keep only:
-
-```text
-pnpm-lock.yaml
-```
-
-Do not commit:
-
-```text
-package-lock.json
-yarn.lock
-```
+**Wrong package manager detected** — keep only `pnpm-lock.yaml`; never commit
+`package-lock.json` or `yarn.lock`.
 
 ---
 
 ## 33. PurposeMint Integration Order
 
-Do not add every native SDK before proving the base setup.
-
-Recommended sequence:
-
-1. Create Expo app.
-2. Build local Android development client.
-3. Configure EAS.
-4. Produce preview APK.
-5. Connect authentication to NestJS.
-6. Add secure token storage.
-7. Add deep-link foundation.
-8. Add Plaid.
-9. Rebuild development client.
-10. Add Stripe.
-11. Rebuild development client.
-12. Add push notifications.
-13. Rebuild development client.
-14. Add Synctera-backed workflows through the API.
-
-Plaid, Synctera, Stripe secret keys, and banking business rules remain in NestJS.
+Do not add every native SDK before proving the base setup. Recommended
+sequence: create the Expo app, build the local Android development client,
+configure EAS, produce a preview APK, connect authentication to NestJS, add
+secure token storage, add a deep-link foundation, add Plaid, rebuild, add
+Stripe, rebuild, add push notifications, rebuild, then add Synctera-backed
+workflows through the API. Plaid, Synctera, and Stripe secret keys, along with
+all banking business rules, remain in NestJS throughout.
 
 ---
 
 ## 34. Command Cheat Sheet
 
-### Create app — monorepo root
-
 ```powershell
+# Create app — monorepo root
 pnpm dlx create-expo-app@latest --template default@sdk-57 apps/mobile
 pnpm install
-```
 
-### Install development tooling — monorepo root
-
-```powershell
+# Install development tooling — monorepo root
 pnpm --filter @purposemint/mobile exec expo install expo-dev-client
 pnpm --filter @purposemint/mobile add -D eas-cli
-```
 
-### Daily development — monorepo root
+# Daily development
+pnpm dev:mobile                    # monorepo root
+pnpm start                          # apps/mobile
 
-```powershell
-pnpm dev:mobile
-```
-
-### Daily development — `apps/mobile`
-
-```powershell
-pnpm start
-```
-
-### First/rebuilt Android client — `apps/mobile`
-
-```powershell
+# First/rebuilt Android client — apps/mobile
 pnpm exec expo run:android
-```
 
-### Clean native regeneration — `apps/mobile`
-
-```powershell
+# Clean native regeneration — apps/mobile
 pnpm exec expo prebuild --clean --platform android
 pnpm exec expo run:android
-```
 
-### Local debug APK — `apps/mobile`
-
-```powershell
+# Local debug APK — apps/mobile
 pnpm exec expo prebuild --clean --platform android
 cd .\android
 .\gradlew.bat assembleDebug
-```
 
-### EAS setup — `apps/mobile`
-
-```powershell
+# EAS setup — apps/mobile
 pnpm exec eas login
 pnpm exec eas init
 pnpm exec eas build:configure
-```
 
-### EAS Android development build
-
-```powershell
+# EAS builds
 pnpm exec eas build --platform android --profile development
-```
-
-### EAS Android preview APK
-
-```powershell
 pnpm exec eas build --platform android --profile preview
-```
-
-### EAS Android production AAB
-
-```powershell
 pnpm exec eas build --platform android --profile production
-```
-
-### EAS iOS production
-
-```powershell
 pnpm exec eas build --platform ios --profile production
-```
 
-### Health checks
-
-```powershell
+# Health checks
 pnpm doctor
 pnpm exec expo config --type public
 pnpm exec expo start --clear

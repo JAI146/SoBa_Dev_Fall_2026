@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+import { Poppins } from "next/font/google";
 import "./globals.css";
 
-const appFont = localFont({
-  src: "./fonts/GeistVF.woff",
+const appFont = Poppins({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
   variable: "--font-poppins",
   display: "swap",
 });

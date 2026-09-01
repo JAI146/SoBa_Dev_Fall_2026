@@ -1,13 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  --primary: #059669;
-  --primary-hover: #047857;
-  --primary-light: #d1fae5;
-  --primary-muted: rgba(5, 150, 105, 0.12);
-  --secondary: #111827;
-  --secondary-hover: #1f2937;
-  --secondary-muted: #374151;
+  --brand-magenta: #dc0d7f;
+  --brand-plum: #3e022c;
+  --brand-mint: #14da94;
+  --brand-teal: #016171;
+  --brand-gold: #dba731;
+  --brand-light-pink: #ffe7f3;
+  --brand-light-mint: #d2f9eb;
+  --brand-light-teal: #d2f9eb;
+  --brand-light-gold: #fff8e0;
+  --brand-white: #ffffff;
+  --brand-black: #000000;
+  --primary: var(--brand-magenta);
+  --primary-hover: var(--brand-plum);
+  --primary-light: var(--brand-light-pink);
+  --primary-muted: rgba(220, 13, 127, 0.12);
+  --secondary: var(--brand-plum);
+  --secondary-hover: var(--brand-black);
+  --secondary-muted: var(--brand-teal);
   --background: #f9fafb;
   --foreground: #111827;
   --card: #ffffff;
@@ -18,9 +29,9 @@
   --error-bg: #fef2f2;
   --error-text: #b91c1c;
   --error-border: #fecaca;
-  --success-bg: #ecfdf5;
-  --success-text: #047857;
-  --success-border: #a7f3d0;
+  --success-bg: var(--brand-light-mint);
+  --success-text: var(--brand-teal);
+  --success-border: var(--brand-mint);
   --radius: 14px;
   --shadow: 0 4px 24px rgba(17, 24, 39, 0.08);
   --shadow-lg: 0 20px 50px rgba(17, 24, 39, 0.18);
