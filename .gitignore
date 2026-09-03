@@ -39,3 +39,7 @@ yarn-error.log*
 *.pem
 
 *tsbuildinfo
+
+# Assets
+assets
+docs/claude_project_context
