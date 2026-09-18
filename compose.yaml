@@ -1,0 +1,109 @@
+name: purposemint-dev
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: purposemint
+      POSTGRES_USER: purposemint
+      POSTGRES_PASSWORD: purposemint
+    ports:
+      - "5432:5432"
+    volumes:
+      - purposemint-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U purposemint -d purposemint"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build:
+      context: .
+      target: api-dev
+    environment: &api-environment
+      NODE_ENV: development
+      DATABASE_URL: postgresql://purposemint:purposemint@db:5432/purposemint
+      DATABASE_SSL: "false"
+      JWT_ACCESS_SECRET: local-development-only-secret-change-me-please
+      DASHBOARD_URL: http://localhost:3000
+      CORS_ORIGINS: http://127.0.0.1:3000
+      INITIAL_ADMIN_EMAIL: admin@purposemint.local
+      INITIAL_ADMIN_PASSWORD: PurposeMint123!
+    command: sh -c "pnpm --filter @purposemint/contracts build && pnpm --filter @purposemint/api migration:run"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      target: api-dev
+    environment: *api-environment
+    command: sh -c "pnpm --filter @purposemint/contracts build && pnpm --filter @purposemint/api dev"
+    ports:
+      - "4000:4000"
+    volumes:
+      - .:/workspace
+      - purposemint-node-modules:/workspace/node_modules
+      - purposemint-api-node-modules:/workspace/apps/api/node_modules
+      - purposemint-contracts-node-modules:/workspace/packages/contracts/node_modules
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:4000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  mock-data:
+    build:
+      context: .
+      target: api-dev
+    environment: *api-environment
+    command: pnpm --filter @purposemint/api seed:mock
+    volumes:
+      - .:/workspace
+      - purposemint-node-modules:/workspace/node_modules
+      - purposemint-api-node-modules:/workspace/apps/api/node_modules
+      - purposemint-contracts-node-modules:/workspace/packages/contracts/node_modules
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: "no"
+
+  dashboard:
+    build:
+      context: .
+      target: dashboard-dev
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      WATCHPACK_POLLING: "true"
+    command: sh -c "pnpm --filter @purposemint/contracts build && pnpm --filter @purposemint/dashboard dev --hostname 0.0.0.0"
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/workspace
+      - purposemint-node-modules:/workspace/node_modules
+      - purposemint-dashboard-node-modules:/workspace/apps/dashboard/node_modules
+      - purposemint-contracts-node-modules:/workspace/packages/contracts/node_modules
+      - purposemint-next-cache:/workspace/apps/dashboard/.next
+    depends_on:
+      mock-data:
+        condition: service_completed_successfully
+
+volumes:
+  purposemint-postgres:
+  purposemint-node-modules:
+  purposemint-api-node-modules:
+  purposemint-dashboard-node-modules:
+  purposemint-contracts-node-modules:
+  purposemint-next-cache:

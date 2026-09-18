@@ -1,0 +1,11 @@
+.git
+.github
+.turbo
+.vscode
+**/.next
+**/dist
+**/node_modules
+**/*.tsbuildinfo
+**/.env
+coverage
+docs
