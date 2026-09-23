@@ -458,6 +458,11 @@
   font-size: 10px;
   font-weight: 700;
 }
+.badge-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .badge-active {
   background: #ecfdf5;
   color: #047857;

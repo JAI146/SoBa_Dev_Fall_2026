@@ -46,3 +46,4 @@ docs/claude_project_context
 
 # IDE
 .vscode
+.claude/

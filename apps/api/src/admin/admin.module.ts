@@ -11,6 +11,7 @@ import { SubscriptionPlan } from '../entities/subscription-plan.entity';
 import { UpgradeIntent } from '../entities/upgrade-intent.entity';
 import { UserGoal } from '../entities/user-goal.entity';
 import { UserHabit } from '../entities/user-habit.entity';
+import { UserValue } from '../entities/user-value.entity';
 import { User } from '../entities/user.entity';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
@@ -22,6 +23,7 @@ import { AdminService } from './admin.service';
       User,
       UserGoal,
       UserHabit,
+      UserValue,
       HabitCompletion,
       SavingsEntry,
       Reflection,

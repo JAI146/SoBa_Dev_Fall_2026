@@ -25,6 +25,7 @@ import {
 import { MoreThanOrEqual, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth-principal';
+import { toValuePublic } from '../common/mappers/onboarding.mapper';
 import type { RequestContext } from '../common/request-context';
 import { HabitCompletion } from '../entities/habit-completion.entity';
 import { PathwayApplication } from '../entities/pathway-application.entity';
@@ -36,7 +37,9 @@ import { SubscriptionPlan } from '../entities/subscription-plan.entity';
 import { UpgradeIntent } from '../entities/upgrade-intent.entity';
 import { UserGoal } from '../entities/user-goal.entity';
 import { UserHabit } from '../entities/user-habit.entity';
+import { UserValue } from '../entities/user-value.entity';
 import { User } from '../entities/user.entity';
+import { Value } from '../entities/value.entity';
 
 const ACTIVE_WINDOW_DAYS = 30;
 const TIER_LABELS: Record<TierValue, string> = {
@@ -52,6 +55,8 @@ export class AdminService {
     @InjectRepository(UserGoal) private readonly goals: Repository<UserGoal>,
     @InjectRepository(UserHabit)
     private readonly habits: Repository<UserHabit>,
+    @InjectRepository(UserValue)
+    private readonly userValues: Repository<UserValue>,
     @InjectRepository(HabitCompletion)
     private readonly habitCompletions: Repository<HabitCompletion>,
     @InjectRepository(SavingsEntry)
@@ -82,6 +87,9 @@ export class AdminService {
       completedOnboarding,
       submittedPathwayApplications,
       activeUsers,
+      newUsers,
+      totalGoalsCreated,
+      activeHabits,
       tierRows,
       pathwayRows,
       intentRows,
@@ -102,6 +110,14 @@ export class AdminService {
           lastLoginAt: MoreThanOrEqual(activeSince),
         },
       }),
+      this.users.count({
+        where: {
+          userType: UserType.CUSTOMER,
+          createdAt: MoreThanOrEqual(activeSince),
+        },
+      }),
+      this.goals.count(),
+      this.habits.count({ where: { isActive: true } }),
       this.users
         .createQueryBuilder('user')
         .select('user.tier', 'key')
@@ -161,6 +177,9 @@ export class AdminService {
         count: Number(row.count),
       })),
       activeUsers: { count: activeUsers, windowDays: ACTIVE_WINDOW_DAYS },
+      newUsers: { count: newUsers, windowDays: ACTIVE_WINDOW_DAYS },
+      totalGoalsCreated,
+      activeHabits,
     };
 
     await this.record(principal, context, AuditAction.ADMIN_OVERVIEW_VIEWED, {
@@ -214,15 +233,39 @@ export class AdminService {
     });
     if (!user) throw new NotFoundException('Customer account not found.');
 
-    const [goals, habits, activityCounts] = await Promise.all([
-      this.goals.find({ where: { userId: id }, order: { createdAt: 'DESC' } }),
-      this.habits.find({
-        where: { userId: id },
-        relations: { sourceTemplate: true },
-        order: { createdAt: 'DESC' },
-      }),
-      this.userActivityCounts(id),
-    ]);
+    const [goals, habits, pathwayApplications, userValues, activityCounts] =
+      await Promise.all([
+        this.goals.find({
+          where: { userId: id },
+          order: { createdAt: 'DESC' },
+        }),
+        this.habits.find({
+          where: { userId: id },
+          relations: { sourceTemplate: true },
+          order: { createdAt: 'DESC' },
+        }),
+        this.applications.find({
+          where: { userId: id },
+          relations: {
+            user: true,
+            pathway: true,
+            applicationPartners: { partner: true },
+            checklistItems: true,
+          },
+          order: { submittedAt: 'DESC', createdAt: 'DESC' },
+        }),
+        this.userValues.find({
+          where: { userId: id },
+          relations: { value: true },
+        }),
+        this.userActivityCounts(id),
+      ]);
+
+    const values = userValues
+      .map((row) => row.value)
+      .filter((value): value is Value => Boolean(value))
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(toValuePublic);
 
     await this.record(principal, context, AuditAction.ADMIN_USER_VIEWED, {
       entityType: 'user',
@@ -258,6 +301,10 @@ export class AdminService {
             ]
           : [],
       ),
+      pathwayApplications: pathwayApplications.map((application) =>
+        this.toApplicationListItem(application),
+      ),
+      values,
       activityCounts,
     };
   }

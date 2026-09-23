@@ -51,3 +51,13 @@ export function formatTier(value: string): string {
   if (value === "elevate") return "Elevation";
   return formatEnum(value);
 }
+
+const STATUS_BADGE_CLASS: Record<string, string> = {
+  active: "badge-active",
+  pending_email: "badge-invited",
+  suspended: "badge-inactive",
+};
+
+export function statusBadgeClass(value: string): string {
+  return STATUS_BADGE_CLASS[value] ?? "badge-inactive";
+}

@@ -38,7 +38,7 @@ export default function UserDetailPage() {
   return (
     <main className={styles["dashboard-page"]}>
       <Link className={styles["back-link"]} href="/dashboard/users">
-        ← Back to users
+        Back to users
       </Link>
       <div className={styles["page-header"]}>
         <div>
@@ -104,6 +104,22 @@ export default function UserDetailPage() {
             <div>
               <dt>Onboarding status</dt>
               <dd>{formatEnum(user.onboardingStatus)}</dd>
+            </div>
+            <div>
+              <dt>Purpose</dt>
+              <dd>
+                {user.values.length ? (
+                  <span className={styles["badge-list"]}>
+                    {user.values.map((value) => (
+                      <span key={value.key} className={styles.badge}>
+                        {value.label}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  "Not selected"
+                )}
+              </dd>
             </div>
             <div>
               <dt>Email verification</dt>
@@ -250,6 +266,62 @@ export default function UserDetailPage() {
                   <tr>
                     <td colSpan={5} className={styles.empty}>
                       No habits recorded.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </article>
+        <article className={styles.panel}>
+          <div className={styles["panel-heading"]}>
+            <div>
+              <h2>Pathway applications</h2>
+              <p>Submissions and coordinator review status</p>
+            </div>
+          </div>
+          <div className={styles["table-wrap"]}>
+            <table className={styles["data-table"]}>
+              <thead>
+                <tr>
+                  <th>Pathway</th>
+                  <th>Self-attested savings</th>
+                  <th>Checklist</th>
+                  <th>Status</th>
+                  <th>Submitted</th>
+                </tr>
+              </thead>
+              <tbody>
+                {user.pathwayApplications.map((application) => (
+                  <tr key={application.id}>
+                    <td>
+                      <strong>{application.pathway.title}</strong>
+                    </td>
+                    <td>
+                      {formatMoney(application.attestedAmount)}
+                      <span>{formatEnum(application.verificationMethod)}</span>
+                    </td>
+                    <td>
+                      {application.checklistProgress.completed} of{" "}
+                      {application.checklistProgress.total} complete
+                    </td>
+                    <td>
+                      <span className={styles.badge}>
+                        {formatEnum(application.status)}
+                      </span>
+                    </td>
+                    <td>
+                      {formatAdminDateTime(
+                        application.submittedAt,
+                        user.timeZone,
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {user.pathwayApplications.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className={styles.empty}>
+                      No pathway applications recorded.
                     </td>
                   </tr>
                 ) : null}

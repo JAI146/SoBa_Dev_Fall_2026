@@ -74,7 +74,7 @@ export default function PathwayApplicationDetailPage() {
         className={styles["back-link"]}
         href="/dashboard/pathway-applications"
       >
-        ← Back to pathway applications
+        Back to pathway applications
       </Link>
       <div className={styles["page-header"]}>
         <div>
