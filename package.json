@@ -11,7 +11,10 @@
     "dev:api": "pnpm --filter @purposemint/contracts build && pnpm --filter @purposemint/api dev",
     "dev:mobile": "pnpm --filter @purposemint/mobile start",
     "dev:mobile:clear": "pnpm --filter @purposemint/mobile start:clear",
-    "mobile:android": "pnpm --filter @purposemint/mobile android"
+    "mobile:android": "pnpm --filter @purposemint/mobile android",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:reset": "docker compose down --volumes"
   },
   "devDependencies": {
     "prettier": "^3.7.4",

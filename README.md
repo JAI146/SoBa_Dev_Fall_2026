@@ -64,6 +64,35 @@ pnpm exec expo run:android
 Full setup, including Android toolchain and EAS configuration, is in
 [`docs/mobile/expo-native-guide.md`](docs/mobile/expo-native-guide.md).
 
+### Docker dashboard development
+
+The dashboard development stack includes PostgreSQL, database migrations, the
+NestJS API, deterministic mock dashboard data, and the Next.js dashboard:
+
+```bash
+pnpm docker:up
+```
+
+Open <http://localhost:3000> and sign in with:
+
+- Email: `admin@purposemint.local`
+- Password: `PurposeMint123!`
+
+Source files are bind-mounted, so API and dashboard changes reload without an
+image rebuild. Mock records use `@purposemint.local` addresses and the seed is
+safe to rerun. Database state is kept in a named volume.
+
+```bash
+# Stop the stack but keep its database
+pnpm docker:down
+
+# Delete the development database and rebuild it on the next start
+pnpm docker:reset
+```
+
+The credentials above are intentionally local-only. Do not use this Compose
+configuration or its secrets for a shared or production environment.
+
 ---
 
 ## Architecture, in one page

@@ -43,3 +43,6 @@ yarn-error.log*
 # Assets
 assets
 docs/claude_project_context
+
+# IDE
+.vscode

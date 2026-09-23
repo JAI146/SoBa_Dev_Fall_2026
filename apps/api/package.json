@@ -16,6 +16,7 @@
     "check-types": "tsc --noEmit",
     "db:create": "node scripts/create-db.mjs",
     "seed:admin": "node scripts/seed-admin.mjs",
+    "seed:mock": "node scripts/seed-mock-data.mjs",
     "typeorm": "typeorm-ts-node-commonjs -d src/database/data-source.ts",
     "migration:generate": "typeorm-ts-node-commonjs -d src/database/data-source.ts migration:generate",
     "migration:create": "typeorm-ts-node-commonjs migration:create",
