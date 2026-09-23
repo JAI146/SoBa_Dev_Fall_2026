@@ -14,6 +14,7 @@
     "mobile:android": "pnpm --filter @purposemint/mobile android",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",
+    "docker:db": "docker compose --profile tools up --detach db-viewer",
     "docker:reset": "docker compose down --volumes"
   },
   "devDependencies": {

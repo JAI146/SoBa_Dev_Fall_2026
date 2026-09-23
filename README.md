@@ -66,6 +66,12 @@ Full setup, including Android toolchain and EAS configuration, is in
 
 ### Docker dashboard development
 
+See the [database guide](docs/backend/development-database-guide.md) for every
+table, current seed coverage, example queries, and connection troubleshooting.
+Run `pnpm docker:db` to open access to the database browser at
+<http://localhost:8082> (PostgreSQL server `db`; username, password, and database
+are all `purposemint`).
+
 The dashboard development stack includes PostgreSQL, database migrations, the
 NestJS API, deterministic mock dashboard data, and the Next.js dashboard:
 
