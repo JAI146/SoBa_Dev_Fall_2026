@@ -34,6 +34,8 @@ services:
       target: api-dev
     environment: &api-environment
       NODE_ENV: development
+      # Dependencies are installed in the image and refreshed explicitly in the shared volume.
+      PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: "false"
       DATABASE_URL: postgresql://purposemint:purposemint@db:5432/purposemint
       DATABASE_SSL: "false"
       JWT_ACCESS_SECRET: local-development-only-secret-change-me-please
@@ -98,6 +100,7 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:4000
       WATCHPACK_POLLING: "true"
+      PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: "false"
     command: sh -c "pnpm --filter @purposemint/contracts build && pnpm --filter @purposemint/dashboard dev --hostname 0.0.0.0"
     ports:
       - "3000:3000"

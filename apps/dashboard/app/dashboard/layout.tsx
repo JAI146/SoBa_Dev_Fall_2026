@@ -115,6 +115,12 @@ export default function DashboardLayout({
       active: pathname.startsWith("/dashboard/users"),
     },
     {
+      href: "/dashboard/progress",
+      label: "Progress",
+      icon: "progress",
+      active: pathname.startsWith("/dashboard/progress"),
+    },
+    {
       href: "/dashboard/upgrade-intents",
       label: "Upgrade intents",
       icon: "upgrades",
