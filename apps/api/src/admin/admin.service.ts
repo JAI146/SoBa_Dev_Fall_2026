@@ -23,6 +23,7 @@ import {
   type TierValue,
 } from '@purposemint/contracts';
 import { MoreThanOrEqual, Repository } from 'typeorm';
+import { toUserGoalPublic } from '../common/mappers/onboarding.mapper';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth-principal';
 import type { RequestContext } from '../common/request-context';
@@ -234,16 +235,21 @@ export class AdminService {
       state: user.state,
       city: user.city,
       lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
-      goals: goals.map((goal) => ({
-        id: goal.id,
-        title: goal.title,
-        targetAmount: goal.targetAmount,
-        savedAmount: goal.savedAmount,
-        isActive: goal.isActive,
-        isFocus: goal.isFocus,
-        isPathwayEligible: goal.isPathwayEligible,
-        createdAt: goal.createdAt.toISOString(),
-      })),
+      goals: goals.map((goal) => {
+        const progress = toUserGoalPublic(goal);
+        return {
+          id: goal.id,
+          title: goal.title,
+          targetAmount: goal.targetAmount,
+          savedAmount: goal.savedAmount,
+          remainingAmount: progress.remainingAmount,
+          progressPercent: progress.progressPercent,
+          isActive: goal.isActive,
+          isFocus: goal.isFocus,
+          isPathwayEligible: goal.isPathwayEligible,
+          createdAt: goal.createdAt.toISOString(),
+        };
+      }),
       habits: habits.flatMap((habit) =>
         habit.sourceTemplate
           ? [

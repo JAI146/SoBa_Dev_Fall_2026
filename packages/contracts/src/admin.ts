@@ -84,6 +84,8 @@ export const adminUserGoalSchema = z.object({
   title: z.string(),
   targetAmount: z.number(),
   savedAmount: z.number(),
+  remainingAmount: z.number().min(0),
+  progressPercent: z.number().min(0).max(100),
   isActive: z.boolean(),
   isFocus: z.boolean(),
   isPathwayEligible: z.boolean(),

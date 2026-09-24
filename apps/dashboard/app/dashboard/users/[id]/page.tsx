@@ -2,6 +2,11 @@
 
 import { adminUserDetailResponseSchema } from "@purposemint/contracts";
 import Link from "next/link";
+import {
+  GoalProgress,
+  GoalStatusBadge,
+  UserGoalSummary,
+} from "@/components/dashboard/user-goal-summary";
 import { useParams } from "next/navigation";
 import {
   DashboardError,
@@ -73,6 +78,8 @@ export default function UserDetailPage() {
           icon="users"
         />
       </section>
+
+      <UserGoalSummary goals={user.goals} />
 
       <section className={styles["overview-grid"]}>
         <article className={styles.panel}>
@@ -182,6 +189,7 @@ export default function UserDetailPage() {
                   <th>Goal</th>
                   <th>Saved</th>
                   <th>Target</th>
+                  <th>Progress</th>
                   <th>Status</th>
                   <th>Created</th>
                 </tr>
@@ -201,13 +209,18 @@ export default function UserDetailPage() {
                     </td>
                     <td>{formatMoney(goal.savedAmount)}</td>
                     <td>{formatMoney(goal.targetAmount)}</td>
-                    <td>{goal.isActive ? "Active" : "Inactive"}</td>
+                    <td>
+                      <GoalProgress goal={goal} />
+                    </td>
+                    <td>
+                      <GoalStatusBadge isActive={goal.isActive} />
+                    </td>
                     <td>{formatAdminDate(goal.createdAt, user.timeZone)}</td>
                   </tr>
                 ))}
                 {user.goals.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className={styles.empty}>
+                    <td colSpan={6} className={styles.empty}>
                       No goals recorded.
                     </td>
                   </tr>
