@@ -8,7 +8,12 @@ import {
   DashboardLoading,
 } from "@/components/dashboard/dashboard-data-state";
 import { SearchIcon } from "@/components/dashboard/action-icons";
-import { formatAdminDate, formatEnum, formatTier } from "@/lib/admin-format";
+import {
+  formatAdminDate,
+  formatEnum,
+  formatTier,
+  statusBadgeClass,
+} from "@/lib/admin-format";
 import { useAdminQuery } from "@/lib/use-admin-query";
 import styles from "../dashboard.module.css";
 
@@ -75,6 +80,7 @@ export default function UsersPage() {
               <tr>
                 <th>User</th>
                 <th>Membership</th>
+                <th>Status</th>
                 <th>Onboarding</th>
                 <th>Email</th>
                 <th>Joined</th>
@@ -94,6 +100,13 @@ export default function UsersPage() {
                   </td>
                   <td>{formatTier(user.tier)}</td>
                   <td>
+                    <span
+                      className={`${styles.badge} ${styles[statusBadgeClass(user.status)]}`}
+                    >
+                      {formatEnum(user.status)}
+                    </span>
+                  </td>
+                  <td>
                     <span className={styles.badge}>
                       {formatEnum(user.onboardingStatus)}
                     </span>
@@ -112,7 +125,7 @@ export default function UsersPage() {
               ))}
               {data.items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className={styles.empty}>
+                  <td colSpan={7} className={styles.empty}>
                     No users match the current search.
                   </td>
                 </tr>

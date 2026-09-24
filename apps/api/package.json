@@ -24,6 +24,8 @@
     "migration:revert": "typeorm-ts-node-commonjs -d src/database/data-source.ts migration:revert",
     "migration:show": "typeorm-ts-node-commonjs -d src/database/data-source.ts migration:show",
     "test": "jest",
+    "test:incentives": "jest --runInBand incentive-ledger.spec.ts",
+    "test:incentives:integration": "ts-node -P tsconfig.json scripts/test-incentives.ts",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register node_modules/.bin/jest --runInBand",

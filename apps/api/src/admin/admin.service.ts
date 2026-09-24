@@ -1,14 +1,31 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   AuditAction,
   AuditActorType,
+  AdminRole,
+  UserStatus,
   OnboardingStatus,
   PathwayApplicationStatus,
   Tier,
   UserType,
   type AdminChecklistItem,
   type AdminChecklistUpdateInput,
+  type AdminStaffCreateInput,
+  type AdminStaffListItem,
+  type AdminStaffQuery,
+  type AdminStaffResponse,
+  type AdminStaffUpdateInput,
+  type AdminCustomRole,
+  type AdminCustomRoleCreateInput,
+  type AdminCustomRoleUpdateInput,
+  type AdminCustomRolesResponse,
   type AdminOverviewResponse,
   type AdminPathwayApplicationDetailResponse,
   type AdminPathwayApplicationListItem,
@@ -28,8 +45,13 @@ import {
   type TierValue,
 } from '@purposemint/contracts';
 import { MoreThanOrEqual, Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
+import { toUserGoalPublic } from '../common/mappers/onboarding.mapper';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth-principal';
+import { SessionRevokedReason, SessionService } from '../auth/session.service';
+import type { Env } from '../config/env.validation';
+import { toValuePublic } from '../common/mappers/onboarding.mapper';
 import type { RequestContext } from '../common/request-context';
 import { HabitCompletion } from '../entities/habit-completion.entity';
 import { PathwayApplication } from '../entities/pathway-application.entity';
@@ -41,7 +63,10 @@ import { SubscriptionPlan } from '../entities/subscription-plan.entity';
 import { UpgradeIntent } from '../entities/upgrade-intent.entity';
 import { UserGoal } from '../entities/user-goal.entity';
 import { UserHabit } from '../entities/user-habit.entity';
+import { UserValue } from '../entities/user-value.entity';
 import { User } from '../entities/user.entity';
+import { Value } from '../entities/value.entity';
+import { CustomRole } from '../entities/custom-role.entity';
 
 const ACTIVE_WINDOW_DAYS = 30;
 const TIER_LABELS: Record<TierValue, string> = {
@@ -54,9 +79,13 @@ const TIER_LABELS: Record<TierValue, string> = {
 export class AdminService {
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
+    @InjectRepository(CustomRole)
+    private readonly customRoles: Repository<CustomRole>,
     @InjectRepository(UserGoal) private readonly goals: Repository<UserGoal>,
     @InjectRepository(UserHabit)
     private readonly habits: Repository<UserHabit>,
+    @InjectRepository(UserValue)
+    private readonly userValues: Repository<UserValue>,
     @InjectRepository(HabitCompletion)
     private readonly habitCompletions: Repository<HabitCompletion>,
     @InjectRepository(SavingsEntry)
@@ -73,7 +102,235 @@ export class AdminService {
     @InjectRepository(SubscriptionPlan)
     private readonly plans: Repository<SubscriptionPlan>,
     private readonly audit: AuditService,
-  ) {}
+    private readonly sessions: SessionService,
+    config: ConfigService<Env, true>,
+  ) {
+    this.bcryptRounds = config.get('BCRYPT_ROUNDS', { infer: true });
+  }
+
+  private readonly bcryptRounds: number;
+
+  async listCustomRoles(
+    principal: AuthPrincipal,
+    context: RequestContext,
+  ): Promise<AdminCustomRolesResponse> {
+    const roles = await this.customRoles.find({ order: { name: 'ASC' } });
+    await this.record(
+      principal,
+      context,
+      AuditAction.ADMIN_CUSTOM_ROLES_LISTED,
+      {
+        entityType: 'custom_role',
+      },
+    );
+    return { items: roles.map((role) => this.toCustomRole(role)) };
+  }
+
+  async createCustomRole(
+    principal: AuthPrincipal,
+    input: AdminCustomRoleCreateInput,
+    context: RequestContext,
+  ): Promise<AdminCustomRole> {
+    const role = await this.customRoles.save(this.customRoles.create(input));
+    await this.record(
+      principal,
+      context,
+      AuditAction.ADMIN_CUSTOM_ROLE_CREATED,
+      {
+        entityType: 'custom_role',
+        entityId: role.id,
+      },
+    );
+    return this.toCustomRole(role);
+  }
+
+  async updateCustomRole(
+    principal: AuthPrincipal,
+    id: string,
+    input: AdminCustomRoleUpdateInput,
+    context: RequestContext,
+  ): Promise<AdminCustomRole> {
+    const role = await this.customRoles.findOne({ where: { id } });
+    if (!role) throw new NotFoundException('Custom role not found.');
+    Object.assign(role, input);
+    const saved = await this.customRoles.save(role);
+    await this.record(
+      principal,
+      context,
+      AuditAction.ADMIN_CUSTOM_ROLE_UPDATED,
+      {
+        entityType: 'custom_role',
+        entityId: id,
+      },
+    );
+    return this.toCustomRole(saved);
+  }
+
+  async deleteCustomRole(
+    principal: AuthPrincipal,
+    id: string,
+    context: RequestContext,
+  ): Promise<{ message: string }> {
+    const role = await this.customRoles.findOne({ where: { id } });
+    if (!role) throw new NotFoundException('Custom role not found.');
+    const assigned = await this.users.count({ where: { customRoleId: id } });
+    if (assigned > 0) {
+      throw new ForbiddenException(
+        'Remove all users from this role before deleting it.',
+      );
+    }
+    await this.customRoles.remove(role);
+    await this.record(
+      principal,
+      context,
+      AuditAction.ADMIN_CUSTOM_ROLE_DELETED,
+      {
+        entityType: 'custom_role',
+        entityId: id,
+      },
+    );
+    return { message: 'Custom role deleted.' };
+  }
+
+  async listStaff(
+    principal: AuthPrincipal,
+    query: AdminStaffQuery,
+    context: RequestContext,
+  ): Promise<AdminStaffResponse> {
+    const builder = this.users
+      .createQueryBuilder('user')
+      .where('user.userType = :userType', { userType: UserType.ADMIN });
+    const search = query.search?.trim().toLowerCase();
+    if (search) {
+      builder.andWhere(
+        `(LOWER(user.email) LIKE :search OR LOWER(user.firstName) LIKE :search OR LOWER(user.lastName) LIKE :search)`,
+        { search: `%${search}%` },
+      );
+    }
+    const [staff, total] = await builder
+      .orderBy('user.createdAt', 'DESC')
+      .skip((query.page - 1) * query.pageSize)
+      .take(query.pageSize)
+      .getManyAndCount();
+
+    await this.record(principal, context, AuditAction.ADMIN_STAFF_LISTED, {
+      entityType: 'admin_staff',
+      metadata: { page: query.page, pageSize: query.pageSize },
+    });
+    return {
+      items: staff.map((user) => this.toStaffListItem(user)),
+      ...this.pagination(query.page, query.pageSize, total),
+    };
+  }
+
+  async createStaff(
+    principal: AuthPrincipal,
+    input: AdminStaffCreateInput,
+    context: RequestContext,
+  ): Promise<AdminStaffListItem> {
+    const email = input.email.trim().toLowerCase();
+    if (await this.users.exists({ where: { email } })) {
+      throw new ConflictException('An account with that email already exists.');
+    }
+    const user = await this.users.save(
+      this.users.create({
+        email,
+        passwordHash: await bcrypt.hash(input.password, this.bcryptRounds),
+        firstName: input.firstName,
+        lastName: input.lastName,
+        userType: UserType.ADMIN,
+        adminRole: input.adminRole,
+        status: UserStatus.ACTIVE,
+        emailVerifiedAt: new Date(),
+        notificationPreferences: {},
+        policyAgreements: {},
+      }),
+    );
+    await this.record(principal, context, AuditAction.ADMIN_STAFF_CREATED, {
+      entityType: 'user',
+      entityId: user.id,
+      metadata: { adminRole: user.adminRole },
+    });
+    return this.toStaffListItem(user);
+  }
+
+  async updateStaff(
+    principal: AuthPrincipal,
+    id: string,
+    input: AdminStaffUpdateInput,
+    context: RequestContext,
+  ): Promise<AdminStaffListItem> {
+    const user = await this.users.findOne({
+      where: { id, userType: UserType.ADMIN },
+    });
+    if (!user) throw new NotFoundException('Staff account not found.');
+    if (id === principal.userId && input.status === UserStatus.SUSPENDED) {
+      throw new ForbiddenException('You cannot deactivate your own account.');
+    }
+
+    const wasActiveSuperAdmin =
+      user.adminRole === AdminRole.SUPER_ADMIN &&
+      user.status === UserStatus.ACTIVE;
+    const becomesInactiveSuperAdmin =
+      wasActiveSuperAdmin &&
+      ((input.adminRole !== undefined &&
+        input.adminRole !== AdminRole.SUPER_ADMIN) ||
+        input.status === UserStatus.SUSPENDED);
+    if (becomesInactiveSuperAdmin) {
+      const activeSuperAdmins = await this.users.count({
+        where: {
+          userType: UserType.ADMIN,
+          adminRole: AdminRole.SUPER_ADMIN,
+          status: UserStatus.ACTIVE,
+        },
+      });
+      if (activeSuperAdmins <= 1) {
+        throw new ForbiddenException(
+          'At least one active Super Admin is required.',
+        );
+      }
+    }
+
+    Object.assign(user, {
+      ...(input.email !== undefined
+        ? { email: input.email.trim().toLowerCase() }
+        : {}),
+      ...(input.firstName !== undefined ? { firstName: input.firstName } : {}),
+      ...(input.lastName !== undefined ? { lastName: input.lastName } : {}),
+      ...(input.adminRole !== undefined ? { adminRole: input.adminRole } : {}),
+      ...(input.status !== undefined ? { status: input.status } : {}),
+    });
+    try {
+      await this.users.save(user);
+    } catch (error) {
+      if (String(error).toLowerCase().includes('uq_users_email')) {
+        throw new ConflictException(
+          'An account with that email already exists.',
+        );
+      }
+      throw error;
+    }
+
+    if (user.status === UserStatus.SUSPENDED) {
+      await this.sessions.revokeAllForUser(
+        user.id,
+        SessionRevokedReason.LOGOUT_ALL,
+      );
+    }
+    await this.record(
+      principal,
+      context,
+      user.status === UserStatus.SUSPENDED
+        ? AuditAction.ADMIN_STAFF_DEACTIVATED
+        : AuditAction.ADMIN_STAFF_UPDATED,
+      {
+        entityType: 'user',
+        entityId: user.id,
+        metadata: { adminRole: user.adminRole },
+      },
+    );
+    return this.toStaffListItem(user);
+  }
 
   async overview(
     principal: AuthPrincipal,
@@ -87,6 +344,9 @@ export class AdminService {
       completedOnboarding,
       submittedPathwayApplications,
       activeUsers,
+      newUsers,
+      totalGoalsCreated,
+      activeHabits,
       tierRows,
       pathwayRows,
       intentRows,
@@ -107,6 +367,14 @@ export class AdminService {
           lastLoginAt: MoreThanOrEqual(activeSince),
         },
       }),
+      this.users.count({
+        where: {
+          userType: UserType.CUSTOMER,
+          createdAt: MoreThanOrEqual(activeSince),
+        },
+      }),
+      this.goals.count(),
+      this.habits.count({ where: { isActive: true } }),
       this.users
         .createQueryBuilder('user')
         .select('user.tier', 'key')
@@ -166,6 +434,9 @@ export class AdminService {
         count: Number(row.count),
       })),
       activeUsers: { count: activeUsers, windowDays: ACTIVE_WINDOW_DAYS },
+      newUsers: { count: newUsers, windowDays: ACTIVE_WINDOW_DAYS },
+      totalGoalsCreated,
+      activeHabits,
     };
 
     await this.record(principal, context, AuditAction.ADMIN_OVERVIEW_VIEWED, {
@@ -383,15 +654,39 @@ export class AdminService {
     });
     if (!user) throw new NotFoundException('Customer account not found.');
 
-    const [goals, habits, activityCounts] = await Promise.all([
-      this.goals.find({ where: { userId: id }, order: { createdAt: 'DESC' } }),
-      this.habits.find({
-        where: { userId: id },
-        relations: { sourceTemplate: true },
-        order: { createdAt: 'DESC' },
-      }),
-      this.userActivityCounts(id),
-    ]);
+    const [goals, habits, pathwayApplications, userValues, activityCounts] =
+      await Promise.all([
+        this.goals.find({
+          where: { userId: id },
+          order: { createdAt: 'DESC' },
+        }),
+        this.habits.find({
+          where: { userId: id },
+          relations: { sourceTemplate: true },
+          order: { createdAt: 'DESC' },
+        }),
+        this.applications.find({
+          where: { userId: id },
+          relations: {
+            user: true,
+            pathway: true,
+            applicationPartners: { partner: true },
+            checklistItems: true,
+          },
+          order: { submittedAt: 'DESC', createdAt: 'DESC' },
+        }),
+        this.userValues.find({
+          where: { userId: id },
+          relations: { value: true },
+        }),
+        this.userActivityCounts(id),
+      ]);
+
+    const values = userValues
+      .map((row) => row.value)
+      .filter((value): value is Value => Boolean(value))
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(toValuePublic);
 
     await this.record(principal, context, AuditAction.ADMIN_USER_VIEWED, {
       entityType: 'user',
@@ -403,16 +698,21 @@ export class AdminService {
       state: user.state,
       city: user.city,
       lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
-      goals: goals.map((goal) => ({
-        id: goal.id,
-        title: goal.title,
-        targetAmount: goal.targetAmount,
-        savedAmount: goal.savedAmount,
-        isActive: goal.isActive,
-        isFocus: goal.isFocus,
-        isPathwayEligible: goal.isPathwayEligible,
-        createdAt: goal.createdAt.toISOString(),
-      })),
+      goals: goals.map((goal) => {
+        const progress = toUserGoalPublic(goal);
+        return {
+          id: goal.id,
+          title: goal.title,
+          targetAmount: goal.targetAmount,
+          savedAmount: goal.savedAmount,
+          remainingAmount: progress.remainingAmount,
+          progressPercent: progress.progressPercent,
+          isActive: goal.isActive,
+          isFocus: goal.isFocus,
+          isPathwayEligible: goal.isPathwayEligible,
+          createdAt: goal.createdAt.toISOString(),
+        };
+      }),
       habits: habits.flatMap((habit) =>
         habit.sourceTemplate
           ? [
@@ -427,6 +727,10 @@ export class AdminService {
             ]
           : [],
       ),
+      pathwayApplications: pathwayApplications.map((application) =>
+        this.toApplicationListItem(application),
+      ),
+      values,
       activityCounts,
     };
   }
@@ -735,6 +1039,31 @@ export class AdminService {
       emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
       createdAt: user.createdAt.toISOString(),
       timeZone: user.timeZone,
+    };
+  }
+
+  private toStaffListItem(user: User): AdminStaffListItem {
+    return {
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      adminRole: user.adminRole!,
+      status: user.status as 'active' | 'suspended',
+      emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
+      createdAt: user.createdAt.toISOString(),
+      lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+    };
+  }
+
+  private toCustomRole(role: CustomRole): AdminCustomRole {
+    return {
+      id: role.id,
+      name: role.name,
+      description: role.description,
+      permissions: role.permissions,
+      createdAt: role.createdAt.toISOString(),
+      updatedAt: role.updatedAt.toISOString(),
     };
   }
 

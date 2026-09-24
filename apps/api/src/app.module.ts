@@ -3,9 +3,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CustomRole } from './entities/custom-role.entity';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from './auth/guards/permissions.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { validateEnv, type Env } from './config/env.validation';
 import { DashboardModule } from './dashboard/dashboard.module';
@@ -19,9 +21,11 @@ import { ReflectionsModule } from './reflections/reflections.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { CommunityChallengesModule } from './community-challenges/community-challenges.module';
 import { AdminModule } from './admin/admin.module';
+import { IncentivesModule } from './incentives/incentives.module';
 
 @Module({
   imports: [
+    TypeOrmModule.forFeature([CustomRole]),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env'],
@@ -53,6 +57,8 @@ import { AdminModule } from './admin/admin.module';
     SubscriptionsModule,
     CommunityChallengesModule,
     AdminModule,
+    // Mount incentive endpoints and seed the default program after database initialization.
+    IncentivesModule,
     HealthModule,
   ],
   providers: [
@@ -60,6 +66,7 @@ import { AdminModule } from './admin/admin.module';
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
 })
 export class AppModule {}

@@ -48,3 +48,4 @@ docs/claude_project_context
 .vscode
 
 /.pnpm-store/
+.claude/

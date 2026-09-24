@@ -2,6 +2,11 @@
 
 import { adminUserDetailResponseSchema } from "@purposemint/contracts";
 import Link from "next/link";
+import {
+  GoalProgress,
+  GoalStatusBadge,
+  UserGoalSummary,
+} from "@/components/dashboard/user-goal-summary";
 import { useParams } from "next/navigation";
 import {
   DashboardError,
@@ -17,6 +22,9 @@ import {
 } from "@/lib/admin-format";
 import { useAdminQuery } from "@/lib/use-admin-query";
 import styles from "../../dashboard.module.css";
+import { UserIncentives } from "@/features/incentives/user-incentives";
+import { getStoredUser } from "@/lib/auth";
+import { AdminRole } from "@purposemint/contracts";
 
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -38,7 +46,7 @@ export default function UserDetailPage() {
   return (
     <main className={styles["dashboard-page"]}>
       <Link className={styles["back-link"]} href="/dashboard/users">
-        ← Back to users
+        Back to users
       </Link>
       <div className={styles["page-header"]}>
         <div>
@@ -74,6 +82,8 @@ export default function UserDetailPage() {
         />
       </section>
 
+      <UserGoalSummary goals={user.goals} />
+
       <section className={styles["overview-grid"]}>
         <article className={styles.panel}>
           <div className={styles["panel-heading"]}>
@@ -104,6 +114,22 @@ export default function UserDetailPage() {
             <div>
               <dt>Onboarding status</dt>
               <dd>{formatEnum(user.onboardingStatus)}</dd>
+            </div>
+            <div>
+              <dt>Purpose</dt>
+              <dd>
+                {user.values.length ? (
+                  <span className={styles["badge-list"]}>
+                    {user.values.map((value) => (
+                      <span key={value.key} className={styles.badge}>
+                        {value.label}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  "Not selected"
+                )}
+              </dd>
             </div>
             <div>
               <dt>Email verification</dt>
@@ -168,6 +194,8 @@ export default function UserDetailPage() {
       </section>
 
       <section className={styles["stacked-panels"]}>
+        {/* Fetch benefits separately so this profile does not depend on the incentives API. */}
+        {getStoredUser()?.adminRole === AdminRole.SUPER_ADMIN ? <UserIncentives userId={id} /> : null}
         <article className={styles.panel}>
           <div className={styles["panel-heading"]}>
             <div>
@@ -182,6 +210,7 @@ export default function UserDetailPage() {
                   <th>Goal</th>
                   <th>Saved</th>
                   <th>Target</th>
+                  <th>Progress</th>
                   <th>Status</th>
                   <th>Created</th>
                 </tr>
@@ -201,13 +230,18 @@ export default function UserDetailPage() {
                     </td>
                     <td>{formatMoney(goal.savedAmount)}</td>
                     <td>{formatMoney(goal.targetAmount)}</td>
-                    <td>{goal.isActive ? "Active" : "Inactive"}</td>
+                    <td>
+                      <GoalProgress goal={goal} />
+                    </td>
+                    <td>
+                      <GoalStatusBadge isActive={goal.isActive} />
+                    </td>
                     <td>{formatAdminDate(goal.createdAt, user.timeZone)}</td>
                   </tr>
                 ))}
                 {user.goals.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className={styles.empty}>
+                    <td colSpan={6} className={styles.empty}>
                       No goals recorded.
                     </td>
                   </tr>
@@ -250,6 +284,62 @@ export default function UserDetailPage() {
                   <tr>
                     <td colSpan={5} className={styles.empty}>
                       No habits recorded.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </article>
+        <article className={styles.panel}>
+          <div className={styles["panel-heading"]}>
+            <div>
+              <h2>Pathway applications</h2>
+              <p>Submissions and coordinator review status</p>
+            </div>
+          </div>
+          <div className={styles["table-wrap"]}>
+            <table className={styles["data-table"]}>
+              <thead>
+                <tr>
+                  <th>Pathway</th>
+                  <th>Self-attested savings</th>
+                  <th>Checklist</th>
+                  <th>Status</th>
+                  <th>Submitted</th>
+                </tr>
+              </thead>
+              <tbody>
+                {user.pathwayApplications.map((application) => (
+                  <tr key={application.id}>
+                    <td>
+                      <strong>{application.pathway.title}</strong>
+                    </td>
+                    <td>
+                      {formatMoney(application.attestedAmount)}
+                      <span>{formatEnum(application.verificationMethod)}</span>
+                    </td>
+                    <td>
+                      {application.checklistProgress.completed} of{" "}
+                      {application.checklistProgress.total} complete
+                    </td>
+                    <td>
+                      <span className={styles.badge}>
+                        {formatEnum(application.status)}
+                      </span>
+                    </td>
+                    <td>
+                      {formatAdminDateTime(
+                        application.submittedAt,
+                        user.timeZone,
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {user.pathwayApplications.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className={styles.empty}>
+                      No pathway applications recorded.
                     </td>
                   </tr>
                 ) : null}

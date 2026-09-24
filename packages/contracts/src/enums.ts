@@ -29,9 +29,19 @@ export type UserStatusValue = (typeof UserStatus)[keyof typeof UserStatus];
 
 export const AdminRole = {
   SUPER_ADMIN: "super_admin",
+  MANAGER: "manager",
+  AUDITOR: "auditor",
+  EDITOR: "editor",
+  SUPPORT: "support",
 } as const;
 
-export const adminRoleValues = [AdminRole.SUPER_ADMIN] as const;
+export const adminRoleValues = [
+  AdminRole.SUPER_ADMIN,
+  AdminRole.MANAGER,
+  AdminRole.AUDITOR,
+  AdminRole.EDITOR,
+  AdminRole.SUPPORT,
+] as const;
 
 export type AdminRoleValue = (typeof AdminRole)[keyof typeof AdminRole];
 
@@ -180,6 +190,11 @@ export type AuditOutcomeValue =
 
 /** Actions written to `audit_events`. Kept as a closed set so queries stay honest. */
 export const AuditAction = {
+  // Track incentive reads, program creation/updates, eligibility reviews, and ledger events.
+  INCENTIVES_VIEWED: "incentives.viewed",
+  INCENTIVE_PROGRAM_UPDATED: "incentives.program_updated",
+  INCENTIVE_REVIEWED: "incentives.reviewed",
+  INCENTIVE_EVENT_RECORDED: "incentives.event_recorded",
   USER_REGISTERED: "user.registered",
   USER_LOGIN_SUCCEEDED: "user.login_succeeded",
   USER_LOGIN_FAILED: "user.login_failed",
@@ -193,6 +208,14 @@ export const AuditAction = {
   ADMIN_OVERVIEW_VIEWED: "admin.overview_viewed",
   ADMIN_USERS_LISTED: "admin.users_listed",
   ADMIN_USER_VIEWED: "admin.user_viewed",
+  ADMIN_STAFF_CREATED: "admin.staff_created",
+  ADMIN_STAFF_UPDATED: "admin.staff_updated",
+  ADMIN_STAFF_DEACTIVATED: "admin.staff_deactivated",
+  ADMIN_STAFF_LISTED: "admin.staff_listed",
+  ADMIN_CUSTOM_ROLES_LISTED: "admin.custom_roles_listed",
+  ADMIN_CUSTOM_ROLE_CREATED: "admin.custom_role_created",
+  ADMIN_CUSTOM_ROLE_UPDATED: "admin.custom_role_updated",
+  ADMIN_CUSTOM_ROLE_DELETED: "admin.custom_role_deleted",
   ADMIN_PATHWAY_APPLICATIONS_LISTED: "admin.pathway_applications_listed",
   ADMIN_PATHWAY_APPLICATION_VIEWED: "admin.pathway_application_viewed",
   ADMIN_PATHWAY_CHECKLIST_UPDATED: "admin.pathway_checklist_updated",

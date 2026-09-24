@@ -95,6 +95,9 @@ export class User {
   })
   adminRole!: AdminRoleValue | null;
 
+  @Column({ name: 'custom_role_id', type: 'uuid', nullable: true })
+  customRoleId!: string | null;
+
   @Column({
     type: 'enum',
     enum: Object.values(UserStatus),

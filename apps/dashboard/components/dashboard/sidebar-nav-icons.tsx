@@ -1,8 +1,21 @@
 import type { ReactNode } from "react";
 
-export type SidebarNavIconName = "overview" | "pathways" | "users" | "upgrades" | "progress";
+export type SidebarNavIconName =
+  | "overview"
+  | "pathways"
+  | "users"
+  | "upgrades"
+  | "progress"
+  | "roles"
+  | "incentives";
 
-function Svg({ children, className }: { children: ReactNode; className?: string }) {
+function Svg({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <svg
       className={className}
@@ -26,6 +39,15 @@ export function SidebarNavIcon({
   name: SidebarNavIconName;
   className?: string;
 }) {
+  // Reuse the shared SVG wrapper to match the sidebar’s existing stroke and sizing.
+  if (name === "incentives") {
+    return (
+      <Svg className={className}>
+        <rect x="3" y="8" width="18" height="4" rx="1" />
+        <path d="M5 12v9h14v-9M12 8v13M12 8H8a3 3 0 1 1 3-3zM12 8h4a3 3 0 1 0-3-3z" />
+      </Svg>
+    );
+  }
   if (name === "pathways") {
     return (
       <Svg className={className}>
@@ -61,6 +83,17 @@ export function SidebarNavIcon({
         <path d="M4 19h16" />
         <path d="M6 16l5-5 3 3 5-7" />
         <path d="M16 7h3v3" />
+      </Svg>
+    );
+  }
+
+  if (name === "roles") {
+    return (
+      <Svg className={className}>
+        <circle cx="9" cy="8" r="3" />
+        <path d="M3 20a6 6 0 0 1 12 0" />
+        <path d="M16 11h5" />
+        <path d="M18.5 8.5v5" />
       </Svg>
     );
   }
