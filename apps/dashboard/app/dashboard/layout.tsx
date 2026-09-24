@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   UserType,
+  AdminRole,
   userPublicSchema,
   type MessageResponse,
   type UserPublic,
@@ -12,11 +13,7 @@ import {
   DashboardShell,
   type DashboardNavItem,
 } from "@/components/dashboard/dashboard-shell";
-import {
-  clearAuth,
-  getToken,
-  type DashboardUser,
-} from "@/lib/auth";
+import { clearAuth, getToken } from "@/lib/auth";
 import { apiRequest } from "@/lib/api-client";
 import styles from "./dashboard.module.css";
 
@@ -25,7 +22,8 @@ export default function DashboardLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<DashboardUser | null>(null);
+  // Keep the verified role for feature navigation; the API still enforces access.
+  const [user, setUser] = useState<UserPublic | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
@@ -114,6 +112,17 @@ export default function DashboardLayout({
       icon: "users",
       active: pathname.startsWith("/dashboard/users"),
     },
+    // Show the incentives workspace only to its currently supported staff role.
+    ...(user.adminRole === AdminRole.SUPER_ADMIN
+      ? [
+          {
+            href: "/dashboard/incentives",
+            label: "Incentives & Benefits",
+            icon: "incentives" as const,
+            active: pathname.startsWith("/dashboard/incentives"),
+          },
+        ]
+      : []),
     {
       href: "/dashboard/upgrade-intents",
       label: "Upgrade intents",

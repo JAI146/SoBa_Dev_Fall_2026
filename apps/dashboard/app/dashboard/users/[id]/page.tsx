@@ -17,6 +17,9 @@ import {
 } from "@/lib/admin-format";
 import { useAdminQuery } from "@/lib/use-admin-query";
 import styles from "../../dashboard.module.css";
+import { UserIncentives } from "@/features/incentives/user-incentives";
+import { getStoredUser } from "@/lib/auth";
+import { AdminRole } from "@purposemint/contracts";
 
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -168,6 +171,8 @@ export default function UserDetailPage() {
       </section>
 
       <section className={styles["stacked-panels"]}>
+        {/* Fetch benefits separately so this profile does not depend on the incentives API. */}
+        {getStoredUser()?.adminRole === AdminRole.SUPER_ADMIN ? <UserIncentives userId={id} /> : null}
         <article className={styles.panel}>
           <div className={styles["panel-heading"]}>
             <div>

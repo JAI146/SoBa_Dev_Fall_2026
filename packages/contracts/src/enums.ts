@@ -180,6 +180,11 @@ export type AuditOutcomeValue =
 
 /** Actions written to `audit_events`. Kept as a closed set so queries stay honest. */
 export const AuditAction = {
+  // Track incentive reads, program creation/updates, eligibility reviews, and ledger events.
+  INCENTIVES_VIEWED: "incentives.viewed",
+  INCENTIVE_PROGRAM_UPDATED: "incentives.program_updated",
+  INCENTIVE_REVIEWED: "incentives.reviewed",
+  INCENTIVE_EVENT_RECORDED: "incentives.event_recorded",
   USER_REGISTERED: "user.registered",
   USER_LOGIN_SUCCEEDED: "user.login_succeeded",
   USER_LOGIN_FAILED: "user.login_failed",

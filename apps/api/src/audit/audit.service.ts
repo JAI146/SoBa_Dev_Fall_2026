@@ -7,7 +7,7 @@ import {
   type AuditActorTypeValue,
   type AuditOutcomeValue,
 } from '@purposemint/contracts';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { AuditEvent } from '../entities/audit-event.entity';
 
 export interface AuditInput {
@@ -37,6 +37,27 @@ export class AuditService {
     @InjectRepository(AuditEvent)
     private readonly auditRepo: Repository<AuditEvent>,
   ) {}
+
+  // Uses the caller’s transaction and lets failures roll back the mutation; record() stays best-effort.
+  /** Financial/admin mutations must commit their audit record atomically. */
+  async recordTransactional(
+    manager: EntityManager,
+    input: AuditInput,
+  ): Promise<void> {
+    await manager.save(
+      AuditEvent,
+      manager.create(AuditEvent, {
+        action: input.action,
+        outcome: input.outcome ?? AuditOutcome.SUCCESS,
+        actorUserId: input.actorUserId ?? null,
+        actorType: input.actorType ?? AuditActorType.ADMIN,
+        entityType: input.entityType ?? null,
+        entityId: input.entityId ?? null,
+        ipAddress: input.ipAddress ?? null,
+        metadata: this.sanitize(input.metadata),
+      }),
+    );
+  }
 
   /**
    * Never throws. A failed audit write must not turn a successful login into a
