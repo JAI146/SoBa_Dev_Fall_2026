@@ -1,0 +1,338 @@
+/**
+ * Styles incentive forms, tables, review dialogs, summary cards, and profile links.
+ * Uses shared theme tokens, visible keyboard focus, and responsive grid layouts.
+ */
+.stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: 22px;
+}
+.notice {
+  padding: 16px 20px;
+  border: 1px solid var(--brand-gold);
+  border-radius: var(--radius);
+  background: var(--brand-light-gold);
+  color: var(--secondary);
+  line-height: 1.6;
+}
+.notice p {
+  margin: 5px 0 0;
+}
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+.tabs button {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 18px;
+  background: var(--card);
+  color: var(--foreground);
+  cursor: pointer;
+  font: inherit;
+}
+.tabs button[aria-current="page"] {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+.form {
+  display: grid;
+  gap: 16px;
+  max-width: 760px;
+}
+.form label,
+.filters label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--foreground);
+}
+.form input,
+.form select,
+.form textarea,
+.filters input,
+.filters select {
+  min-width: 0;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+}
+.form textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+.form input[type="checkbox"] {
+  width: auto;
+}
+.form .check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.filters {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.filters > label {
+  flex: 1 1 150px;
+}
+.filters button {
+  align-self: end;
+}
+.error {
+  color: var(--error-text);
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  border-radius: 8px;
+  padding: 12px;
+}
+.success {
+  color: var(--success-text);
+  background: var(--success-bg);
+  border-radius: 8px;
+  padding: 12px;
+}
+.status {
+  display: inline-block;
+  background: var(--primary-light);
+  color: var(--secondary);
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.timeline {
+  list-style: none;
+  display: grid;
+  gap: 16px;
+  padding: 0;
+  margin: 16px 0 0;
+}
+.timeline li {
+  border-left: 3px solid var(--primary);
+  padding: 4px 0 4px 18px;
+}
+.timeline p {
+  margin: 8px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.timeline small {
+  display: block;
+  color: var(--muted);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.buttonLink {
+  background: none;
+  border: 0;
+  color: var(--primary);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+.metrics {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+}
+.metricButton {
+  padding: 0;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.bar {
+  height: 8px;
+  margin: 8px 0 16px;
+  background: var(--primary-light);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bar span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+.heading {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.heading h2 {
+  margin: 0;
+}
+.stack button:focus-visible,
+.stack a:focus-visible,
+.stack input:focus-visible,
+.stack select:focus-visible,
+.stack textarea:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+@media (max-width: 900px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .metrics,
+  .row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tableToolbar {
+  padding: 20px;
+}
+.tableActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  white-space: nowrap;
+}
+.cellSecondary {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  margin: auto;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 20%);
+}
+.dialog::backdrop {
+  background: rgb(0 0 0 / 40%);
+}
+.formFields {
+  display: grid;
+  gap: 16px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.reviewReason {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.benefitList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+.benefitLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--foreground);
+  text-decoration: none;
+  transition:
+    border-color 150ms,
+    background 150ms;
+}
+.benefitLink:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.stackSmall {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+.benefitAmount {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+}
+.benefitAmount strong {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+}
+.benefitAmount span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.outlineButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--primary);
+  background: var(--card);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.outlineButton:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.reviewCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+.reviewCard {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--background);
+}
+.reviewCard h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.reviewCard p {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}

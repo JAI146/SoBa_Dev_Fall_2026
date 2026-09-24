@@ -21,6 +21,7 @@ import { ReflectionsModule } from './reflections/reflections.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { CommunityChallengesModule } from './community-challenges/community-challenges.module';
 import { AdminModule } from './admin/admin.module';
+import { IncentivesModule } from './incentives/incentives.module';
 
 @Module({
   imports: [
@@ -56,6 +57,8 @@ import { AdminModule } from './admin/admin.module';
     SubscriptionsModule,
     CommunityChallengesModule,
     AdminModule,
+    // Mount incentive endpoints and seed the default program after database initialization.
+    IncentivesModule,
     HealthModule,
   ],
   providers: [

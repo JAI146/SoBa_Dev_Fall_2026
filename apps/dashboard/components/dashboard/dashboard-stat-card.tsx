@@ -8,7 +8,8 @@ import styles from "../../app/dashboard/dashboard.module.css";
 type DashboardStatCardProps = {
   label: string;
   value: ReactNode;
-  icon: DashboardStatIconName;
+  // Optional decoration: incentive totals omit icons that could look like unused actions.
+  icon?: DashboardStatIconName;
   accent?: boolean;
 };
 
@@ -29,9 +30,11 @@ export function DashboardStatCard({
     <div className={cardClass}>
       <div className={styles["dashboard-stat-card__head"]}>
         <span className={styles["dashboard-stat-card__label"]}>{label}</span>
-        <span className={styles["dashboard-stat-card__icon"]} aria-hidden>
-          <DashboardStatIcon name={icon} />
-        </span>
+        {icon ? (
+          <span className={styles["dashboard-stat-card__icon"]} aria-hidden>
+            <DashboardStatIcon name={icon} />
+          </span>
+        ) : null}
       </div>
       <span className={styles["dashboard-stat-card__value"]}>{value}</span>
     </div>
