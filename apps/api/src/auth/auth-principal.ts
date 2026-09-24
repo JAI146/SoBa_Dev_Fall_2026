@@ -14,6 +14,7 @@ export interface AuthPrincipal {
   sessionId: string;
   userType: UserTypeValue;
   adminRole: AdminRoleValue | null;
+  customRoleId: string | null;
   status: UserStatusValue;
   emailVerified: boolean;
 }

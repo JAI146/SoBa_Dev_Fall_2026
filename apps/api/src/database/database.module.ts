@@ -5,6 +5,7 @@ import { HabitTemplate } from '../entities/habit-template.entity';
 import { S3Config } from '../entities/s3-config.entity';
 import { SmtpConfig } from '../entities/smtp-config.entity';
 import { User } from '../entities/user.entity';
+import { CustomRole } from '../entities/custom-role.entity';
 import { Value } from '../entities/value.entity';
 import { SeedService } from './seed.service';
 import { Pathway } from '../entities/pathway.entity';
@@ -18,6 +19,7 @@ import { CommunityChallenge } from '../entities/community-challenge.entity';
   imports: [
     TypeOrmModule.forFeature([
       User,
+      CustomRole,
       S3Config,
       SmtpConfig,
       Value,

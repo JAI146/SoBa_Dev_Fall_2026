@@ -10,3 +10,4 @@ export * from "./pathways";
 export * from "./reflections";
 export * from "./membership";
 export * from "./admin";
+export * from "./permissions";

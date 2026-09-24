@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditModule } from '../audit/audit.module';
+import { AuthModule } from '../auth/auth.module';
 import { HabitCompletion } from '../entities/habit-completion.entity';
 import { PathwayApplication } from '../entities/pathway-application.entity';
 import { PathwayChecklistItem } from '../entities/pathway-checklist-item.entity';
@@ -12,14 +13,17 @@ import { UpgradeIntent } from '../entities/upgrade-intent.entity';
 import { UserGoal } from '../entities/user-goal.entity';
 import { UserHabit } from '../entities/user-habit.entity';
 import { User } from '../entities/user.entity';
+import { CustomRole } from '../entities/custom-role.entity';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 
 @Module({
   imports: [
     AuditModule,
+    AuthModule,
     TypeOrmModule.forFeature([
       User,
+      CustomRole,
       UserGoal,
       UserHabit,
       HabitCompletion,
