@@ -126,6 +126,12 @@ export default function DashboardLayout({
       icon: "upgrades",
       active: pathname.startsWith("/dashboard/upgrade-intents"),
     },
+    {
+      href: "/dashboard/manage-roles",
+      label: "Manage roles",
+      icon: "roles",
+      active: pathname.startsWith("/dashboard/manage-roles"),
+    },
   ];
 
   return (
