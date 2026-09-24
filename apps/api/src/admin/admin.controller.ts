@@ -157,7 +157,9 @@ export class AdminController {
   @Patch('staff/:id')
   @Roles(UserType.ADMIN)
   @RequirePermission(AdminPermission.USER_MANAGEMENT_EDIT)
-  @ApiOperation({ summary: 'Edit or deactivate an administrative staff account' })
+  @ApiOperation({
+    summary: 'Edit or deactivate an administrative staff account',
+  })
   updateStaff(
     @CurrentUser() principal: AuthPrincipal,
     @Param('id', ParseUUIDPipe) id: string,
@@ -187,7 +189,11 @@ export class AdminController {
     @Body() body: AdminCustomRoleCreateDto,
     @Req() request: Request,
   ) {
-    return this.admin.createCustomRole(principal, body, requestContext(request));
+    return this.admin.createCustomRole(
+      principal,
+      body,
+      requestContext(request),
+    );
   }
 
   @Patch('roles/:id')

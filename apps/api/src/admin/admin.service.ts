@@ -49,10 +49,7 @@ import * as bcrypt from 'bcrypt';
 import { toUserGoalPublic } from '../common/mappers/onboarding.mapper';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth-principal';
-import {
-  SessionRevokedReason,
-  SessionService,
-} from '../auth/session.service';
+import { SessionRevokedReason, SessionService } from '../auth/session.service';
 import type { Env } from '../config/env.validation';
 import { toValuePublic } from '../common/mappers/onboarding.mapper';
 import type { RequestContext } from '../common/request-context';
@@ -118,9 +115,14 @@ export class AdminService {
     context: RequestContext,
   ): Promise<AdminCustomRolesResponse> {
     const roles = await this.customRoles.find({ order: { name: 'ASC' } });
-    await this.record(principal, context, AuditAction.ADMIN_CUSTOM_ROLES_LISTED, {
-      entityType: 'custom_role',
-    });
+    await this.record(
+      principal,
+      context,
+      AuditAction.ADMIN_CUSTOM_ROLES_LISTED,
+      {
+        entityType: 'custom_role',
+      },
+    );
     return { items: roles.map((role) => this.toCustomRole(role)) };
   }
 
@@ -129,13 +131,16 @@ export class AdminService {
     input: AdminCustomRoleCreateInput,
     context: RequestContext,
   ): Promise<AdminCustomRole> {
-    const role = await this.customRoles.save(
-      this.customRoles.create(input),
+    const role = await this.customRoles.save(this.customRoles.create(input));
+    await this.record(
+      principal,
+      context,
+      AuditAction.ADMIN_CUSTOM_ROLE_CREATED,
+      {
+        entityType: 'custom_role',
+        entityId: role.id,
+      },
     );
-    await this.record(principal, context, AuditAction.ADMIN_CUSTOM_ROLE_CREATED, {
-      entityType: 'custom_role',
-      entityId: role.id,
-    });
     return this.toCustomRole(role);
   }
 
@@ -149,10 +154,15 @@ export class AdminService {
     if (!role) throw new NotFoundException('Custom role not found.');
     Object.assign(role, input);
     const saved = await this.customRoles.save(role);
-    await this.record(principal, context, AuditAction.ADMIN_CUSTOM_ROLE_UPDATED, {
-      entityType: 'custom_role',
-      entityId: id,
-    });
+    await this.record(
+      principal,
+      context,
+      AuditAction.ADMIN_CUSTOM_ROLE_UPDATED,
+      {
+        entityType: 'custom_role',
+        entityId: id,
+      },
+    );
     return this.toCustomRole(saved);
   }
 
@@ -165,13 +175,20 @@ export class AdminService {
     if (!role) throw new NotFoundException('Custom role not found.');
     const assigned = await this.users.count({ where: { customRoleId: id } });
     if (assigned > 0) {
-      throw new ForbiddenException('Remove all users from this role before deleting it.');
+      throw new ForbiddenException(
+        'Remove all users from this role before deleting it.',
+      );
     }
     await this.customRoles.remove(role);
-    await this.record(principal, context, AuditAction.ADMIN_CUSTOM_ROLE_DELETED, {
-      entityType: 'custom_role',
-      entityId: id,
-    });
+    await this.record(
+      principal,
+      context,
+      AuditAction.ADMIN_CUSTOM_ROLE_DELETED,
+      {
+        entityType: 'custom_role',
+        entityId: id,
+      },
+    );
     return { message: 'Custom role deleted.' };
   }
 
@@ -252,10 +269,12 @@ export class AdminService {
     }
 
     const wasActiveSuperAdmin =
-      user.adminRole === AdminRole.SUPER_ADMIN && user.status === UserStatus.ACTIVE;
+      user.adminRole === AdminRole.SUPER_ADMIN &&
+      user.status === UserStatus.ACTIVE;
     const becomesInactiveSuperAdmin =
       wasActiveSuperAdmin &&
-      (input.adminRole !== undefined && input.adminRole !== AdminRole.SUPER_ADMIN ||
+      ((input.adminRole !== undefined &&
+        input.adminRole !== AdminRole.SUPER_ADMIN) ||
         input.status === UserStatus.SUSPENDED);
     if (becomesInactiveSuperAdmin) {
       const activeSuperAdmins = await this.users.count({
@@ -266,12 +285,16 @@ export class AdminService {
         },
       });
       if (activeSuperAdmins <= 1) {
-        throw new ForbiddenException('At least one active Super Admin is required.');
+        throw new ForbiddenException(
+          'At least one active Super Admin is required.',
+        );
       }
     }
 
     Object.assign(user, {
-      ...(input.email !== undefined ? { email: input.email.trim().toLowerCase() } : {}),
+      ...(input.email !== undefined
+        ? { email: input.email.trim().toLowerCase() }
+        : {}),
       ...(input.firstName !== undefined ? { firstName: input.firstName } : {}),
       ...(input.lastName !== undefined ? { lastName: input.lastName } : {}),
       ...(input.adminRole !== undefined ? { adminRole: input.adminRole } : {}),
@@ -281,7 +304,9 @@ export class AdminService {
       await this.users.save(user);
     } catch (error) {
       if (String(error).toLowerCase().includes('uq_users_email')) {
-        throw new ConflictException('An account with that email already exists.');
+        throw new ConflictException(
+          'An account with that email already exists.',
+        );
       }
       throw error;
     }
@@ -298,7 +323,11 @@ export class AdminService {
       user.status === UserStatus.SUSPENDED
         ? AuditAction.ADMIN_STAFF_DEACTIVATED
         : AuditAction.ADMIN_STAFF_UPDATED,
-      { entityType: 'user', entityId: user.id, metadata: { adminRole: user.adminRole } },
+      {
+        entityType: 'user',
+        entityId: user.id,
+        metadata: { adminRole: user.adminRole },
+      },
     );
     return this.toStaffListItem(user);
   }

@@ -17,8 +17,12 @@ export class AdminLevelUsersQueryDto extends zodDto(paginationQuerySchema) {}
 export class AdminStaffQueryDto extends zodDto(adminStaffQuerySchema) {}
 export class AdminStaffCreateDto extends zodDto(adminStaffCreateSchema) {}
 export class AdminStaffUpdateDto extends zodDto(adminStaffUpdateSchema) {}
-export class AdminCustomRoleCreateDto extends zodDto(adminCustomRoleCreateSchema) {}
-export class AdminCustomRoleUpdateDto extends zodDto(adminCustomRoleUpdateSchema) {}
+export class AdminCustomRoleCreateDto extends zodDto(
+  adminCustomRoleCreateSchema,
+) {}
+export class AdminCustomRoleUpdateDto extends zodDto(
+  adminCustomRoleUpdateSchema,
+) {}
 export class AdminPathwayApplicationsQueryDto extends zodDto(
   adminPathwayApplicationsQuerySchema,
 ) {}

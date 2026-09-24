@@ -1,7 +1,7 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CustomRoles1788211000000 implements MigrationInterface {
-  name = "CustomRoles1788211000000";
+  name = 'CustomRoles1788211000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
@@ -16,9 +16,7 @@ export class CustomRoles1788211000000 implements MigrationInterface {
         CONSTRAINT "UQ_custom_roles_name" UNIQUE ("name")
       )
     `);
-    await queryRunner.query(
-      `ALTER TABLE "users" ADD "custom_role_id" uuid`,
-    );
+    await queryRunner.query(`ALTER TABLE "users" ADD "custom_role_id" uuid`);
     await queryRunner.query(
       `ALTER TABLE "users" ADD CONSTRAINT "FK_users_custom_role" FOREIGN KEY ("custom_role_id") REFERENCES "custom_roles"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
     );

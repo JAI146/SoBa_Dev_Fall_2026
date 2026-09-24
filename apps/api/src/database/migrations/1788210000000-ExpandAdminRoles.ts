@@ -1,7 +1,7 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class ExpandAdminRoles1788210000000 implements MigrationInterface {
-  name = "ExpandAdminRoles1788210000000";
+  name = 'ExpandAdminRoles1788210000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
@@ -18,7 +18,7 @@ export class ExpandAdminRoles1788210000000 implements MigrationInterface {
     );
   }
 
-  public async down(_queryRunner: QueryRunner): Promise<void> {
+  public async down(): Promise<void> {
     // PostgreSQL does not support removing enum values without rebuilding the type.
   }
 }
