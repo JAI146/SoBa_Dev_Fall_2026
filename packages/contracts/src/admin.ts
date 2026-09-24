@@ -10,6 +10,7 @@ import {
   userStatusValues,
 } from "./enums";
 import { paginationQuerySchema } from "./api-error";
+import { valuePublicSchema } from "./onboarding";
 
 const isoDate = z.string().datetime();
 
@@ -51,6 +52,12 @@ export const adminOverviewResponseSchema = z.object({
     count: z.number().int().min(0),
     windowDays: z.number().int().positive(),
   }),
+  newUsers: z.object({
+    count: z.number().int().min(0),
+    windowDays: z.number().int().positive(),
+  }),
+  totalGoalsCreated: z.number().int().min(0),
+  activeHabits: z.number().int().min(0),
 });
 
 export const adminUserListItemSchema = z.object({
@@ -163,26 +170,6 @@ export const adminUserHabitSchema = z.object({
   createdAt: isoDate,
 });
 
-export const adminUserDetailResponseSchema = adminUserListItemSchema.extend({
-  country: z.string().nullable(),
-  state: z.string().nullable(),
-  city: z.string().nullable(),
-  lastLoginAt: isoDate.nullable(),
-  goals: z.array(adminUserGoalSchema),
-  habits: z.array(adminUserHabitSchema),
-  activityCounts: z.object({
-    goals: z.number().int().min(0),
-    activeGoals: z.number().int().min(0),
-    habits: z.number().int().min(0),
-    activeHabits: z.number().int().min(0),
-    habitCompletions: z.number().int().min(0),
-    savingsEntries: z.number().int().min(0),
-    pathwayApplications: z.number().int().min(0),
-    submittedPathwayApplications: z.number().int().min(0),
-    reflections: z.number().int().min(0),
-  }),
-});
-
 export const adminApplicantSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
@@ -215,6 +202,28 @@ export const adminPathwayApplicationListItemSchema = z.object({
   }),
   submittedAt: isoDate.nullable(),
   createdAt: isoDate,
+});
+
+export const adminUserDetailResponseSchema = adminUserListItemSchema.extend({
+  country: z.string().nullable(),
+  state: z.string().nullable(),
+  city: z.string().nullable(),
+  lastLoginAt: isoDate.nullable(),
+  goals: z.array(adminUserGoalSchema),
+  habits: z.array(adminUserHabitSchema),
+  pathwayApplications: z.array(adminPathwayApplicationListItemSchema),
+  values: z.array(valuePublicSchema),
+  activityCounts: z.object({
+    goals: z.number().int().min(0),
+    activeGoals: z.number().int().min(0),
+    habits: z.number().int().min(0),
+    activeHabits: z.number().int().min(0),
+    habitCompletions: z.number().int().min(0),
+    savingsEntries: z.number().int().min(0),
+    pathwayApplications: z.number().int().min(0),
+    submittedPathwayApplications: z.number().int().min(0),
+    reflections: z.number().int().min(0),
+  }),
 });
 
 export const adminPathwayApplicationsResponseSchema = z.object({

@@ -54,6 +54,11 @@ export default function DashboardPage() {
           icon="habits"
         />
         <DashboardStatCard
+          label={`New users · ${data.newUsers.windowDays} days`}
+          value={data.newUsers.count.toLocaleString()}
+          icon="users"
+        />
+        <DashboardStatCard
           label="Onboarding completion"
           value={`${data.onboardingCompletionRate}%`}
           icon="goals"
@@ -62,6 +67,16 @@ export default function DashboardPage() {
           label="Submitted applications"
           value={data.submittedPathwayApplications.toLocaleString()}
           icon="accounts"
+        />
+        <DashboardStatCard
+          label="Goals created"
+          value={data.totalGoalsCreated.toLocaleString()}
+          icon="goals"
+        />
+        <DashboardStatCard
+          label="Active habits"
+          value={data.activeHabits.toLocaleString()}
+          icon="habits"
         />
       </section>
 
