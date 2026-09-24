@@ -17,7 +17,7 @@ export class CustomRole {
   @Column({ type: 'varchar', length: 100 })
   name!: string;
 
-  @Column({ type: 'text', length: 500 })
+  @Column({ type: 'varchar', length: 500 })
   description!: string;
 
   @Column({ type: 'jsonb', default: [] })
