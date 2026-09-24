@@ -79,6 +79,68 @@ export const adminUsersResponseSchema = z.object({
   ...paginationFields,
 });
 
+export const adminSavingsCustomerSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  email: z.string().email(),
+  savedAmount: z.number(),
+  targetAmount: z.number(),
+  goalCount: z.number().int().min(0),
+  pathwayEligible: z.boolean(),
+});
+
+export const adminSavingsCustomersResponseSchema = z.object({
+  items: z.array(adminSavingsCustomerSchema),
+});
+
+export const adminSavingsCustomerDetailSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  email: z.string().email(),
+  goals: z.array(
+    z.object({
+      id: z.string().uuid(),
+      title: z.string(),
+      savedAmount: z.number(),
+      targetAmount: z.number(),
+      isPathwayEligible: z.boolean(),
+      isFocus: z.boolean(),
+      isActive: z.boolean(),
+      entries: z.array(
+        z.object({
+          id: z.string().uuid(),
+          amount: z.number(),
+          createdAt: isoDate,
+        }),
+      ),
+    }),
+  ),
+});
+
+export const adminProgressLevelsResponseSchema = z.object({
+  levels: z.array(
+    z.object({
+      level: z.number().int().min(1).max(5),
+      count: z.number().int().min(0),
+    }),
+  ),
+  unassignedCount: z.number().int().min(0),
+});
+
+export const adminProgressLevelUsersResponseSchema = z.object({
+  level: z.number().int().min(1).max(5),
+  items: z.array(
+    z.object({
+      id: z.string().uuid(),
+      name: z.string(),
+      email: z.string().email(),
+      assignedAt: isoDate,
+      source: z.enum(["mock", "calculated", "manual"]),
+    }),
+  ),
+  ...paginationFields,
+});
+
 export const adminUserGoalSchema = z.object({
   id: z.string().uuid(),
   title: z.string(),
@@ -218,6 +280,19 @@ export type AdminChecklistUpdateInput = z.infer<
 export type AdminOverviewResponse = z.infer<typeof adminOverviewResponseSchema>;
 export type AdminUserListItem = z.infer<typeof adminUserListItemSchema>;
 export type AdminUsersResponse = z.infer<typeof adminUsersResponseSchema>;
+export type AdminSavingsCustomer = z.infer<typeof adminSavingsCustomerSchema>;
+export type AdminSavingsCustomersResponse = z.infer<
+  typeof adminSavingsCustomersResponseSchema
+>;
+export type AdminSavingsCustomerDetail = z.infer<
+  typeof adminSavingsCustomerDetailSchema
+>;
+export type AdminProgressLevelsResponse = z.infer<
+  typeof adminProgressLevelsResponseSchema
+>;
+export type AdminProgressLevelUsersResponse = z.infer<
+  typeof adminProgressLevelUsersResponseSchema
+>;
 export type AdminUserDetailResponse = z.infer<
   typeof adminUserDetailResponseSchema
 >;

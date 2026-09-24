@@ -5,11 +5,13 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  ParseIntPipe,
   Query,
   Req,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserType } from '@purposemint/contracts';
+import { BadRequestException } from '@nestjs/common';
 import type { Request } from 'express';
 import type { AuthPrincipal } from '../auth/auth-principal';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -21,6 +23,7 @@ import {
   AdminPathwayApplicationsQueryDto,
   AdminUpgradeIntentsQueryDto,
   AdminUsersQueryDto,
+  AdminLevelUsersQueryDto,
 } from './dto/admin.dto';
 
 @ApiTags('admin')
@@ -45,6 +48,64 @@ export class AdminController {
     @Req() request: Request,
   ) {
     return this.admin.listUsers(principal, query, requestContext(request));
+  }
+
+  @Get('progress/levels')
+  @Roles(UserType.ADMIN)
+  @ApiOperation({
+    summary: 'Count customer assignments at each PurposeMint level',
+  })
+  progressLevels(
+    @CurrentUser() principal: AuthPrincipal,
+    @Req() request: Request,
+  ) {
+    return this.admin.listProgressLevels(principal, requestContext(request));
+  }
+
+  @Get('progress/levels/:level/users')
+  @Roles(UserType.ADMIN)
+  @ApiOperation({ summary: 'List customers assigned to one PurposeMint level' })
+  progressLevelUsers(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param('level', ParseIntPipe) level: number,
+    @Query() query: AdminLevelUsersQueryDto,
+    @Req() request: Request,
+  ) {
+    if (level < 1 || level > 5)
+      throw new BadRequestException('Level must be between 1 and 5.');
+    return this.admin.listProgressLevelUsers(
+      principal,
+      level,
+      query,
+      requestContext(request),
+    );
+  }
+
+  @Get('savings/customers')
+  @Roles(UserType.ADMIN)
+  @ApiOperation({ summary: 'List customer savings aggregated across goals' })
+  savingsCustomers(
+    @CurrentUser() principal: AuthPrincipal,
+    @Req() request: Request,
+  ) {
+    return this.admin.listSavingsCustomers(principal, requestContext(request));
+  }
+
+  @Get('savings/customers/:id')
+  @Roles(UserType.ADMIN)
+  @ApiOperation({
+    summary: 'View a customer’s goals and dated savings entries',
+  })
+  savingsCustomer(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ) {
+    return this.admin.getSavingsCustomer(
+      principal,
+      id,
+      requestContext(request),
+    );
   }
 
   @Get('users/:id')

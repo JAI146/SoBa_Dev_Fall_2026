@@ -93,13 +93,13 @@ every field.
 
 | Table | Purpose and useful columns | Fresh seed coverage |
 | --- | --- | --- |
-| `users` | Accounts: `id`, `email`, `first_name`, `last_name`, `display_name`, `user_type`, `admin_role`, `status`, `tier`, `onboarding_status`, `onboarding_completed_at`, `time_zone`, `last_login_at`, `created_at`, `deleted_at`; notification/policy JSON | 25: 1 administrator + 24 customers |
+| `users` | Accounts: `id`, `email`, `first_name`, `last_name`, `display_name`, `user_type`, `admin_role`, `status`, `tier`, `onboarding_status`, `onboarding_completed_at`, `current_level`, `current_level_source`, `current_level_assigned_at`, `time_zone`, `last_login_at`, `created_at`, `deleted_at`; notification/policy JSON | 25: 1 administrator + 24 customers; 19 mock level assignments |
 | `user_sessions` | Authentication sessions: `user_id`, `family_id`, `client_type`, `expires_at`, `rotated_at`, `revoked_at`, `revoked_reason`; token hash | No seed; login/refresh creates rows (3 observed locally) |
 | `user_otps` | Verification/reset codes: `user_id`, `type`, `expires_at`, `attempts`, `consumed_at`; code hash | No seed; authentication flows create rows |
 | `audit_events` | Operation trail: `actor_user_id`, `actor_type`, `action`, `entity_type`, `entity_id`, `outcome`, `metadata`, `created_at` | No fixtures; application actions create rows (36 observed locally). Actor ID intentionally has no user foreign key |
 | `smtp_config` | Mail configuration: `smtp_server`, `smtp_port`, `smtp_email_user`, `smtp_email_password`, `from_email`, `smtp_enabled` | Conditional environment seed; not supplied by Compose |
 | `s3_config` | Storage configuration: `access_key_id`, `secret_access_key`, `region`, `bucket` | Conditional environment seed; not supplied by Compose |
-| `migrations` | TypeORM schema history: `id`, `timestamp`, `name` | 7 applied migration records, not business fixtures |
+| `migrations` | TypeORM schema history: `id`, `timestamp`, `name` | 8 applied migration records, not business fixtures |
 
 Credential/hash columns are directly visible to this database account even when
 the API excludes them. Do not copy them into reports or screenshots.
@@ -240,6 +240,10 @@ Fresh customer distribution:
 - Status: 18 active, 3 suspended, 3 pending email.
 - Tier: 16 free, 4 growth, 4 elevate.
 - Onboarding: 19 completed, 2 in progress, 3 not started.
+- Current PurposeMint level (presentation fixtures, **not calculated**): Level 1 = 7,
+  Level 2 = 5, Level 3 = 4, Level 4 = 2, Level 5 = 1; five incomplete
+  customers have no assigned level. `current_level_source = 'mock'` distinguishes
+  these from future calculated or manual assignments.
 - Location/time zone: Baton Rouge, Louisiana, United States; America/Chicago.
 - Registration: 2–71 days before seed execution; login dates are spread across
   the previous 0–19 days.
@@ -277,6 +281,10 @@ healthy and reference catalogs present, rerun using:
 docker compose run --rm --no-deps mock-data
 ```
 
+Rerunning the mock seed updates its own level assignments but preserves levels
+whose source is `calculated` or `manual`. The current-level columns do not
+provide advancement rules or historical level transitions.
+
 ## 6. Useful read-only SQL
 
 Paste these into the viewer's SQL command screen.
@@ -308,6 +316,16 @@ UNION ALL SELECT 'user_goals', count(*) FROM user_goals
 UNION ALL SELECT 'savings_entries', count(*) FROM savings_entries
 UNION ALL SELECT 'user_habits', count(*) FROM user_habits
 UNION ALL SELECT 'habit_completions', count(*) FROM habit_completions;
+```
+
+### Demo level distribution
+
+```sql
+SELECT current_level, current_level_source, count(*)
+FROM users
+WHERE user_type = 'customer'
+GROUP BY current_level, current_level_source
+ORDER BY current_level NULLS LAST;
 ```
 
 ### Selected user values

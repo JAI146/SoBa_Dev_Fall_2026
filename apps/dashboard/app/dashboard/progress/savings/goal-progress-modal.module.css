@@ -1,0 +1,334 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(17, 24, 39, 0.42);
+  backdrop-filter: blur(7px);
+  animation: fadeIn 0.2s ease-out;
+}
+.dialog {
+  width: min(1080px, 100%);
+  max-height: min(90vh, 980px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background: #f5f7f8;
+  box-shadow: 0 30px 90px rgba(17, 24, 39, 0.26);
+  animation: riseIn 0.25s ease-out;
+}
+.dialogHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+  padding: 20px 24px;
+}
+.dialogHeader p {
+  color: #059669;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.dialogHeader h2 {
+  margin-top: 4px;
+  color: #111827;
+  font-size: 23px;
+  letter-spacing: -0.03em;
+}
+.dialogHeader span {
+  color: #6b7280;
+  font-size: 12px;
+}
+.closeButton {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+  background: #fff;
+  color: #4b5563;
+  cursor: pointer;
+  font-size: 25px;
+  line-height: 1;
+  transition:
+    background 0.2s,
+    box-shadow 0.2s;
+}
+.closeButton:hover {
+  background: #f3f4f6;
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.1);
+}
+.dialogBody {
+  overflow-y: auto;
+  padding: 20px 24px 24px;
+}
+.message {
+  padding: 38px 12px;
+  color: #6b7280;
+  font-size: 13px;
+  text-align: center;
+}
+.message button {
+  margin-left: 8px;
+  color: #047857;
+  cursor: pointer;
+}
+.goalSelector,
+.goalSummary,
+.chartCard {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 3px 14px rgba(17, 24, 39, 0.035);
+}
+.goalSelector {
+  overflow: hidden;
+}
+.goalSelector summary {
+  padding: 15px 18px;
+  color: #111827;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+}
+.goalSelector summary span {
+  float: right;
+  margin-right: 3px;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 600;
+}
+.goalTableWrap {
+  max-height: 210px;
+  overflow: auto;
+  border-top: 1px solid #e5e7eb;
+}
+.goalTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+}
+.goalTable th {
+  position: sticky;
+  top: 0;
+  background: #fafafa;
+  padding: 10px 18px;
+  color: #6b7280;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.goalTable td {
+  border-top: 1px solid #e5e7eb;
+  padding: 10px 18px;
+  color: #4b5563;
+  font-size: 12px;
+}
+.goalTable tbody tr {
+  cursor: pointer;
+  position: relative;
+  border-radius: 10px;
+  transition: box-shadow 0.22s ease;
+}
+.goalTable tbody tr.selectedGoal {
+  background: #ecfdf5;
+}
+.goalTable tbody tr:hover,
+.goalTable tbody tr:focus-visible {
+  box-shadow: inset 0 0 16px rgba(17, 24, 39, 0.09);
+}
+.goalTable tbody tr:active {
+  box-shadow: inset 0 0 18px rgba(17, 24, 39, 0.13);
+}
+.goalTable tbody tr:focus-visible {
+  outline: none;
+}
+.goalButton {
+  border: 0;
+  background: transparent;
+  padding: 3px 0;
+  color: #111827;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+}
+.goalButton:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid #059669;
+}
+.goalSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 17px 18px;
+}
+.goalSummary p {
+  color: #6b7280;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.goalSummary h3 {
+  margin-top: 3px;
+  color: #111827;
+  font-size: 18px;
+}
+.goalSummary > div > span {
+  color: #6b7280;
+  font-size: 12px;
+}
+.statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.status {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 9px;
+  padding: 9px 11px;
+  font-size: 12px;
+  font-weight: 700;
+  outline-offset: 2px;
+}
+.positive {
+  background: #dcfce7;
+  color: #166534;
+}
+.negative {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.statusTooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 7px);
+  z-index: 2;
+  transform: translateX(-50%);
+  border-radius: 6px;
+  background: #111827;
+  padding: 5px 8px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+.status:hover .statusTooltip,
+.status:focus-visible .statusTooltip {
+  opacity: 1;
+}
+.charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+.chartCard {
+  min-width: 0;
+  padding: 18px 14px 12px;
+}
+.chartHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 4px;
+}
+.chartHeading h3 {
+  color: #111827;
+  font-size: 14px;
+}
+.chartHeading p {
+  margin-top: 3px;
+  color: #6b7280;
+  font-size: 11px;
+}
+.chartHeading > strong {
+  color: #047857;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.chartCanvas {
+  height: 270px;
+  margin-top: 20px;
+}
+.chartEmpty {
+  display: grid;
+  min-height: 270px;
+  place-items: center;
+  padding: 20px;
+  color: #9ca3af;
+  font-size: 12px;
+  text-align: center;
+}
+.provenance {
+  margin: 16px 2px 0;
+  color: #6b7280;
+  font-size: 11px;
+  line-height: 1.6;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@media (max-width: 760px) {
+  .backdrop {
+    padding: 8px;
+  }
+  .dialog {
+    max-height: 95vh;
+  }
+  .dialogHeader,
+  .dialogBody {
+    padding: 16px;
+  }
+  .charts {
+    grid-template-columns: 1fr;
+  }
+  .goalTable td,
+  .goalTable th {
+    padding: 9px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .backdrop,
+  .dialog {
+    animation: none;
+  }
+  .statusTooltip,
+  .closeButton {
+    transition: none;
+  }
+}

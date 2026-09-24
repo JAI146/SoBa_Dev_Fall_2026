@@ -15,6 +15,9 @@ const lastNames = [
   'Irving', 'Johnson', 'King', 'Lewis', 'Mitchell', 'Nelson', 'Owens', 'Price',
   'Reed', 'Scott', 'Turner', 'Walker', 'Young', 'Adams', 'Clark', 'Evans',
 ];
+// Intentional demo distribution, bottom-heavy for the five-level chart.
+// These are presentation fixtures, not outcomes calculated from savings or habits.
+const mockLevels = [1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 5];
 
 function uuid(group, index) {
   return `00000000-0000-4000-${group}-${String(index).padStart(12, '0')}`;
@@ -34,10 +37,13 @@ try {
     throw new Error('Onboarding and challenge catalogs are missing; start the API before running the mock seed.');
   }
 
+  let completedIndex = 0;
+
   for (let index = 0; index < firstNames.length; index += 1) {
     const number = index + 1;
     const id = uuid('8000', number);
     const completed = index % 5 !== 0;
+    const mockLevel = completed ? mockLevels[completedIndex++] : null;
     const status = index % 11 === 0 ? 'suspended' : index % 7 === 0 ? 'pending_email' : 'active';
     const tier = index % 6 === 0 ? 'elevate' : index % 3 === 0 ? 'growth' : 'free';
     const createdDaysAgo = 2 + index * 3;
@@ -46,7 +52,8 @@ try {
          id, email, password_hash, first_name, last_name, display_name, country,
          state, city, time_zone, user_type, status, email_verified_at,
          onboarding_status, onboarding_completed_at, tier, notification_preferences,
-         policy_agreements, last_login_at, created_at, updated_at
+         policy_agreements, last_login_at, created_at, updated_at,
+         current_level, current_level_source, current_level_assigned_at
        ) VALUES (
          $1, $2, $3, $4, $5, $4, 'United States', 'Louisiana', 'Baton Rouge',
          'America/Chicago', 'customer', $6::users_status_enum,
@@ -54,14 +61,24 @@ try {
          $7::users_onboarding_status_enum,
          CASE WHEN $7::users_onboarding_status_enum = 'completed' THEN now() - (($9::int - 1) * interval '1 day') ELSE NULL END,
          $8::users_tier_enum, '{"email":true,"push":true}'::jsonb, '{}'::jsonb,
-         now() - (($9::int % 20) * interval '1 day'), now() - ($9::int * interval '1 day'), now()
+         now() - (($9::int % 20) * interval '1 day'), now() - ($9::int * interval '1 day'), now(),
+         $10::smallint, CASE WHEN $10::smallint IS NULL THEN NULL ELSE 'mock' END,
+         CASE WHEN $10::smallint IS NULL THEN NULL ELSE now() - (($9::int - 1) * interval '1 day') END
        ) ON CONFLICT (email) DO UPDATE SET
          status = EXCLUDED.status, onboarding_status = EXCLUDED.onboarding_status,
          onboarding_completed_at = EXCLUDED.onboarding_completed_at, tier = EXCLUDED.tier,
-         last_login_at = EXCLUDED.last_login_at
+         last_login_at = EXCLUDED.last_login_at,
+         current_level = CASE WHEN users.current_level_source IS NULL OR users.current_level_source = 'mock'
+           THEN EXCLUDED.current_level ELSE users.current_level END,
+         current_level_source = CASE WHEN users.current_level_source IS NULL OR users.current_level_source = 'mock'
+           THEN EXCLUDED.current_level_source ELSE users.current_level_source END,
+         current_level_assigned_at = CASE WHEN users.current_level_source IS NULL OR users.current_level_source = 'mock'
+           THEN CASE WHEN users.current_level = EXCLUDED.current_level
+             THEN users.current_level_assigned_at ELSE EXCLUDED.current_level_assigned_at END
+           ELSE users.current_level_assigned_at END
        RETURNING id`,
       [id, `demo.customer.${String(number).padStart(2, '0')}@purposemint.local`, passwordHash,
-        firstNames[index], lastNames[index], status, completed ? 'completed' : index % 2 ? 'in_progress' : 'not_started', tier, createdDaysAgo],
+        firstNames[index], lastNames[index], status, completed ? 'completed' : index % 2 ? 'in_progress' : 'not_started', tier, createdDaysAgo, mockLevel],
     );
     const userId = userResult.rows[0].id;
 
@@ -149,7 +166,7 @@ try {
           await client.query(
             `INSERT INTO habit_completions (id, user_id, user_habit_id, completed_on)
              VALUES ($1, $2, $3, (now() AT TIME ZONE 'America/Chicago')::date - $4::int)
-             ON CONFLICT (user_habit_id, completed_on) DO NOTHING`,
+             ON CONFLICT DO NOTHING`,
             [uuid(`86${habitIndex}0`, number * 100 + completionIndex),
               userId, savedHabitId, daysAgo + index % 3],
           );

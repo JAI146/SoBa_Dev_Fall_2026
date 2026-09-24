@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export type SidebarNavIconName = "overview" | "pathways" | "users" | "upgrades";
+export type SidebarNavIconName = "overview" | "pathways" | "users" | "upgrades" | "progress";
 
 function Svg({ children, className }: { children: ReactNode; className?: string }) {
   return (
@@ -51,6 +51,16 @@ export function SidebarNavIcon({
       <Svg className={className}>
         <path d="m12 3 7 7h-4v8H9v-8H5z" />
         <path d="M5 21h14" />
+      </Svg>
+    );
+  }
+
+  if (name === "progress") {
+    return (
+      <Svg className={className}>
+        <path d="M4 19h16" />
+        <path d="M6 16l5-5 3 3 5-7" />
+        <path d="M16 7h3v3" />
       </Svg>
     );
   }

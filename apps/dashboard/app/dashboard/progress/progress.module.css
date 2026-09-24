@@ -1,0 +1,229 @@
+.jumps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.jumps a {
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #fff;
+  padding: 8px 12px;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.jumps a:hover,
+.jumps a:focus-visible {
+  border-color: #059669;
+  color: #047857;
+}
+
+.sections {
+  display: grid;
+  gap: 16px;
+}
+
+.sections section {
+  scroll-margin-top: 24px;
+}
+
+.featureGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.featureCard {
+  display: flex;
+  min-height: 290px;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: #fff;
+  padding: 22px;
+  color: #111827;
+  text-decoration: none;
+  box-shadow: 0 3px 14px rgba(17, 24, 39, 0.035);
+  transition:
+    box-shadow 220ms ease,
+    border-color 220ms ease;
+}
+.featureCard:hover,
+.featureCard:focus-visible {
+  border-color: #a7f3d0;
+  box-shadow:
+    inset 0 0 0 4px rgba(52, 211, 153, 0.12),
+    inset 0 0 26px rgba(16, 185, 129, 0.14),
+    0 3px 14px rgba(17, 24, 39, 0.035);
+}
+.featureCard h2 {
+  font-size: 16px;
+}
+.featureVisual {
+  display: grid;
+  min-height: 185px;
+  flex: 1;
+  place-items: center;
+  pointer-events: none;
+}
+.savingsVisual {
+  width: min(100%, 460px);
+  height: 165px;
+}
+.badgeVisual {
+  width: 150px;
+  height: 150px;
+}
+.featureAction {
+  color: #047857;
+  font-size: 12px;
+  font-weight: 700;
+}
+@media (max-width: 760px) {
+  .featureGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.description {
+  max-width: 72ch;
+  margin: 16px 0;
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.levelPanel {
+  margin-top: 18px;
+}
+.demoNote {
+  display: inline-block;
+  border: 1px solid #a7f3d0;
+  border-radius: 9px;
+  background: #ecfdf5;
+  padding: 9px 12px;
+  color: #065f46;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.levelChart {
+  height: 350px;
+  margin-top: 18px;
+}
+.levelChart :global(.recharts-rectangle) {
+  fill: var(--level-color);
+  transition: fill 280ms ease-in-out;
+}
+.levelChart :global(.recharts-rectangle:hover) {
+  fill: var(--level-hover-color);
+}
+.levelChart :global(.recharts-label-list text) {
+  transition: opacity 120ms ease-out;
+}
+.levelChart :global(*:focus:not(:focus-visible)) {
+  outline: none;
+}
+.levelChart :global(*:focus-visible) {
+  outline: 2px solid #059669;
+  outline-offset: 3px;
+}
+.levelMessage {
+  padding: 24px 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+.levelMessage button {
+  margin-left: 8px;
+  color: #047857;
+  cursor: pointer;
+}
+.chartHint {
+  color: #6b7280;
+  font-size: 11px;
+}
+.levelBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(17, 24, 39, 0.42);
+  backdrop-filter: blur(7px);
+  animation: levelFadeIn 0.2s ease-out;
+}
+.levelDialog {
+  width: min(900px, 100%);
+  max-height: min(90vh, 900px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background: #f5f7f8;
+  box-shadow: 0 30px 90px rgba(17, 24, 39, 0.26);
+  animation: levelRiseIn 0.25s ease-out;
+}
+.levelUsersHeading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+  padding: 20px 24px;
+}
+.levelUsersHeading h3 {
+  color: #111827;
+  font-size: 23px;
+  letter-spacing: -0.03em;
+}
+.levelUsersHeading p {
+  margin-top: 3px;
+  color: #6b7280;
+  font-size: 11px;
+}
+.levelUsersHeading > button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+  background: #fff;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 20px;
+}
+.levelUsersHeading > button:hover {
+  background: #f3f4f6;
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.1);
+}
+.levelDialogBody {
+  overflow-y: auto;
+  padding: 20px 24px 24px;
+}
+.levelDialogBody > div:first-child {
+  overflow: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+}
+@keyframes levelFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes levelRiseIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

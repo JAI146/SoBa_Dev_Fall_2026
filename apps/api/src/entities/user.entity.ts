@@ -50,7 +50,12 @@ export class User {
   lastName!: string;
 
   /** Greeting name from onboarding. Null until the welcome step is saved. */
-  @Column({ name: 'display_name', type: 'varchar', length: 100, nullable: true })
+  @Column({
+    name: 'display_name',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
   displayName!: string | null;
 
   @Column({
@@ -129,6 +134,25 @@ export class User {
     default: false,
   })
   onboardingGoalSkipped!: boolean;
+
+  /** Current milestone assignment. Mock data is never presented as calculated progress. */
+  @Column({ name: 'current_level', type: 'smallint', nullable: true })
+  currentLevel!: number | null;
+
+  @Column({
+    name: 'current_level_source',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  currentLevelSource!: 'mock' | 'calculated' | 'manual' | null;
+
+  @Column({
+    name: 'current_level_assigned_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  currentLevelAssignedAt!: Date | null;
 
   /**
    * Written **only** by the subscription module (Phase 3), and never read to

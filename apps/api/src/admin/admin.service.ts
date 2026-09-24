@@ -20,6 +20,11 @@ import {
   type AdminUserListItem,
   type AdminUsersQuery,
   type AdminUsersResponse,
+  type AdminSavingsCustomersResponse,
+  type AdminSavingsCustomerDetail,
+  type AdminProgressLevelsResponse,
+  type AdminProgressLevelUsersResponse,
+  type PaginationQuery,
   type TierValue,
 } from '@purposemint/contracts';
 import { MoreThanOrEqual, Repository } from 'typeorm';
@@ -201,6 +206,170 @@ export class AdminService {
     return {
       items: users.map((user) => this.toUserListItem(user)),
       ...this.pagination(query.page, query.pageSize, total),
+    };
+  }
+
+  async listProgressLevels(
+    principal: AuthPrincipal,
+    context: RequestContext,
+  ): Promise<AdminProgressLevelsResponse> {
+    const rows = await this.users
+      .createQueryBuilder('user')
+      .select('user.currentLevel', 'level')
+      .addSelect('COUNT(user.id)', 'count')
+      .where('user.userType = :userType', { userType: UserType.CUSTOMER })
+      .groupBy('user.currentLevel')
+      .getRawMany<{ level: number | null; count: string }>();
+    const counts = new Map(
+      rows.map((row) => [Number(row.level), Number(row.count)]),
+    );
+    const unassignedCount = Number(
+      rows.find((row) => row.level === null)?.count ?? 0,
+    );
+
+    await this.record(principal, context, AuditAction.ADMIN_OVERVIEW_VIEWED, {
+      entityType: 'progress_levels',
+    });
+    return {
+      levels: [1, 2, 3, 4, 5].map((level) => ({
+        level,
+        count: counts.get(level) ?? 0,
+      })),
+      unassignedCount,
+    };
+  }
+
+  async listProgressLevelUsers(
+    principal: AuthPrincipal,
+    level: number,
+    query: PaginationQuery,
+    context: RequestContext,
+  ): Promise<AdminProgressLevelUsersResponse> {
+    const [users, total] = await this.users.findAndCount({
+      where: { userType: UserType.CUSTOMER, currentLevel: level },
+      order: { currentLevelAssignedAt: 'DESC', id: 'ASC' },
+      skip: (query.page - 1) * query.pageSize,
+      take: query.pageSize,
+    });
+    await this.record(principal, context, AuditAction.ADMIN_USERS_LISTED, {
+      entityType: 'progress_level_users',
+      metadata: { level, page: query.page, pageSize: query.pageSize },
+    });
+    return {
+      level,
+      items: users.flatMap((user) =>
+        user.currentLevelAssignedAt && user.currentLevelSource
+          ? [
+              {
+                id: user.id,
+                name: `${user.firstName} ${user.lastName}`.trim(),
+                email: user.email,
+                assignedAt: user.currentLevelAssignedAt.toISOString(),
+                source: user.currentLevelSource,
+              },
+            ]
+          : [],
+      ),
+      ...this.pagination(query.page, query.pageSize, total),
+    };
+  }
+
+  async listSavingsCustomers(
+    principal: AuthPrincipal,
+    context: RequestContext,
+  ): Promise<AdminSavingsCustomersResponse> {
+    const rows = await this.users
+      .createQueryBuilder('user')
+      .leftJoin(UserGoal, 'goal', 'goal.user_id = user.id')
+      .select('user.id', 'id')
+      .addSelect('user.firstName', 'firstName')
+      .addSelect('user.lastName', 'lastName')
+      .addSelect('user.email', 'email')
+      .addSelect('COALESCE(SUM(goal.saved_amount), 0)', 'savedAmount')
+      .addSelect('COALESCE(SUM(goal.target_amount), 0)', 'targetAmount')
+      .addSelect('COUNT(goal.id)', 'goalCount')
+      .addSelect(
+        'COALESCE(BOOL_OR(goal.is_pathway_eligible), false)',
+        'pathwayEligible',
+      )
+      .where('user.userType = :userType', { userType: UserType.CUSTOMER })
+      .groupBy('user.id')
+      .orderBy('user.lastName', 'ASC')
+      .addOrderBy('user.firstName', 'ASC')
+      .getRawMany<{
+        id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        savedAmount: string;
+        targetAmount: string;
+        goalCount: string;
+        pathwayEligible: boolean;
+      }>();
+
+    await this.record(principal, context, AuditAction.ADMIN_USERS_LISTED, {
+      entityType: 'savings_customers',
+      metadata: { count: rows.length },
+    });
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        name: `${row.firstName} ${row.lastName}`.trim(),
+        email: row.email,
+        savedAmount: Number(row.savedAmount),
+        targetAmount: Number(row.targetAmount),
+        goalCount: Number(row.goalCount),
+        pathwayEligible: row.pathwayEligible,
+      })),
+    };
+  }
+
+  async getSavingsCustomer(
+    principal: AuthPrincipal,
+    id: string,
+    context: RequestContext,
+  ): Promise<AdminSavingsCustomerDetail> {
+    const user = await this.users.findOne({
+      where: { id, userType: UserType.CUSTOMER },
+    });
+    if (!user) throw new NotFoundException('Customer account not found.');
+
+    const [goals, entries] = await Promise.all([
+      this.goals.find({ where: { userId: id }, order: { createdAt: 'ASC' } }),
+      this.savingsEntries.find({
+        where: { userId: id },
+        order: { createdAt: 'ASC', id: 'ASC' },
+      }),
+    ]);
+    const entriesByGoal = new Map<string, SavingsEntry[]>();
+    for (const entry of entries) {
+      const existing = entriesByGoal.get(entry.userGoalId) ?? [];
+      existing.push(entry);
+      entriesByGoal.set(entry.userGoalId, existing);
+    }
+
+    await this.record(principal, context, AuditAction.ADMIN_USER_VIEWED, {
+      entityType: 'savings_customer',
+      entityId: id,
+    });
+    return {
+      id: user.id,
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      email: user.email,
+      goals: goals.map((goal) => ({
+        id: goal.id,
+        title: goal.title,
+        savedAmount: goal.savedAmount,
+        targetAmount: goal.targetAmount,
+        isPathwayEligible: goal.isPathwayEligible,
+        isFocus: goal.isFocus,
+        isActive: goal.isActive,
+        entries: (entriesByGoal.get(goal.id) ?? []).map((entry) => ({
+          id: entry.id,
+          amount: entry.amount,
+          createdAt: entry.createdAt.toISOString(),
+        })),
+      })),
     };
   }
 
