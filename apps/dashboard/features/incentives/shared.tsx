@@ -4,11 +4,11 @@
  * Provides consistent money, label, and UTC date formatting for incentive screens,
  * plus a searchable customer picker backed by the existing admin user endpoint.
  */
-import { useState, type FormEvent } from "react";
+import { useEffect, useId, useState } from "react";
 import { adminUsersResponseSchema } from "@purposemint/contracts";
-import { useAdminQuery } from "@/lib/use-admin-query";
+import { apiRequest } from "@/lib/api-client";
+import { getToken } from "@/lib/auth";
 import styles from "./incentives.module.css";
-import base from "@/app/dashboard/dashboard.module.css";
 
 export const money = (cents: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
@@ -27,54 +27,139 @@ export function UserPicker({
   value: string;
   onChange: (id: string) => void;
 }) {
-  const [search, setSearch] = useState("");
   const [input, setInput] = useState("");
-  const query = useAdminQuery(
-    `/admin/users?pageSize=20&search=${encodeURIComponent(search)}`,
-    adminUsersResponseSchema,
-  );
-  function find(e: FormEvent) {
-    e.preventDefault();
-    onChange("");
-    setSearch(input.trim());
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const [users, setUsers] = useState<
+    ReturnType<typeof adminUsersResponseSchema.parse>["items"]
+  >([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const id = useId();
+
+  useEffect(() => {
+    if (value) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const result = await apiRequest(
+          `/admin/users?pageSize=20&search=${encodeURIComponent(input.trim())}`,
+          { method: "GET" },
+          getToken(),
+          adminUsersResponseSchema,
+        );
+        if (!cancelled) setUsers(result.items);
+      } catch (cause) {
+        if (!cancelled)
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "Could not load customers.",
+          );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [input, value]);
+
+  function select(user: (typeof users)[number]) {
+    setInput(`${user.firstName} ${user.lastName} · ${user.email}`);
+    onChange(user.id);
+    setOpen(false);
+    setActive(-1);
   }
+
   return (
-    <div className={styles.stack}>
-      <form onSubmit={find} className={styles.filters}>
-        <label>
-          Find customer
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Name or email"
-          />
-        </label>
-        <button className={base["btn-toolbar-primary"]}>Search</button>
-      </form>
-      {query.error ? (
+    <div
+      className={styles.customerPicker}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
+    >
+      <label htmlFor={id}>Customer</label>
+      <input
+        id={id}
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={open}
+        aria-controls={`${id}-options`}
+        aria-activedescendant={
+          open && users[active] ? `${id}-option-${active}` : undefined
+        }
+        value={input}
+        onFocus={() => setOpen(true)}
+        onChange={(event) => {
+          setInput(event.target.value);
+          onChange("");
+          setUsers([]);
+          setLoading(true);
+          setError("");
+          setActive(-1);
+          setOpen(true);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            setOpen(true);
+            setActive((index) =>
+              users.length === 0
+                ? -1
+                : event.key === "ArrowDown"
+                  ? Math.min(index + 1, users.length - 1)
+                  : Math.max(index - 1, 0),
+            );
+          } else if (event.key === "Enter" && open) {
+            event.preventDefault();
+            if (users[active]) select(users[active]);
+          } else if (event.key === "Escape" && open) {
+            event.preventDefault();
+            event.stopPropagation();
+            setOpen(false);
+          }
+        }}
+        placeholder="Search by name or email"
+        autoComplete="off"
+      />
+      {open ? (
+        <div className={styles.customerOptions}>
+          <ul
+            id={`${id}-options`}
+            role="listbox"
+            aria-label="Customers"
+            aria-busy={loading}
+          >
+            {!loading && !error
+              ? users.map((user, index) => (
+                  <li
+                    key={user.id}
+                    id={`${id}-option-${index}`}
+                    role="option"
+                    aria-selected={value === user.id}
+                    data-active={active === index}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => select(user)}
+                  >
+                    {user.firstName} {user.lastName} · {user.email}
+                  </li>
+                ))
+              : null}
+          </ul>
+          {loading || (!error && users.length === 0) ? (
+            <p role="status">
+              {loading ? "Loading customers…" : "No matching customers."}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {error ? (
         <p role="alert" className={styles.error}>
-          {query.error}
+          {error}
         </p>
       ) : null}
-      <label>
-        Customer
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={query.loading}
-          required
-        >
-          <option value="">
-            {query.loading ? "Loading customers…" : "Select a customer"}
-          </option>
-          {query.data?.items.map((user) => (
-            <option key={user.id} value={user.id}>
-              {user.firstName} {user.lastName} · {user.email}
-            </option>
-          ))}
-        </select>
-      </label>
-      {query.data?.items.length === 0 ? <p>No matching customers.</p> : null}
     </div>
   );
 }

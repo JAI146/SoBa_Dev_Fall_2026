@@ -91,7 +91,6 @@ function IncentivesWorkspace({
         <div>
           <p className={base.eyebrow}>Financial incentives</p>
           <h1>Incentives &amp; Benefits</h1>
-          <p>Manage bonuses and track benefit activity.</p>
         </div>
       </div>
       <div className={styles.filters}>
@@ -229,7 +228,7 @@ function IncentivesWorkspace({
                 </button>
                 <button
                   type="button"
-                  className={styles.buttonLink}
+                  className={styles.clearButton}
                   onClick={() => {
                     const empty = { search: "", status: "", from: "", to: "" };
                     setDraft(empty);
@@ -238,7 +237,7 @@ function IncentivesWorkspace({
                     setPage(1);
                   }}
                 >
-                  Clear
+                  Clear filters
                 </button>
               </form>
               {tab === "Recipients" ? (

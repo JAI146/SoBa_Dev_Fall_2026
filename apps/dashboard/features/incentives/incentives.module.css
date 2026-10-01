@@ -155,14 +155,19 @@
 }
 .metrics {
   display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
 }
 .metricButton {
-  padding: 0;
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 16px;
   text-align: left;
-  background: none;
-  border: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
   cursor: pointer;
   font: inherit;
   color: inherit;
@@ -215,7 +220,7 @@
 .tableActions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
   white-space: nowrap;
 }
 .cellSecondary {
@@ -335,4 +340,105 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   color: var(--muted);
+}
+
+.customerPicker {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+}
+.customerPicker input {
+  min-width: 0;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+}
+.customerOptions {
+  position: absolute;
+  top: 100%;
+  inset-inline: 0;
+  z-index: 1;
+  max-height: 240px;
+  overflow-y: auto;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+}
+.customerOptions ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.customerOptions li,
+.customerOptions p {
+  padding: 10px 12px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.customerOptions li {
+  cursor: pointer;
+}
+.customerOptions li:hover,
+.customerOptions li[data-active="true"],
+.customerOptions li[aria-selected="true"] {
+  background: var(--primary-light);
+}
+
+.metricButton:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.metricLabel {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.metricValue {
+  font-size: 24px;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+.clearButton,
+.actionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background 150ms,
+    border-color 150ms;
+}
+.clearButton {
+  min-height: 38px;
+  padding: 8px 12px;
+}
+.actionButton {
+  min-height: 32px;
+  min-width: 66px;
+  padding: 6px 10px;
+}
+.clearButton:hover,
+.actionButton:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  color: var(--primary);
+  text-decoration: none;
 }

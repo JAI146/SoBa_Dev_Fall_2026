@@ -15,7 +15,6 @@ import {
   incentiveAnalyticsSchema,
   incentiveCategories,
 } from "@purposemint/contracts";
-import { DashboardStatCard } from "@/components/dashboard/dashboard-stat-card";
 import { label, money } from "./shared";
 export function Analytics({
   params,
@@ -75,15 +74,15 @@ export function Analytics({
     <div className={styles.stack}>
       <section className={styles.metrics} aria-label="Bonus metrics">
         {cards.map((c) => (
-          <div key={c.name}>
-            <button
-              className={styles.metricButton}
-              onClick={() => onMetric(c.status)}
-              aria-label={`View recipients: ${c.name}`}
-            >
-              <DashboardStatCard label={c.name} value={c.value} />
-            </button>
-          </div>
+          <button
+            key={c.name}
+            className={styles.metricButton}
+            onClick={() => onMetric(c.status)}
+            aria-label={`View recipients: ${c.name}`}
+          >
+            <span className={styles.metricLabel}>{c.name}</span>
+            <span className={styles.metricValue}>{c.value}</span>
+          </button>
         ))}
       </section>
       <section className={base.panel}>

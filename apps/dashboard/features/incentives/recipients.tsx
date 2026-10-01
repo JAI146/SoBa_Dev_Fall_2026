@@ -96,14 +96,14 @@ export function Recipients({
                 <td>
                   <div className={styles.tableActions}>
                     <button
-                      className={styles.buttonLink}
+                      className={styles.actionButton}
                       onClick={() => setReview(benefit)}
                       aria-label={`Review for ${benefit.userName}`}
                     >
                       Review
                     </button>
                     <Link
-                      className={base["table-link"]}
+                      className={styles.actionButton}
                       href={`/dashboard/incentives/${benefit.id}`}
                     >
                       Details
