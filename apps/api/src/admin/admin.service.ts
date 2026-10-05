@@ -77,6 +77,13 @@ import { Value } from '../entities/value.entity';
 import { CustomRole } from '../entities/custom-role.entity';
 
 const ACTIVE_WINDOW_DAYS = 30;
+/**
+ * "Last seen" in SQL against the `user` alias: the later of password login
+ * and the newest session row (every /auth/refresh mints one). NULL when the
+ * customer has never signed in. Mirrors lastSeenAtByUser.
+ */
+const LAST_SEEN_SQL =
+  'GREATEST(user.lastLoginAt, (SELECT MAX(s.created_at) FROM user_sessions s WHERE s.user_id = user.id))';
 /** Newest entries shown on the user detail; the Savings area keeps all. */
 const USER_DETAIL_SAVINGS_ENTRY_LIMIT = 100;
 const TIER_LABELS: Record<TierValue, string> = {
@@ -393,12 +400,11 @@ export class AdminService {
       this.applications.count({
         where: { status: PathwayApplicationStatus.SUBMITTED },
       }),
-      this.users.count({
-        where: {
-          userType: UserType.CUSTOMER,
-          lastLoginAt: MoreThanOrEqual(activeSince),
-        },
-      }),
+      this.users
+        .createQueryBuilder('user')
+        .where('user.userType = :userType', { userType: UserType.CUSTOMER })
+        .andWhere(`${LAST_SEEN_SQL} >= :activeSince`, { activeSince })
+        .getCount(),
       this.users.count({
         where: {
           userType: UserType.CUSTOMER,
@@ -504,10 +510,9 @@ export class AdminService {
       });
     }
     if (query.inactiveDays) {
-      // Same "last seen" as lastSeenAtByUser; never-seen accounts count from
-      // when they joined.
+      // Never-seen accounts count from when they joined.
       builder.andWhere(
-        `COALESCE(GREATEST(user.lastLoginAt, (SELECT MAX(s.created_at) FROM user_sessions s WHERE s.user_id = user.id)), user.createdAt) < :inactiveSince`,
+        `COALESCE(${LAST_SEEN_SQL}, user.createdAt) < :inactiveSince`,
         {
           inactiveSince: new Date(
             Date.now() - query.inactiveDays * 24 * 60 * 60 * 1000,
