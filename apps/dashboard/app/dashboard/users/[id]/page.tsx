@@ -373,7 +373,11 @@ export default function UserDetailPage() {
           <div className={styles["panel-heading"]}>
             <div>
               <h2>Savings entries</h2>
-              <p>Dated savings across all goals, newest first</p>
+              <p>
+                {user.activityCounts.savingsEntries > savingsEntries.length
+                  ? `Latest ${savingsEntries.length.toLocaleString()} of ${user.activityCounts.savingsEntries.toLocaleString()} entries, newest first`
+                  : "Dated savings across all goals, newest first"}
+              </p>
             </div>
           </div>
           <div className={styles["table-wrap"]}>

@@ -77,6 +77,8 @@ import { Value } from '../entities/value.entity';
 import { CustomRole } from '../entities/custom-role.entity';
 
 const ACTIVE_WINDOW_DAYS = 30;
+/** Newest entries shown on the user detail; the Savings area keeps all. */
+const USER_DETAIL_SAVINGS_ENTRY_LIMIT = 100;
 const TIER_LABELS: Record<TierValue, string> = {
   [Tier.FREE]: 'Starter',
   [Tier.GROWTH]: 'Momentum',
@@ -740,7 +742,8 @@ export class AdminService {
       this.userActivityCounts(id),
       this.savingsEntries.find({
         where: { userId: id },
-        order: { createdAt: 'ASC', id: 'ASC' },
+        order: { createdAt: 'DESC', id: 'DESC' },
+        take: USER_DETAIL_SAVINGS_ENTRY_LIMIT,
       }),
       this.lastSeenAtByUser([user]),
     ]);
