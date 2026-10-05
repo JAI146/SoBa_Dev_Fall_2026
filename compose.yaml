@@ -101,7 +101,7 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:4000
       WATCHPACK_POLLING: "true"
       PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: "false"
-    command: sh -c "pnpm --filter @purposemint/contracts build && pnpm --filter @purposemint/dashboard dev --hostname 0.0.0.0"
+    command: sh -c "pnpm --filter @purposemint/contracts build && pnpm --filter @purposemint/dashboard dev --webpack --hostname 0.0.0.0"
     ports:
       - "3000:3000"
     volumes:
