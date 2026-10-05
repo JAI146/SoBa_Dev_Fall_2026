@@ -102,6 +102,7 @@ export class AdminController {
 
   @Get('savings/customers')
   @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.FINANCIAL_DATA_LIMITED)
   @ApiOperation({ summary: 'List customer savings aggregated across goals' })
   savingsCustomers(
     @CurrentUser() principal: AuthPrincipal,
@@ -112,6 +113,7 @@ export class AdminController {
 
   @Get('savings/customers/:id')
   @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.FINANCIAL_DATA_LIMITED)
   @ApiOperation({
     summary: 'View a customer’s goals and dated savings entries',
   })
