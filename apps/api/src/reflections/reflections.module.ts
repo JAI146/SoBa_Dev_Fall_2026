@@ -5,8 +5,10 @@ import { ReflectionTheme } from '../entities/reflection-theme.entity';
 import { Reflection } from '../entities/reflection.entity';
 import { ReflectionsController } from './reflections.controller';
 import { ReflectionsService } from './reflections.service';
+import { BadgesModule } from '../badges/badges.module';
 @Module({
   imports: [
+    BadgesModule,
     TypeOrmModule.forFeature([
       Reflection,
       ReflectionTheme,

@@ -14,6 +14,7 @@
     "@purposemint/contracts": "workspace:*",
     "@tanstack/react-table": "^8.21.3",
     "country-state-city": "^3.2.1",
+    "emoji-picker-react": "^4.22.3",
     "next": "16.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

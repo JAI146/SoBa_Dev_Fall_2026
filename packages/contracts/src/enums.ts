@@ -190,6 +190,12 @@ export type AuditOutcomeValue =
 
 /** Actions written to `audit_events`. Kept as a closed set so queries stay honest. */
 export const AuditAction = {
+  BADGE_AWARDED: "badge.awarded",
+  ADMIN_BADGE_CREATED: "admin.badge_created",
+  ADMIN_BADGE_UPDATED: "admin.badge_updated",
+  ADMIN_BADGE_DELETED: "admin.badge_deleted",
+  ADMIN_BADGES_LISTED: "admin.badges_listed",
+  ADMIN_BADGE_AWARDS_LISTED: "admin.badge_awards_listed",
   // Track incentive reads, program creation/updates, eligibility reviews, and ledger events.
   INCENTIVES_VIEWED: "incentives.viewed",
   INCENTIVE_PROGRAM_UPDATED: "incentives.program_updated",
