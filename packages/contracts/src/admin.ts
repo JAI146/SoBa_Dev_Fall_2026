@@ -173,6 +173,12 @@ export const adminSavingsCustomersResponseSchema = z.object({
   items: z.array(adminSavingsCustomerSchema),
 });
 
+export const adminSavingsEntrySchema = z.object({
+  id: z.string().uuid(),
+  amount: z.number(),
+  createdAt: isoDate,
+});
+
 export const adminSavingsCustomerDetailSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
@@ -186,13 +192,7 @@ export const adminSavingsCustomerDetailSchema = z.object({
       isPathwayEligible: z.boolean(),
       isFocus: z.boolean(),
       isActive: z.boolean(),
-      entries: z.array(
-        z.object({
-          id: z.string().uuid(),
-          amount: z.number(),
-          createdAt: isoDate,
-        }),
-      ),
+      entries: z.array(adminSavingsEntrySchema),
     }),
   ),
 });
@@ -232,6 +232,7 @@ export const adminUserGoalSchema = z.object({
   isFocus: z.boolean(),
   isPathwayEligible: z.boolean(),
   createdAt: isoDate,
+  entries: z.array(adminSavingsEntrySchema),
 });
 
 export const adminUserHabitSchema = z.object({
@@ -381,6 +382,7 @@ export type AdminSavingsCustomer = z.infer<typeof adminSavingsCustomerSchema>;
 export type AdminSavingsCustomersResponse = z.infer<
   typeof adminSavingsCustomersResponseSchema
 >;
+export type AdminSavingsEntry = z.infer<typeof adminSavingsEntrySchema>;
 export type AdminSavingsCustomerDetail = z.infer<
   typeof adminSavingsCustomerDetailSchema
 >;

@@ -40,6 +40,7 @@ import {
   type AdminUserStatusUpdateInput,
   type AdminSavingsCustomersResponse,
   type AdminSavingsCustomerDetail,
+  type AdminSavingsEntry,
   type AdminProgressLevelsResponse,
   type AdminProgressLevelUsersResponse,
   type PaginationQuery,
@@ -616,12 +617,7 @@ export class AdminService {
         order: { createdAt: 'ASC', id: 'ASC' },
       }),
     ]);
-    const entriesByGoal = new Map<string, SavingsEntry[]>();
-    for (const entry of entries) {
-      const existing = entriesByGoal.get(entry.userGoalId) ?? [];
-      existing.push(entry);
-      entriesByGoal.set(entry.userGoalId, existing);
-    }
+    const entriesByGoal = this.groupEntriesByGoal(entries);
 
     await this.record(principal, context, AuditAction.ADMIN_USER_VIEWED, {
       entityType: 'savings_customer',
@@ -639,11 +635,7 @@ export class AdminService {
         isPathwayEligible: goal.isPathwayEligible,
         isFocus: goal.isFocus,
         isActive: goal.isActive,
-        entries: (entriesByGoal.get(goal.id) ?? []).map((entry) => ({
-          id: entry.id,
-          amount: entry.amount,
-          createdAt: entry.createdAt.toISOString(),
-        })),
+        entries: entriesByGoal.get(goal.id) ?? [],
       })),
     };
   }
@@ -658,33 +650,44 @@ export class AdminService {
     });
     if (!user) throw new NotFoundException('Customer account not found.');
 
-    const [goals, habits, pathwayApplications, userValues, activityCounts] =
-      await Promise.all([
-        this.goals.find({
-          where: { userId: id },
-          order: { createdAt: 'DESC' },
-        }),
-        this.habits.find({
-          where: { userId: id },
-          relations: { sourceTemplate: true },
-          order: { createdAt: 'DESC' },
-        }),
-        this.applications.find({
-          where: { userId: id },
-          relations: {
-            user: true,
-            pathway: true,
-            applicationPartners: { partner: true },
-            checklistItems: true,
-          },
-          order: { submittedAt: 'DESC', createdAt: 'DESC' },
-        }),
-        this.userValues.find({
-          where: { userId: id },
-          relations: { value: true },
-        }),
-        this.userActivityCounts(id),
-      ]);
+    const [
+      goals,
+      habits,
+      pathwayApplications,
+      userValues,
+      activityCounts,
+      savingsEntries,
+    ] = await Promise.all([
+      this.goals.find({
+        where: { userId: id },
+        order: { createdAt: 'DESC' },
+      }),
+      this.habits.find({
+        where: { userId: id },
+        relations: { sourceTemplate: true },
+        order: { createdAt: 'DESC' },
+      }),
+      this.applications.find({
+        where: { userId: id },
+        relations: {
+          user: true,
+          pathway: true,
+          applicationPartners: { partner: true },
+          checklistItems: true,
+        },
+        order: { submittedAt: 'DESC', createdAt: 'DESC' },
+      }),
+      this.userValues.find({
+        where: { userId: id },
+        relations: { value: true },
+      }),
+      this.userActivityCounts(id),
+      this.savingsEntries.find({
+        where: { userId: id },
+        order: { createdAt: 'ASC', id: 'ASC' },
+      }),
+    ]);
+    const entriesByGoal = this.groupEntriesByGoal(savingsEntries);
 
     const selectedValues = userValues
       .map((row) => row.value)
@@ -721,6 +724,7 @@ export class AdminService {
           isFocus: goal.isFocus,
           isPathwayEligible: goal.isPathwayEligible,
           createdAt: goal.createdAt.toISOString(),
+          entries: entriesByGoal.get(goal.id) ?? [],
         };
       }),
       habits: habits.flatMap((habit) =>
@@ -1079,6 +1083,20 @@ export class AdminService {
       submittedPathwayApplications,
       reflections,
     };
+  }
+
+  private groupEntriesByGoal(entries: SavingsEntry[]) {
+    const entriesByGoal = new Map<string, AdminSavingsEntry[]>();
+    for (const entry of entries) {
+      const existing = entriesByGoal.get(entry.userGoalId) ?? [];
+      existing.push({
+        id: entry.id,
+        amount: entry.amount,
+        createdAt: entry.createdAt.toISOString(),
+      });
+      entriesByGoal.set(entry.userGoalId, existing);
+    }
+    return entriesByGoal;
   }
 
   private toUserListItem(user: User): AdminUserListItem {

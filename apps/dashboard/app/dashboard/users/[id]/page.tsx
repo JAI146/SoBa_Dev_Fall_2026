@@ -66,6 +66,11 @@ export default function UserDetailPage() {
   );
   const isSuspended = user.status === UserStatus.SUSPENDED;
   const onboarding = user.onboardingProgress;
+  const savingsEntries = user.goals
+    .flatMap((goal) =>
+      goal.entries.map((entry) => ({ ...entry, goalTitle: goal.title })),
+    )
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 
   const updateStatus = async (status: AdminUserStatusUpdateInput["status"]) => {
     setConfirmingSuspend(false);
@@ -345,6 +350,45 @@ export default function UserDetailPage() {
                   <tr>
                     <td colSpan={6} className={styles.empty}>
                       No goals recorded.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </article>
+        <article className={styles.panel}>
+          <div className={styles["panel-heading"]}>
+            <div>
+              <h2>Savings entries</h2>
+              <p>Dated savings across all goals, newest first</p>
+            </div>
+          </div>
+          <div className={styles["table-wrap"]}>
+            <table className={styles["data-table"]}>
+              <thead>
+                <tr>
+                  <th>Goal</th>
+                  <th>Amount</th>
+                  <th>Recorded</th>
+                </tr>
+              </thead>
+              <tbody>
+                {savingsEntries.map((entry) => (
+                  <tr key={entry.id}>
+                    <td>
+                      <strong>{entry.goalTitle}</strong>
+                    </td>
+                    <td>{formatMoney(entry.amount)}</td>
+                    <td>
+                      {formatAdminDateTime(entry.createdAt, user.timeZone)}
+                    </td>
+                  </tr>
+                ))}
+                {savingsEntries.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className={styles.empty}>
+                      No savings entries recorded.
                     </td>
                   </tr>
                 ) : null}
