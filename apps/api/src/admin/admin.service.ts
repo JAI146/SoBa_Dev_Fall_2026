@@ -465,6 +465,17 @@ export class AdminService {
         { search: `%${search}%` },
       );
     }
+    if (query.status) {
+      builder.andWhere('user.status = :status', { status: query.status });
+    }
+    if (query.tier) {
+      builder.andWhere('user.tier = :tier', { tier: query.tier });
+    }
+    if (query.onboardingStatus) {
+      builder.andWhere('user.onboardingStatus = :onboardingStatus', {
+        onboardingStatus: query.onboardingStatus,
+      });
+    }
     const [users, total] = await builder
       .orderBy('user.createdAt', 'DESC')
       .skip((query.page - 1) * query.pageSize)
@@ -477,6 +488,9 @@ export class AdminService {
         page: query.page,
         pageSize: query.pageSize,
         searched: Boolean(search),
+        status: query.status ?? null,
+        tier: query.tier ?? null,
+        onboardingStatus: query.onboardingStatus ?? null,
       },
     });
     return {

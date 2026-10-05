@@ -1,6 +1,14 @@
 "use client";
 
-import { adminUsersResponseSchema } from "@purposemint/contracts";
+import {
+  adminUsersResponseSchema,
+  onboardingStatusValues,
+  tierValues,
+  userStatusValues,
+  type OnboardingStatusValue,
+  type TierValue,
+  type UserStatusValue,
+} from "@purposemint/contracts";
 import Link from "next/link";
 import { type FormEvent, useMemo, useState } from "react";
 import {
@@ -16,6 +24,7 @@ import {
 } from "@/lib/admin-format";
 import { useAdminQuery } from "@/lib/use-admin-query";
 import styles from "../dashboard.module.css";
+import usersStyles from "./users.module.css";
 
 const PAGE_SIZE = 20;
 
@@ -23,14 +32,22 @@ export default function UsersPage() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<"" | UserStatusValue>("");
+  const [tier, setTier] = useState<"" | TierValue>("");
+  const [onboardingStatus, setOnboardingStatus] = useState<
+    "" | OnboardingStatusValue
+  >("");
   const path = useMemo(() => {
     const params = new URLSearchParams({
       page: String(page),
       pageSize: String(PAGE_SIZE),
     });
     if (search) params.set("search", search);
+    if (status) params.set("status", status);
+    if (tier) params.set("tier", tier);
+    if (onboardingStatus) params.set("onboardingStatus", onboardingStatus);
     return `/admin/users?${params.toString()}`;
-  }, [page, search]);
+  }, [page, search, status, tier, onboardingStatus]);
   const query = useAdminQuery(path, adminUsersResponseSchema);
 
   const submitSearch = (event: FormEvent) => {
@@ -60,19 +77,81 @@ export default function UsersPage() {
         </div>
       </div>
       <section className={styles["crud-card"]}>
-        <form className={styles.filters} onSubmit={submitSearch}>
-          <label className={styles["search-field"]}>
-            <span className="sr-only">Search users</span>
-            <SearchIcon />
-            <input
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search name or email"
-            />
-          </label>
-          <button type="submit" className={styles["btn-toolbar-primary"]}>
-            Search
-          </button>
+        <form
+          className={`${styles.filters} ${usersStyles["filters-wrap"]}`}
+          onSubmit={submitSearch}
+        >
+          <div
+            className={`${styles["page-actions-group"]} ${usersStyles["search-group"]}`}
+          >
+            <label className={styles["search-field"]}>
+              <span className="sr-only">Search users</span>
+              <SearchIcon />
+              <input
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Search name or email"
+              />
+            </label>
+            <button type="submit" className={styles["btn-toolbar-primary"]}>
+              Search
+            </button>
+          </div>
+          <div className={styles["page-actions-group"]}>
+            <label className={styles["filter-field"]}>
+              <span>Status</span>
+              <select
+                value={status}
+                onChange={(event) => {
+                  setStatus(event.target.value as "" | UserStatusValue);
+                  setPage(1);
+                }}
+              >
+                <option value="">All statuses</option>
+                {userStatusValues.map((value) => (
+                  <option key={value} value={value}>
+                    {formatEnum(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles["filter-field"]}>
+              <span>Membership</span>
+              <select
+                value={tier}
+                onChange={(event) => {
+                  setTier(event.target.value as "" | TierValue);
+                  setPage(1);
+                }}
+              >
+                <option value="">All memberships</option>
+                {tierValues.map((value) => (
+                  <option key={value} value={value}>
+                    {formatTier(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles["filter-field"]}>
+              <span>Onboarding</span>
+              <select
+                value={onboardingStatus}
+                onChange={(event) => {
+                  setOnboardingStatus(
+                    event.target.value as "" | OnboardingStatusValue,
+                  );
+                  setPage(1);
+                }}
+              >
+                <option value="">All onboarding</option>
+                {onboardingStatusValues.map((value) => (
+                  <option key={value} value={value}>
+                    {formatEnum(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </form>
         <div className={styles["table-wrap"]}>
           <table className={styles["data-table"]}>
@@ -126,7 +205,7 @@ export default function UsersPage() {
               {data.items.length === 0 ? (
                 <tr>
                   <td colSpan={7} className={styles.empty}>
-                    No users match the current search.
+                    No users match the current search or filters.
                   </td>
                 </tr>
               ) : null}

@@ -19,6 +19,9 @@ const isoDate = z.string().datetime();
 
 export const adminUsersQuerySchema = paginationQuerySchema.extend({
   search: z.string().trim().max(255).optional(),
+  status: z.enum(userStatusValues).optional(),
+  tier: z.enum(tierValues).optional(),
+  onboardingStatus: z.enum(onboardingStatusValues).optional(),
 });
 
 const staffNameField = z.string().trim().min(1).max(100);
