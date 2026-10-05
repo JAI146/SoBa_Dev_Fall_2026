@@ -12,8 +12,8 @@ import {
 } from '@purposemint/contracts';
 import { In, Repository, type EntityManager } from 'typeorm';
 import {
-  resolveOnboardingStep,
   toGoalTemplatePublic,
+  toOnboardingProgress,
   toValuePublic,
 } from '../common/mappers/onboarding.mapper';
 import { DashboardService } from '../dashboard/dashboard.service';
@@ -83,26 +83,12 @@ export class OnboardingService {
         iconEmoji: template.iconEmoji,
         sortOrder: template.sortOrder,
       })),
-      progress: {
-        displayName: user.displayName,
-        valueKeys: selectedValues.map((value) => value.key),
-        goal: focusGoal
-          ? {
-              templateId: focusGoal.sourceTemplateId,
-              title: focusGoal.title,
-              targetAmount: Number(focusGoal.targetAmount),
-              iconEmoji: focusGoal.iconEmoji,
-            }
-          : null,
-        goalSkipped: user.onboardingGoalSkipped,
-        habitTemplateIds: userHabits.map((habit) => habit.sourceTemplateId),
-        currentStep: resolveOnboardingStep(
-          user,
-          selectedValues.length,
-          Boolean(focusGoal),
-        ),
-        onboardingStatus: user.onboardingStatus,
-      },
+      progress: toOnboardingProgress(
+        user,
+        selectedValues,
+        focusGoal,
+        userHabits,
+      ),
     };
   }
 

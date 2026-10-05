@@ -13,7 +13,7 @@ import {
 } from "./enums";
 import { adminPermissionValues } from "./permissions";
 import { paginationQuerySchema } from "./api-error";
-import { valuePublicSchema } from "./onboarding";
+import { onboardingProgressSchema, valuePublicSchema } from "./onboarding";
 
 const isoDate = z.string().datetime();
 
@@ -286,6 +286,7 @@ export const adminUserDetailResponseSchema = adminUserListItemSchema.extend({
   habits: z.array(adminUserHabitSchema),
   pathwayApplications: z.array(adminPathwayApplicationListItemSchema),
   values: z.array(valuePublicSchema),
+  onboardingProgress: onboardingProgressSchema,
   activityCounts: z.object({
     goals: z.number().int().min(0),
     activeGoals: z.number().int().min(0),

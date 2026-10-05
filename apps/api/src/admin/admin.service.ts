@@ -47,7 +47,10 @@ import {
 } from '@purposemint/contracts';
 import { MoreThanOrEqual, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { toUserGoalPublic } from '../common/mappers/onboarding.mapper';
+import {
+  toOnboardingProgress,
+  toUserGoalPublic,
+} from '../common/mappers/onboarding.mapper';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth-principal';
 import { SessionRevokedReason, SessionService } from '../auth/session.service';
@@ -683,11 +686,17 @@ export class AdminService {
         this.userActivityCounts(id),
       ]);
 
-    const values = userValues
+    const selectedValues = userValues
       .map((row) => row.value)
       .filter((value): value is Value => Boolean(value))
-      .sort((a, b) => a.sortOrder - b.sortOrder)
-      .map(toValuePublic);
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+    // Same inputs the customer onboarding endpoint uses, from rows already loaded.
+    const onboardingProgress = toOnboardingProgress(
+      user,
+      selectedValues,
+      goals.find((goal) => goal.isFocus && goal.isActive) ?? null,
+      habits.filter((habit) => habit.isActive),
+    );
 
     await this.record(principal, context, AuditAction.ADMIN_USER_VIEWED, {
       entityType: 'user',
@@ -731,7 +740,8 @@ export class AdminService {
       pathwayApplications: pathwayApplications.map((application) =>
         this.toApplicationListItem(application),
       ),
-      values,
+      values: selectedValues.map(toValuePublic),
+      onboardingProgress,
       activityCounts,
     };
   }

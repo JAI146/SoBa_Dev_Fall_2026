@@ -2,6 +2,7 @@
 
 import {
   AdminPermission,
+  OnboardingStatus,
   UserStatus,
   adminUserDetailResponseSchema,
   adminUserListItemSchema,
@@ -27,6 +28,7 @@ import {
   formatAdminDateTime,
   formatEnum,
   formatMoney,
+  formatOnboardingStep,
   formatTier,
   statusBadgeClass,
 } from "@/lib/admin-format";
@@ -63,6 +65,7 @@ export default function UserDetailPage() {
     AdminPermission.USER_MANAGEMENT_EDIT,
   );
   const isSuspended = user.status === UserStatus.SUSPENDED;
+  const onboarding = user.onboardingProgress;
 
   const updateStatus = async (status: AdminUserStatusUpdateInput["status"]) => {
     setConfirmingSuspend(false);
@@ -182,6 +185,32 @@ export default function UserDetailPage() {
             <div>
               <dt>Onboarding status</dt>
               <dd>{formatEnum(user.onboardingStatus)}</dd>
+            </div>
+            <div>
+              <dt>Current onboarding step</dt>
+              <dd>
+                {onboarding.onboardingStatus === OnboardingStatus.COMPLETED
+                  ? "All steps finished"
+                  : formatOnboardingStep(onboarding.currentStep)}
+              </dd>
+            </div>
+            <div>
+              <dt>Onboarding goal</dt>
+              <dd>
+                {onboarding.goal
+                  ? `${onboarding.goal.title} · ${formatMoney(onboarding.goal.targetAmount)}`
+                  : onboarding.goalSkipped
+                    ? "Skipped"
+                    : "Not chosen"}
+              </dd>
+            </div>
+            <div>
+              <dt>Onboarding habits</dt>
+              <dd>
+                {onboarding.habitTemplateIds.length
+                  ? `${onboarding.habitTemplateIds.length.toLocaleString()} selected`
+                  : "None selected"}
+              </dd>
             </div>
             <div>
               <dt>Purpose</dt>
