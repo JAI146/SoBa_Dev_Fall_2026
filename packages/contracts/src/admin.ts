@@ -8,6 +8,7 @@ import {
   pathwayApplicationStatusValues,
   pathwayVerificationMethodValues,
   tierValues,
+  UserStatus,
   userStatusValues,
 } from "./enums";
 import { adminPermissionValues } from "./permissions";
@@ -41,6 +42,15 @@ export const adminStaffUpdateSchema = z.object({
   lastName: staffNameField.optional(),
   adminRole: z.enum(adminRoleValues).optional(),
   status: z.enum(["active", "suspended"] as const).optional(),
+});
+
+/**
+ * Admin-settable customer statuses. `pending_email` is owned by the
+ * registration/verification flow; reactivating an unverified customer
+ * restores it on the API side.
+ */
+export const adminUserStatusUpdateSchema = z.object({
+  status: z.enum([UserStatus.ACTIVE, UserStatus.SUSPENDED] as const),
 });
 
 export const adminPathwayApplicationsQuerySchema = paginationQuerySchema.extend(
@@ -345,6 +355,9 @@ export type AdminUsersQuery = z.infer<typeof adminUsersQuerySchema>;
 export type AdminStaffQuery = z.infer<typeof adminStaffQuerySchema>;
 export type AdminStaffCreateInput = z.infer<typeof adminStaffCreateSchema>;
 export type AdminStaffUpdateInput = z.infer<typeof adminStaffUpdateSchema>;
+export type AdminUserStatusUpdateInput = z.infer<
+  typeof adminUserStatusUpdateSchema
+>;
 export type AdminStaffListItem = z.infer<typeof adminStaffListItemSchema>;
 export type AdminStaffResponse = z.infer<typeof adminStaffResponseSchema>;
 export type AdminCustomRoleCreateInput = z.infer<typeof adminCustomRoleCreateSchema>;

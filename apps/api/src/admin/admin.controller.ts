@@ -32,6 +32,7 @@ import {
   AdminUpgradeIntentsQueryDto,
   AdminUsersQueryDto,
   AdminLevelUsersQueryDto,
+  AdminUserStatusUpdateDto,
 } from './dto/admin.dto';
 
 @ApiTags('admin')
@@ -128,6 +129,24 @@ export class AdminController {
     @Req() request: Request,
   ) {
     return this.admin.getUser(principal, id, requestContext(request));
+  }
+
+  @Patch('users/:id/status')
+  @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.USER_MANAGEMENT_EDIT)
+  @ApiOperation({ summary: 'Suspend or reactivate a customer account' })
+  updateUserStatus(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: AdminUserStatusUpdateDto,
+    @Req() request: Request,
+  ) {
+    return this.admin.updateUserStatus(
+      principal,
+      id,
+      body,
+      requestContext(request),
+    );
   }
 
   @Get('staff')

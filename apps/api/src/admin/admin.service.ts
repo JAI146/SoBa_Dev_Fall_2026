@@ -37,6 +37,7 @@ import {
   type AdminUserListItem,
   type AdminUsersQuery,
   type AdminUsersResponse,
+  type AdminUserStatusUpdateInput,
   type AdminSavingsCustomersResponse,
   type AdminSavingsCustomerDetail,
   type AdminProgressLevelsResponse,
@@ -733,6 +734,50 @@ export class AdminService {
       values,
       activityCounts,
     };
+  }
+
+  async updateUserStatus(
+    principal: AuthPrincipal,
+    id: string,
+    input: AdminUserStatusUpdateInput,
+    context: RequestContext,
+  ): Promise<AdminUserListItem> {
+    const user = await this.users.findOne({
+      where: { id, userType: UserType.CUSTOMER },
+    });
+    if (!user) throw new NotFoundException('Customer account not found.');
+
+    // Reactivating a customer who never confirmed their email puts them back
+    // in the verification flow instead of skipping it.
+    const nextStatus =
+      input.status === UserStatus.ACTIVE && !user.emailVerifiedAt
+        ? UserStatus.PENDING_EMAIL
+        : input.status;
+    if (nextStatus === user.status) return this.toUserListItem(user);
+
+    const previousStatus = user.status;
+    user.status = nextStatus;
+    await this.users.save(user);
+
+    if (user.status === UserStatus.SUSPENDED) {
+      await this.sessions.revokeAllForUser(
+        user.id,
+        SessionRevokedReason.LOGOUT_ALL,
+      );
+    }
+    await this.record(
+      principal,
+      context,
+      user.status === UserStatus.SUSPENDED
+        ? AuditAction.ADMIN_USER_SUSPENDED
+        : AuditAction.ADMIN_USER_REACTIVATED,
+      {
+        entityType: 'user',
+        entityId: user.id,
+        metadata: { previousStatus, status: user.status },
+      },
+    );
+    return this.toUserListItem(user);
   }
 
   async listPathwayApplications(

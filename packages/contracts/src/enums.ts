@@ -220,6 +220,9 @@ export const AuditAction = {
   ADMIN_PATHWAY_APPLICATION_VIEWED: "admin.pathway_application_viewed",
   ADMIN_PATHWAY_CHECKLIST_UPDATED: "admin.pathway_checklist_updated",
   ADMIN_UPGRADE_INTENTS_LISTED: "admin.upgrade_intents_listed",
+  // Customer account status changes made from the dashboard.
+  ADMIN_USER_SUSPENDED: "admin.user_suspended",
+  ADMIN_USER_REACTIVATED: "admin.user_reactivated",
 } as const;
 
 export type AuditActionValue = (typeof AuditAction)[keyof typeof AuditAction];

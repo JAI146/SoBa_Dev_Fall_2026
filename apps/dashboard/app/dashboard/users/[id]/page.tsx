@@ -1,13 +1,22 @@
 "use client";
 
-import { adminUserDetailResponseSchema } from "@purposemint/contracts";
+import {
+  AdminPermission,
+  UserStatus,
+  adminUserDetailResponseSchema,
+  adminUserListItemSchema,
+  hasAdminPermission,
+  type AdminUserStatusUpdateInput,
+} from "@purposemint/contracts";
 import Link from "next/link";
+import { useState } from "react";
 import {
   GoalProgress,
   GoalStatusBadge,
   UserGoalSummary,
 } from "@/components/dashboard/user-goal-summary";
 import { useParams } from "next/navigation";
+import { ConfirmModal } from "@/components/common/confirm-modal";
 import {
   DashboardError,
   DashboardLoading,
@@ -19,11 +28,13 @@ import {
   formatEnum,
   formatMoney,
   formatTier,
+  statusBadgeClass,
 } from "@/lib/admin-format";
+import { apiRequest } from "@/lib/api-client";
 import { useAdminQuery } from "@/lib/use-admin-query";
 import styles from "../../dashboard.module.css";
 import { UserIncentives } from "@/features/incentives/user-incentives";
-import { getStoredUser } from "@/lib/auth";
+import { getStoredUser, getToken } from "@/lib/auth";
 import { AdminRole } from "@purposemint/contracts";
 
 export default function UserDetailPage() {
@@ -32,6 +43,9 @@ export default function UserDetailPage() {
     `/admin/users/${id}`,
     adminUserDetailResponseSchema,
   );
+  const [confirmingSuspend, setConfirmingSuspend] = useState(false);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
   if (query.error)
     return (
       <DashboardError
@@ -42,6 +56,36 @@ export default function UserDetailPage() {
   if (query.loading || !query.data)
     return <DashboardLoading label="Loading user details…" />;
   const user = query.data;
+  const storedUser = getStoredUser();
+  // UX only; the API enforces user_management.edit on the status endpoint.
+  const canEditStatus = hasAdminPermission(
+    storedUser?.adminRole ?? null,
+    AdminPermission.USER_MANAGEMENT_EDIT,
+  );
+  const isSuspended = user.status === UserStatus.SUSPENDED;
+
+  const updateStatus = async (status: AdminUserStatusUpdateInput["status"]) => {
+    setConfirmingSuspend(false);
+    setStatusSaving(true);
+    setStatusError(null);
+    try {
+      await apiRequest(
+        `/admin/users/${id}/status`,
+        { method: "PATCH", body: JSON.stringify({ status }) },
+        getToken(),
+        adminUserListItemSchema,
+      );
+      await query.reload();
+    } catch (cause) {
+      setStatusError(
+        cause instanceof Error
+          ? cause.message
+          : "The account status could not be updated.",
+      );
+    } finally {
+      setStatusSaving(false);
+    }
+  };
 
   return (
     <main className={styles["dashboard-page"]}>
@@ -91,6 +135,24 @@ export default function UserDetailPage() {
               <h2>Account details</h2>
               <p>Identity and account status</p>
             </div>
+            {canEditStatus ? (
+              <button
+                type="button"
+                className={styles["btn-toolbar-primary"]}
+                disabled={statusSaving}
+                onClick={() =>
+                  isSuspended
+                    ? void updateStatus(UserStatus.ACTIVE)
+                    : setConfirmingSuspend(true)
+                }
+              >
+                {statusSaving
+                  ? "Saving…"
+                  : isSuspended
+                    ? "Reactivate account"
+                    : "Suspend account"}
+              </button>
+            ) : null}
           </div>
           <dl className={styles["record-grid"]}>
             <div>
@@ -109,7 +171,13 @@ export default function UserDetailPage() {
             </div>
             <div>
               <dt>Account status</dt>
-              <dd>{formatEnum(user.status)}</dd>
+              <dd>
+                <span
+                  className={`${styles.badge} ${styles[statusBadgeClass(user.status)]}`}
+                >
+                  {formatEnum(user.status)}
+                </span>
+              </dd>
             </div>
             <div>
               <dt>Onboarding status</dt>
@@ -160,6 +228,11 @@ export default function UserDetailPage() {
               <dd>{formatAdminDateTime(user.lastLoginAt, user.timeZone)}</dd>
             </div>
           </dl>
+          {statusError ? (
+            <div className={styles["inline-error"]} role="alert">
+              {statusError}
+            </div>
+          ) : null}
         </article>
         <article className={styles.panel}>
           <div className={styles["panel-heading"]}>
@@ -348,6 +421,14 @@ export default function UserDetailPage() {
           </div>
         </article>
       </section>
+      <ConfirmModal
+        open={confirmingSuspend}
+        title="Suspend this account?"
+        message="They will be signed out on every device and cannot sign in until the account is reactivated."
+        confirmLabel="Suspend account"
+        onConfirm={() => void updateStatus(UserStatus.SUSPENDED)}
+        onCancel={() => setConfirmingSuspend(false)}
+      />
     </main>
   );
 }

@@ -9,6 +9,7 @@ import {
   adminStaffUpdateSchema,
   adminCustomRoleCreateSchema,
   adminCustomRoleUpdateSchema,
+  adminUserStatusUpdateSchema,
 } from '@purposemint/contracts';
 import { zodDto } from '../../common/pipes/zod-validation.pipe';
 
@@ -31,4 +32,7 @@ export class AdminUpgradeIntentsQueryDto extends zodDto(
 ) {}
 export class AdminChecklistUpdateDto extends zodDto(
   adminChecklistUpdateSchema,
+) {}
+export class AdminUserStatusUpdateDto extends zodDto(
+  adminUserStatusUpdateSchema,
 ) {}
