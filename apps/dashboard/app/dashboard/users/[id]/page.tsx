@@ -261,6 +261,10 @@ export default function UserDetailPage() {
               <dt>Last login</dt>
               <dd>{formatAdminDateTime(user.lastLoginAt, user.timeZone)}</dd>
             </div>
+            <div>
+              <dt>Last seen in app</dt>
+              <dd>{formatAdminDateTime(user.lastSeenAt, user.timeZone)}</dd>
+            </div>
           </dl>
           {statusError ? (
             <div className={styles["inline-error"]} role="alert">

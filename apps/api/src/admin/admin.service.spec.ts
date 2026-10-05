@@ -40,7 +40,10 @@ function customer(overrides: Partial<User> = {}): User {
   } as User;
 }
 
-function setup(user: User | null) {
+function setup(
+  user: User | null,
+  sessionRows: { userId: string; lastSessionAt: Date }[] = [],
+) {
   const users = {
     findOne: jest.fn().mockResolvedValue(user),
     save: jest.fn().mockImplementation((row: User) => Promise.resolve(row)),
@@ -48,6 +51,16 @@ function setup(user: User | null) {
   const audit = { record: jest.fn().mockResolvedValue(undefined) };
   const sessions = { revokeAllForUser: jest.fn().mockResolvedValue(undefined) };
   const config = { get: jest.fn().mockReturnValue(4) };
+  const sessionQuery = {
+    select: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    groupBy: jest.fn().mockReturnThis(),
+    getRawMany: jest.fn().mockResolvedValue(sessionRows),
+  };
+  const userSessions = {
+    createQueryBuilder: jest.fn().mockReturnValue(sessionQuery),
+  };
   const unused = {} as never;
   const service = new AdminService(
     users as never,
@@ -63,6 +76,7 @@ function setup(user: User | null) {
     unused,
     unused,
     unused,
+    userSessions as never,
     audit as unknown as AuditService,
     sessions as unknown as SessionService,
     config as unknown as ConfigService<never, true>,
@@ -147,6 +161,19 @@ describe('AdminService.updateUserStatus', () => {
     expect(users.save).not.toHaveBeenCalled();
     expect(sessions.revokeAllForUser).not.toHaveBeenCalled();
     expect(audit.record).not.toHaveBeenCalled();
+  });
+
+  it('reports lastSeenAt as the later of login and newest session', async () => {
+    const user = customer({
+      lastLoginAt: new Date('2026-09-01T00:00:00.000Z'),
+    });
+    const { service } = setup(user, [
+      { userId: user.id, lastSessionAt: new Date('2026-10-01T08:00:00.000Z') },
+    ]);
+
+    const result = await update(service, user.id, UserStatus.ACTIVE);
+
+    expect(result.lastSeenAt).toBe('2026-10-01T08:00:00.000Z');
   });
 
   it('only looks up customer accounts and 404s otherwise', async () => {

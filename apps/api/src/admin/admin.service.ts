@@ -70,6 +70,7 @@ import { UserGoal } from '../entities/user-goal.entity';
 import { UserHabit } from '../entities/user-habit.entity';
 import { UserValue } from '../entities/user-value.entity';
 import { User } from '../entities/user.entity';
+import { UserSession } from '../entities/user-session.entity';
 import { Value } from '../entities/value.entity';
 import { CustomRole } from '../entities/custom-role.entity';
 
@@ -106,6 +107,8 @@ export class AdminService {
     private readonly upgradeIntents: Repository<UpgradeIntent>,
     @InjectRepository(SubscriptionPlan)
     private readonly plans: Repository<SubscriptionPlan>,
+    @InjectRepository(UserSession)
+    private readonly userSessions: Repository<UserSession>,
     private readonly audit: AuditService,
     private readonly sessions: SessionService,
     config: ConfigService<Env, true>,
@@ -476,6 +479,18 @@ export class AdminService {
         onboardingStatus: query.onboardingStatus,
       });
     }
+    if (query.inactiveDays) {
+      // Same "last seen" as lastSeenAtByUser; never-seen accounts count from
+      // when they joined.
+      builder.andWhere(
+        `COALESCE(GREATEST(user.lastLoginAt, (SELECT MAX(s.created_at) FROM user_sessions s WHERE s.user_id = user.id)), user.createdAt) < :inactiveSince`,
+        {
+          inactiveSince: new Date(
+            Date.now() - query.inactiveDays * 24 * 60 * 60 * 1000,
+          ),
+        },
+      );
+    }
     const [users, total] = await builder
       .orderBy('user.createdAt', 'DESC')
       .skip((query.page - 1) * query.pageSize)
@@ -491,10 +506,14 @@ export class AdminService {
         status: query.status ?? null,
         tier: query.tier ?? null,
         onboardingStatus: query.onboardingStatus ?? null,
+        inactiveDays: query.inactiveDays ?? null,
       },
     });
+    const lastSeenAt = await this.lastSeenAtByUser(users);
     return {
-      items: users.map((user) => this.toUserListItem(user)),
+      items: users.map((user) =>
+        this.toUserListItem(user, lastSeenAt.get(user.id) ?? null),
+      ),
       ...this.pagination(query.page, query.pageSize, total),
     };
   }
@@ -671,6 +690,7 @@ export class AdminService {
       userValues,
       activityCounts,
       savingsEntries,
+      lastSeenAt,
     ] = await Promise.all([
       this.goals.find({
         where: { userId: id },
@@ -700,6 +720,7 @@ export class AdminService {
         where: { userId: id },
         order: { createdAt: 'ASC', id: 'ASC' },
       }),
+      this.lastSeenAtByUser([user]),
     ]);
     const entriesByGoal = this.groupEntriesByGoal(savingsEntries);
 
@@ -720,7 +741,7 @@ export class AdminService {
       entityId: id,
     });
     return {
-      ...this.toUserListItem(user),
+      ...this.toUserListItem(user, lastSeenAt.get(user.id) ?? null),
       country: user.country,
       state: user.state,
       city: user.city,
@@ -781,7 +802,8 @@ export class AdminService {
       input.status === UserStatus.ACTIVE && !user.emailVerifiedAt
         ? UserStatus.PENDING_EMAIL
         : input.status;
-    if (nextStatus === user.status) return this.toUserListItem(user);
+    if (nextStatus === user.status)
+      return this.toUserListItemWithLastSeen(user);
 
     const previousStatus = user.status;
     user.status = nextStatus;
@@ -805,7 +827,7 @@ export class AdminService {
         metadata: { previousStatus, status: user.status },
       },
     );
-    return this.toUserListItem(user);
+    return this.toUserListItemWithLastSeen(user);
   }
 
   async listPathwayApplications(
@@ -1113,7 +1135,52 @@ export class AdminService {
     return entriesByGoal;
   }
 
-  private toUserListItem(user: User): AdminUserListItem {
+  /**
+   * Latest of password login and newest session row per user. Every
+   * /auth/refresh mints a session row, so this tracks ongoing app use that
+   * lastLoginAt misses. One grouped query for the whole page.
+   */
+  private async lastSeenAtByUser(
+    users: User[],
+  ): Promise<Map<string, string | null>> {
+    const ids = users.map((user) => user.id);
+    const rows =
+      ids.length === 0
+        ? []
+        : await this.userSessions
+            .createQueryBuilder('session')
+            .select('session.userId', 'userId')
+            .addSelect('MAX(session.createdAt)', 'lastSessionAt')
+            .where('session.userId IN (:...ids)', { ids })
+            .groupBy('session.userId')
+            .getRawMany<{ userId: string; lastSessionAt: Date }>();
+    const lastSessionAt = new Map(
+      rows.map((row) => [row.userId, new Date(row.lastSessionAt)]),
+    );
+    return new Map(
+      users.map((user) => {
+        const times = [user.lastLoginAt, lastSessionAt.get(user.id)]
+          .filter((time): time is Date => Boolean(time))
+          .map((time) => time.getTime());
+        return [
+          user.id,
+          times.length ? new Date(Math.max(...times)).toISOString() : null,
+        ];
+      }),
+    );
+  }
+
+  private async toUserListItemWithLastSeen(
+    user: User,
+  ): Promise<AdminUserListItem> {
+    const lastSeenAt = await this.lastSeenAtByUser([user]);
+    return this.toUserListItem(user, lastSeenAt.get(user.id) ?? null);
+  }
+
+  private toUserListItem(
+    user: User,
+    lastSeenAt: string | null,
+  ): AdminUserListItem {
     return {
       id: user.id,
       firstName: user.firstName,
@@ -1126,6 +1193,7 @@ export class AdminService {
       emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
       createdAt: user.createdAt.toISOString(),
       timeZone: user.timeZone,
+      lastSeenAt,
     };
   }
 

@@ -22,6 +22,8 @@ export const adminUsersQuerySchema = paginationQuerySchema.extend({
   status: z.enum(userStatusValues).optional(),
   tier: z.enum(tierValues).optional(),
   onboardingStatus: z.enum(onboardingStatusValues).optional(),
+  /** Only customers not seen in at least this many days. */
+  inactiveDays: z.coerce.number().int().min(1).max(365).optional(),
 });
 
 const staffNameField = z.string().trim().min(1).max(100);
@@ -110,6 +112,11 @@ export const adminUserListItemSchema = z.object({
   emailVerifiedAt: isoDate.nullable(),
   createdAt: isoDate,
   timeZone: z.string().nullable(),
+  /**
+   * Latest of password login and newest refresh session. Refreshes do not
+   * touch lastLoginAt, so this is the better "still using the app" signal.
+   */
+  lastSeenAt: isoDate.nullable(),
 });
 
 const paginationFields = {

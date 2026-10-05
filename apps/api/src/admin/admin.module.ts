@@ -14,6 +14,7 @@ import { UserGoal } from '../entities/user-goal.entity';
 import { UserHabit } from '../entities/user-habit.entity';
 import { UserValue } from '../entities/user-value.entity';
 import { User } from '../entities/user.entity';
+import { UserSession } from '../entities/user-session.entity';
 import { CustomRole } from '../entities/custom-role.entity';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
@@ -36,6 +37,7 @@ import { AdminService } from './admin.service';
       PathwayChecklistItem,
       UpgradeIntent,
       SubscriptionPlan,
+      UserSession,
     ]),
   ],
   controllers: [AdminController],

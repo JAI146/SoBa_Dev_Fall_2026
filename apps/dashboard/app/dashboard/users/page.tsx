@@ -27,6 +27,7 @@ import styles from "../dashboard.module.css";
 import usersStyles from "./users.module.css";
 
 const PAGE_SIZE = 20;
+const INACTIVE_DAY_OPTIONS = [3, 7, 30] as const;
 
 export default function UsersPage() {
   const [page, setPage] = useState(1);
@@ -37,6 +38,7 @@ export default function UsersPage() {
   const [onboardingStatus, setOnboardingStatus] = useState<
     "" | OnboardingStatusValue
   >("");
+  const [inactiveDays, setInactiveDays] = useState("");
   const path = useMemo(() => {
     const params = new URLSearchParams({
       page: String(page),
@@ -46,8 +48,9 @@ export default function UsersPage() {
     if (status) params.set("status", status);
     if (tier) params.set("tier", tier);
     if (onboardingStatus) params.set("onboardingStatus", onboardingStatus);
+    if (inactiveDays) params.set("inactiveDays", inactiveDays);
     return `/admin/users?${params.toString()}`;
-  }, [page, search, status, tier, onboardingStatus]);
+  }, [page, search, status, tier, onboardingStatus, inactiveDays]);
   const query = useAdminQuery(path, adminUsersResponseSchema);
 
   const submitSearch = (event: FormEvent) => {
@@ -151,6 +154,23 @@ export default function UsersPage() {
                 ))}
               </select>
             </label>
+            <label className={styles["filter-field"]}>
+              <span>Activity</span>
+              <select
+                value={inactiveDays}
+                onChange={(event) => {
+                  setInactiveDays(event.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">Any activity</option>
+                {INACTIVE_DAY_OPTIONS.map((days) => (
+                  <option key={days} value={String(days)}>
+                    Inactive {days}+ days
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
         </form>
         <div className={styles["table-wrap"]}>
@@ -163,6 +183,7 @@ export default function UsersPage() {
                 <th>Onboarding</th>
                 <th>Email</th>
                 <th>Joined</th>
+                <th>Last seen</th>
                 <th>
                   <span className="sr-only">Actions</span>
                 </th>
@@ -193,6 +214,11 @@ export default function UsersPage() {
                   <td>{user.emailVerifiedAt ? "Verified" : "Not verified"}</td>
                   <td>{formatAdminDate(user.createdAt, user.timeZone)}</td>
                   <td>
+                    {user.lastSeenAt
+                      ? formatAdminDate(user.lastSeenAt, user.timeZone)
+                      : "Never"}
+                  </td>
+                  <td>
                     <Link
                       className={styles["table-link"]}
                       href={`/dashboard/users/${user.id}`}
@@ -204,7 +230,7 @@ export default function UsersPage() {
               ))}
               {data.items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className={styles.empty}>
+                  <td colSpan={8} className={styles.empty}>
                     No users match the current search or filters.
                   </td>
                 </tr>
