@@ -15,6 +15,7 @@ import {
   PathwayApplicationStatus,
   Tier,
   UserType,
+  rolePermissions,
   type AdminChecklistItem,
   type AdminChecklistUpdateInput,
   type AdminStaffCreateInput,
@@ -26,6 +27,7 @@ import {
   type AdminCustomRoleCreateInput,
   type AdminCustomRoleUpdateInput,
   type AdminCustomRolesResponse,
+  type AdminMyPermissionsResponse,
   type AdminOverviewResponse,
   type AdminPathwayApplicationDetailResponse,
   type AdminPathwayApplicationListItem,
@@ -117,6 +119,26 @@ export class AdminService {
   }
 
   private readonly bcryptRounds: number;
+
+  /**
+   * Resolved the same way as PermissionsGuard: an assigned custom role
+   * replaces the built-in role's permissions; a missing one falls back.
+   */
+  async myPermissions(
+    principal: AuthPrincipal,
+  ): Promise<AdminMyPermissionsResponse> {
+    const customRole = principal.customRoleId
+      ? await this.customRoles.findOne({
+          where: { id: principal.customRoleId },
+        })
+      : null;
+    if (customRole) return { permissions: customRole.permissions };
+    return {
+      permissions: principal.adminRole
+        ? [...rolePermissions[principal.adminRole]]
+        : [],
+    };
+  }
 
   async listCustomRoles(
     principal: AuthPrincipal,

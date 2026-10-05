@@ -1,7 +1,10 @@
 import { NotFoundException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import {
+  AdminPermission,
+  AdminRole,
   AuditAction,
+  rolePermissions,
   Tier,
   UserStatus,
   UserType,
@@ -43,6 +46,7 @@ function customer(overrides: Partial<User> = {}): User {
 function setup(
   user: User | null,
   sessionRows: { userId: string; lastSessionAt: Date }[] = [],
+  customRole: { permissions: string[] } | null = null,
 ) {
   const users = {
     findOne: jest.fn().mockResolvedValue(user),
@@ -61,10 +65,11 @@ function setup(
   const userSessions = {
     createQueryBuilder: jest.fn().mockReturnValue(sessionQuery),
   };
+  const customRoles = { findOne: jest.fn().mockResolvedValue(customRole) };
   const unused = {} as never;
   const service = new AdminService(
     users as never,
-    unused,
+    customRoles as never,
     unused,
     unused,
     unused,
@@ -81,7 +86,7 @@ function setup(
     sessions as unknown as SessionService,
     config as unknown as ConfigService<never, true>,
   );
-  return { service, users, audit, sessions };
+  return { service, users, audit, sessions, customRoles };
 }
 
 function update(
@@ -185,5 +190,46 @@ describe('AdminService.updateUserStatus', () => {
     expect(users.findOne).toHaveBeenCalledWith({
       where: { id: 'staff-id', userType: UserType.CUSTOMER },
     });
+  });
+});
+
+describe('AdminService.myPermissions', () => {
+  it('returns the built-in role permissions without a custom role', async () => {
+    const { service, customRoles } = setup(null);
+
+    const result = await service.myPermissions({
+      ...principal,
+      adminRole: AdminRole.SUPPORT,
+      customRoleId: null,
+    });
+
+    expect(result.permissions).toEqual([...rolePermissions[AdminRole.SUPPORT]]);
+    expect(customRoles.findOne).not.toHaveBeenCalled();
+  });
+
+  it('lets an assigned custom role replace the built-in permissions', async () => {
+    const { service } = setup(null, [], {
+      permissions: [AdminPermission.USER_MANAGEMENT_EDIT],
+    });
+
+    const result = await service.myPermissions({
+      ...principal,
+      adminRole: AdminRole.SUPPORT,
+      customRoleId: 'custom-role-1',
+    });
+
+    expect(result.permissions).toEqual([AdminPermission.USER_MANAGEMENT_EDIT]);
+  });
+
+  it('falls back to the built-in role when the custom role is gone', async () => {
+    const { service } = setup(null, [], null);
+
+    const result = await service.myPermissions({
+      ...principal,
+      adminRole: AdminRole.EDITOR,
+      customRoleId: 'deleted-role',
+    });
+
+    expect(result.permissions).toEqual([...rolePermissions[AdminRole.EDITOR]]);
   });
 });

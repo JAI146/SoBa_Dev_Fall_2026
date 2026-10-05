@@ -49,6 +49,14 @@ export class AdminController {
     return this.admin.overview(principal, requestContext(request));
   }
 
+  // No permission requirement: every admin may read their own permissions.
+  @Get('me/permissions')
+  @Roles(UserType.ADMIN)
+  @ApiOperation({ summary: "The signed-in admin's effective permissions" })
+  myPermissions(@CurrentUser() principal: AuthPrincipal) {
+    return this.admin.myPermissions(principal);
+  }
+
   @Get('users')
   @Roles(UserType.ADMIN)
   @RequirePermission(AdminPermission.USER_MANAGEMENT_VIEW)

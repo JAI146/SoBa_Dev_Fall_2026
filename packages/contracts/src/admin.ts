@@ -164,6 +164,11 @@ export const adminCustomRolesResponseSchema = z.object({
   items: z.array(adminCustomRoleSchema),
 });
 
+/** The signed-in admin's effective permissions (custom role or built-in). */
+export const adminMyPermissionsResponseSchema = z.object({
+  permissions: z.array(z.enum(adminPermissionValues)),
+});
+
 export const adminUsersResponseSchema = z.object({
   items: z.array(adminUserListItemSchema),
   ...paginationFields,
@@ -376,6 +381,9 @@ export type AdminCustomRoleCreateInput = z.infer<typeof adminCustomRoleCreateSch
 export type AdminCustomRoleUpdateInput = z.infer<typeof adminCustomRoleUpdateSchema>;
 export type AdminCustomRole = z.infer<typeof adminCustomRoleSchema>;
 export type AdminCustomRolesResponse = z.infer<typeof adminCustomRolesResponseSchema>;
+export type AdminMyPermissionsResponse = z.infer<
+  typeof adminMyPermissionsResponseSchema
+>;
 export type AdminPathwayApplicationsQuery = z.infer<
   typeof adminPathwayApplicationsQuerySchema
 >;

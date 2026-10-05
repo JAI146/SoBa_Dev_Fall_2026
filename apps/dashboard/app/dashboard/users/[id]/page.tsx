@@ -4,6 +4,7 @@ import {
   AdminPermission,
   OnboardingStatus,
   UserStatus,
+  adminMyPermissionsResponseSchema,
   adminUserDetailResponseSchema,
   adminUserListItemSchema,
   hasAdminPermission,
@@ -45,6 +46,10 @@ export default function UserDetailPage() {
     `/admin/users/${id}`,
     adminUserDetailResponseSchema,
   );
+  const permissionsQuery = useAdminQuery(
+    "/admin/me/permissions",
+    adminMyPermissionsResponseSchema,
+  );
   const [confirmingSuspend, setConfirmingSuspend] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -58,12 +63,15 @@ export default function UserDetailPage() {
   if (query.loading || !query.data)
     return <DashboardLoading label="Loading user details…" />;
   const user = query.data;
-  const storedUser = getStoredUser();
   // UX only; the API enforces user_management.edit on the status endpoint.
-  const canEditStatus = hasAdminPermission(
-    storedUser?.adminRole ?? null,
-    AdminPermission.USER_MANAGEMENT_EDIT,
-  );
+  // Effective permissions come from the API so custom roles are respected.
+  const canEditStatus = permissionsQuery.data
+    ? hasAdminPermission(
+        null,
+        AdminPermission.USER_MANAGEMENT_EDIT,
+        permissionsQuery.data.permissions,
+      )
+    : false;
   const isSuspended = user.status === UserStatus.SUSPENDED;
   const onboarding = user.onboardingProgress;
   const savingsEntries = user.goals
