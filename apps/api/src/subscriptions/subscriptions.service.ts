@@ -14,9 +14,11 @@ import { QueryFailedError, Repository } from 'typeorm';
 import { SubscriptionPlan } from '../entities/subscription-plan.entity';
 import { UpgradeIntent } from '../entities/upgrade-intent.entity';
 import { User } from '../entities/user.entity';
+import { SubscriptionManagementService } from '../subscription-management/subscription-management.service';
+import { planAvailable } from '../subscription-management/subscription-policy';
 
 const UPGRADE_ACKNOWLEDGEMENT = (planName: string) =>
-  `Paid plans aren't open yet. We saved your interest in ${planName}, and we'll let you know when it becomes available. Your current plan and progress stay exactly as they are.`;
+  `We saved your interest in ${planName}. An administrator can help you change your subscription. Your current subscription has not changed.`;
 
 @Injectable()
 export class SubscriptionsService {
@@ -25,17 +27,17 @@ export class SubscriptionsService {
     private readonly plans: Repository<SubscriptionPlan>,
     @InjectRepository(UpgradeIntent)
     private readonly intents: Repository<UpgradeIntent>,
+    private readonly management: SubscriptionManagementService,
   ) {}
 
   async list(userId: string): Promise<SubscriptionPlansResponse> {
-    const [user, plans] = await Promise.all([
-      this.intents.manager.findOne(User, { where: { id: userId } }),
+    const [access, plans] = await Promise.all([
+      this.management.access(userId),
       this.plans.find({ order: { sortOrder: 'ASC' } }),
     ]);
-    if (!user) throw new NotFoundException('User not found.');
     return {
-      currentPlanKey: user.tier,
-      plans: plans.map(toPublicPlan),
+      currentPlanKey: access.planKey,
+      plans: plans.filter((plan) => planAvailable(plan)).map(toPublicPlan),
     };
   }
 
@@ -51,9 +53,10 @@ export class SubscriptionsService {
         });
         if (!user) throw new NotFoundException('User not found.');
 
+        const access = await this.management.access(userId, manager);
         const [selectedPlan, currentPlan] = await Promise.all([
           manager.findOneBy(SubscriptionPlan, { key: input.planKey }),
-          manager.findOneBy(SubscriptionPlan, { key: user.tier }),
+          manager.findOneBy(SubscriptionPlan, { key: access.planKey }),
         ]);
         if (!selectedPlan) {
           throw new NotFoundException("We couldn't find that membership plan.");
@@ -63,7 +66,14 @@ export class SubscriptionsService {
             "We couldn't find your current membership plan.",
           );
         }
-        if (selectedPlan.sortOrder <= currentPlan.sortOrder) {
+        if (!planAvailable(selectedPlan))
+          throw new BadRequestException(
+            'This plan is not currently available.',
+          );
+        if (
+          selectedPlan.key === currentPlan.key ||
+          selectedPlan.priceMonthly <= currentPlan.priceMonthly
+        ) {
           throw new BadRequestException(
             'Choose a plan above your current membership.',
           );
@@ -113,6 +123,9 @@ function toPublicPlan(plan: SubscriptionPlan): SubscriptionPlanPublic {
     name: plan.name,
     tagline: plan.tagline,
     priceMonthly: plan.priceMonthly,
+    priceYearly: plan.priceYearly,
+    billingCycles: plan.billingCycles,
+    promotion: plan.promotion,
     badge: plan.badge,
     description: plan.description,
     features: plan.features,

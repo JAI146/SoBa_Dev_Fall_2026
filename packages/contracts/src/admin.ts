@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { planKeySchema } from "./subscription-management";
 import {
   checklistCategoryValues,
   adminRoleValues,
@@ -71,7 +72,7 @@ export const adminOverviewResponseSchema = z.object({
   submittedPathwayApplications: z.number().int().min(0),
   pathwayApplicationsByPathway: z.array(adminCountGroupSchema),
   upgradeIntentsByPlan: z.array(
-    adminCountGroupSchema.extend({ key: z.enum(tierValues) }),
+    adminCountGroupSchema.extend({ key: planKeySchema }),
   ),
   activeUsers: z.object({
     count: z.number().int().min(0),
@@ -330,13 +331,13 @@ export const adminPathwayApplicationDetailResponseSchema = z.object({
 export const adminUpgradeIntentSchema = z.object({
   id: z.string().uuid(),
   user: adminApplicantSchema,
-  planKey: z.enum(tierValues),
+  planKey: planKeySchema,
   planName: z.string(),
   createdAt: isoDate,
 });
 
 export const adminUpgradeIntentsResponseSchema = z.object({
-  groups: z.array(adminCountGroupSchema.extend({ key: z.enum(tierValues) })),
+  groups: z.array(adminCountGroupSchema.extend({ key: planKeySchema })),
   items: z.array(adminUpgradeIntentSchema),
   ...paginationFields,
 });

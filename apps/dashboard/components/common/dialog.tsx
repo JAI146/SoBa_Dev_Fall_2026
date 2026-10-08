@@ -8,11 +8,13 @@ export function Dialog({
   title,
   onClose,
   children,
+  className,
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  className?: string;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -28,7 +30,7 @@ export function Dialog({
   return (
     <div className={styles["modal-overlay"]} onClick={onClose}>
       <div
-        className={styles["modal-card"]}
+        className={`${styles["modal-card"]} ${className ?? ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-title"

@@ -141,6 +141,16 @@ export default function DashboardLayout({
       icon: "roles",
       active: pathname.startsWith("/dashboard/manage-roles"),
     },
+    ...(user.adminRole === AdminRole.SUPER_ADMIN
+      ? [
+          {
+            href: "/dashboard/subscriptions",
+            label: "Subscriptions & Plans",
+            icon: "upgrades" as const,
+            active: pathname.startsWith("/dashboard/subscriptions"),
+          },
+        ]
+      : []),
   ];
 
   return (

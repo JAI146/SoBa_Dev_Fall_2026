@@ -1,11 +1,18 @@
 import { z } from "zod";
-import { tierValues } from "./enums";
+import {
+  billingCycleValues,
+  planKeySchema,
+  promotionSchema,
+} from "./subscription-management";
 
 export const subscriptionPlanPublicSchema = z.object({
-  key: z.enum(tierValues),
+  key: planKeySchema,
   name: z.string(),
   tagline: z.string(),
   priceMonthly: z.number().min(0),
+  priceYearly: z.number().min(0).nullable().optional(),
+  billingCycles: z.array(z.enum(billingCycleValues)).optional(),
+  promotion: promotionSchema.nullable().optional(),
   badge: z.string().nullable(),
   description: z.string(),
   features: z.array(z.string()),
@@ -14,13 +21,13 @@ export const subscriptionPlanPublicSchema = z.object({
 });
 export const subscriptionPlansResponseSchema = z.object({
   plans: z.array(subscriptionPlanPublicSchema),
-  currentPlanKey: z.enum(tierValues),
+  currentPlanKey: planKeySchema,
 });
 export const createUpgradeIntentSchema = z.object({
-  planKey: z.enum(tierValues),
+  planKey: planKeySchema,
 });
 export const upgradeIntentResponseSchema = z.object({
-  planKey: z.enum(tierValues),
+  planKey: planKeySchema,
   planName: z.string(),
   alreadyRecorded: z.boolean(),
   message: z.string(),
@@ -59,15 +66,11 @@ export type SubscriptionPlansResponse = z.infer<
 export type CreateUpgradeIntentInput = z.infer<
   typeof createUpgradeIntentSchema
 >;
-export type UpgradeIntentResponse = z.infer<
-  typeof upgradeIntentResponseSchema
->;
+export type UpgradeIntentResponse = z.infer<typeof upgradeIntentResponseSchema>;
 export type CommunityChallengePublic = z.infer<
   typeof communityChallengePublicSchema
 >;
 export type ChallengeViewerState = z.infer<
   typeof communityChallengePublicSchema.shape.viewerState
 >;
-export type JoinChallengeResponse = z.infer<
-  typeof joinChallengeResponseSchema
->;
+export type JoinChallengeResponse = z.infer<typeof joinChallengeResponseSchema>;
