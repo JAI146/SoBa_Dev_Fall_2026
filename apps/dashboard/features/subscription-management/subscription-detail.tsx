@@ -22,10 +22,12 @@ export function SubscriptionDetail({
   id,
   onBack,
   onChanged,
+  canEdit,
 }: {
   id: string;
   onBack: () => void;
   onChanged: () => Promise<void>;
+  canEdit: boolean;
 }) {
   const query = useAdminQuery(
     `${apiRoot}/subscriptions/${id}`,
@@ -76,15 +78,17 @@ export function SubscriptionDetail({
     <div className={styles.detail}>
       <div className={styles.actions}>
         <button onClick={onBack}>Back to subscriptions</button>
-        <button
-          disabled={saving || Boolean(row.pendingChange)}
-          onClick={() => setAction("change")}
-        >
-          {row.status === "cancelled"
-            ? "Reactivate / change plan"
-            : "Change plan or cycle"}
-        </button>
-        {row.status !== "cancelled" && (
+        {canEdit && (
+          <button
+            disabled={saving || Boolean(row.pendingChange)}
+            onClick={() => setAction("change")}
+          >
+            {row.status === "cancelled"
+              ? "Reactivate / change plan"
+              : "Change plan or cycle"}
+          </button>
+        )}
+        {canEdit && row.status !== "cancelled" && (
           <>
             <button
               className={styles.danger}
@@ -188,13 +192,15 @@ export function SubscriptionDetail({
                 : `Change to ${row.pendingChange.terms?.planName} (${row.pendingChange.terms?.cycle})`}{" "}
               scheduled for {dateLabel(row.pendingChange.effectiveAt)}.
             </p>
-            <button
-              className={base["table-link"]}
-              disabled={saving}
-              onClick={() => void clearPending()}
-            >
-              Remove scheduled change
-            </button>
+            {canEdit && (
+              <button
+                className={base["table-link"]}
+                disabled={saving}
+                onClick={() => void clearPending()}
+              >
+                Remove scheduled change
+              </button>
+            )}
           </div>
         )}
       </section>

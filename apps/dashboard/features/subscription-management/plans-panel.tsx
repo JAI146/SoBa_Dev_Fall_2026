@@ -16,7 +16,7 @@ import styles from "./subscription-management.module.css";
 import { apiRoot, dateLabel, Pagination } from "./shared";
 import { PlanEditor } from "./plan-editor";
 
-export function PlansPanel() {
+export function PlansPanel({ canManagePlans }: { canManagePlans: boolean }) {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ search: "", active: "" });
   const [editor, setEditor] = useState<AdminPlan | "new" | null>(null);
@@ -39,7 +39,9 @@ export function PlansPanel() {
   return (
     <>
       <div className={styles.actions}>
-        <button onClick={() => setEditor("new")}>Create plan</button>
+        {canManagePlans && (
+          <button onClick={() => setEditor("new")}>Create plan</button>
+        )}
         <button onClick={() => void query.reload()}>Refresh plans</button>
       </div>
       <section className={base["crud-card"]}>
@@ -144,12 +146,16 @@ export function PlansPanel() {
                       </td>
                       <td>{plan.sortOrder}</td>
                       <td>
-                        <button
-                          className={base["table-link"]}
-                          onClick={() => setEditor(plan)}
-                        >
-                          Edit
-                        </button>
+                        {canManagePlans ? (
+                          <button
+                            className={base["table-link"]}
+                            onClick={() => setEditor(plan)}
+                          >
+                            Edit
+                          </button>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                     </tr>
                   ))}

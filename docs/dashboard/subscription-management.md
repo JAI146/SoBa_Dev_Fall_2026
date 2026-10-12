@@ -1,6 +1,6 @@
 # Subscription and plan management
 
-The Admin Control Center exposes `/dashboard/subscriptions` with Plans and Subscriptions tabs. Plans, subscriptions, agreed billing terms, payment outcomes, and change history are separate database records. Administrators can create arbitrary plan keys using supported capabilities without changing application code. No dependencies were added, and the mobile app was not edited.
+The Admin Control Center exposes `/dashboard/subscriptions` with Plans and Subscriptions tabs. Plans, subscriptions, agreed billing terms, payment outcomes, and change history are separate database records. Administrators can create arbitrary plan keys using supported capabilities without changing application code. No dependencies were added. Mobile membership labels and access gates consume the persisted current subscription.
 
 ## Merge boundaries
 
@@ -22,7 +22,11 @@ Supported entitlements are `pathways` and `communityChallenges`. Supported limit
 
 Exactly one default plan may be configured. It must be active, always available, monthly, free, and without promotional/date restrictions. Selecting another default switches it atomically. New customers are enrolled on first membership/access lookup or the periodic enrollment sweep. Existing customers are imported from their legacy tier by the migration. Docker sample customers are created after migration, so the sample-data seeder also imports their configured membership, with history and audit, in its transaction. It inserts only missing subscriptions and never overwrites an administrator's agreement or history. Changing the default affects future enrollment only.
 
-This checkout has only the `super_admin` role, with none of the shared permissions infrastructure described in the attached dashboard guide. Every administration endpoint therefore requires both an authenticated admin and `super_admin`, enforced by `SubscriptionAdminGuard`. The guard is isolated so a future permissions merge can replace the policy. Role-based sidebar visibility is only a convenience; the API remains authoritative.
+Every administration endpoint requires an authenticated admin and the shared `PermissionsGuard`. Permission ranks are `subscriptions.view` (catalog, subscription details/history, capability catalog, and effective access), `subscriptions.edit` (assignment, change, cancellation, pending removal, and payment outcomes), and `subscriptions.full` (plan creation/pricing/entitlement edits). Higher ranks satisfy lower ones. Built-in super admins have full access, managers have edit access, and auditors/support have view access. Editors have no default subscription grant. Custom-role permissions override built-in roles, including super admin; missing custom-role records fail closed. Existing custom roles receive no new grants automatically; configure them through Manage roles.
+
+The dashboard fetches effective access from `GET /admin/subscription-management/permissions` to show the navigation and allowed actions. This UI is a convenience; every request is still authorized by the API. No database migration is required for the new permission values because custom-role permission lists are stored as JSON.
+
+Customer responses at `GET /subscriptions/plans` include `currentSubscription` with the configured plan name, agreed billing terms, lifecycle status, effective entitlements, and limits. Mobile dashboard, profile, pricing, and the Pathways route use this response rather than `User.tier`. Queries are scoped to the signed-in customer and refresh on screen focus and every 30 seconds while observed. API access checks remain authoritative for each protected operation, including cancellation and payment failure. Legacy tiers remain for old reports/import compatibility and are not used to authorize customer access. Deploy the updated API before the updated mobile client, which validates the new response shape.
 
 Entitlement and limit edits apply centrally to existing active subscribers. Retiring a plan prevents new assignments while retaining existing subscriber access. Cancellation and recorded payment failure revoke access. An administrator's paid-plan assignment starts active access with payment pending; recording an external successful payment confirms payment state, while a failure marks the subscription past due. Payment collection and provider reconciliation are outside this feature.
 
@@ -45,6 +49,7 @@ All paths below are relative to `/api/admin/subscription-management` and use the
 | Method and path | Purpose |
 | --- | --- |
 | `GET /capabilities` | Supported entitlement and limit catalog |
+| `GET /permissions` | Effective edit/configuration access for the signed-in administrator |
 | `GET /plans` | Paginated search, active filter |
 | `POST /plans`, `PATCH /plans/:key` | Create/edit configuration; versioned updates |
 | `GET /subscriptions` | Paginated customer search, status and plan filters |
@@ -55,7 +60,7 @@ All paths below are relative to `/api/admin/subscription-management` and use the
 | `POST /subscriptions/:id/remove-scheduled-change` | Remove a scheduled transition |
 | `POST /subscriptions/:id/payments` | Record an external paid/failed outcome |
 
-Customer membership responses consume the same catalog and current subscription. Yearly cycles and promotions are optional additions to the public response; existing clients can continue reading the original fields. Upgrade intents remain requests for administrative assistance and do not themselves change subscriptions.
+Customer membership responses consume the same catalog and current subscription. Yearly cycles and promotions are optional additions to the public response; existing clients can continue reading the original fields. Upgrade eligibility compares normalized pricing rather than plan names or display order. New mobile clients use the required `currentSubscription` object for access and display. Upgrade intents remain requests for administrative assistance and do not themselves change subscriptions.
 
 ## Database setup and verification
 
@@ -81,7 +86,7 @@ Verification on this checkout:
 
 - Contracts build: passed.
 - API and dashboard type checks: passed.
-- API tests: 6 suites, 46 tests passed, including real PostgreSQL query-builder coverage for enrollment, scheduled changes, and the paginated subscription list.
+- API tests: 6 suites, 82 tests passed, including actual permission metadata/guard behavior, custom-role overrides, customer access with a legacy free tier, and the PostgreSQL query-builder paths for enrollment, scheduled changes, and the paginated subscription list.
 - New API feature/entities/migration lint: passed with no warnings.
 - Dashboard lint and production build: passed, including `/dashboard/subscriptions`.
 - Full API lint: 570 existing errors. Comparing each modified existing API file against HEAD showed the same error/warning counts before and after the change.

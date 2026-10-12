@@ -17,7 +17,7 @@ import { apiRoot, dateLabel, Pagination } from "./shared";
 import { SubscriptionEditor } from "./subscription-editor";
 import { SubscriptionDetail } from "./subscription-detail";
 
-export function SubscriptionsPanel() {
+export function SubscriptionsPanel({ canEdit }: { canEdit: boolean }) {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
     search: "",
@@ -48,6 +48,7 @@ export function SubscriptionsPanel() {
       <SubscriptionDetail
         key={selected}
         id={selected}
+        canEdit={canEdit}
         onBack={() => setSelected(null)}
         onChanged={query.reload}
       />
@@ -55,7 +56,11 @@ export function SubscriptionsPanel() {
   return (
     <>
       <div className={styles.actions}>
-        <button onClick={() => setAssigning(true)}>Assign subscription</button>
+        {canEdit && (
+          <button onClick={() => setAssigning(true)}>
+            Assign subscription
+          </button>
+        )}
         <button onClick={() => void query.reload()}>
           Refresh subscriptions
         </button>

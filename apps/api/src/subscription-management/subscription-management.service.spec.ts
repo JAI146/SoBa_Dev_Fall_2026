@@ -2,6 +2,8 @@ import { randomUUID } from 'crypto';
 import {
   AdminRole,
   UserType,
+  Tier,
+  subscriptionPlansResponseSchema,
   type SubscriptionPaymentInput,
 } from '@purposemint/contracts';
 import { EntityManager, QueryFailedError, Repository } from 'typeorm';
@@ -14,6 +16,8 @@ import { User } from '../entities/user.entity';
 import { SubscriptionManagementService } from './subscription-management.service';
 import { captureTerms } from './subscription-policy';
 import { planEntity, planInput } from './subscription-fixtures';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { UpgradeIntent } from '../entities/upgrade-intent.entity';
 
 type Row =
   | SubscriptionPlan
@@ -146,6 +150,7 @@ describe('subscription management transitions', () => {
     user = Object.assign(new User(), {
       id: randomUUID(),
       userType: UserType.CUSTOMER,
+      tier: Tier.FREE,
       adminRole: null,
       email: 'customer@example.test',
       firstName: 'Test',
@@ -228,6 +233,51 @@ describe('subscription management transitions', () => {
     expect(db.locks).toContainEqual({
       target: User,
       lock: { mode: 'pessimistic_write' },
+    });
+  });
+  it('returns the persisted plan and entitlements even when the legacy tier is free', async () => {
+    const row = await assign();
+    await service.change(
+      row.id,
+      {
+        expectedVersion: 1,
+        expectedPlanVersion: 1,
+        planKey: 'advanced',
+        cycle: 'monthly',
+        timing: 'immediate',
+      },
+      actor,
+      null,
+    );
+    const publicService = new SubscriptionsService(
+      {
+        find: () => Promise.resolve(db.rows.get(SubscriptionPlan)),
+      } as unknown as Repository<SubscriptionPlan>,
+      {} as Repository<UpgradeIntent>,
+      service,
+    );
+    const active = subscriptionPlansResponseSchema.parse(
+      await publicService.list(user.id),
+    );
+    expect(user.tier).toBe(Tier.FREE);
+    expect(active.currentSubscription).toMatchObject({
+      planKey: 'advanced',
+      planName: 'Advanced',
+      status: 'active',
+      entitlements: { pathways: true, communityChallenges: true },
+    });
+    await service.cancel(
+      row.id,
+      { expectedVersion: 2, timing: 'immediate' },
+      actor,
+      null,
+    );
+    const cancelled = subscriptionPlansResponseSchema.parse(
+      await publicService.list(user.id),
+    );
+    expect(cancelled.currentSubscription).toMatchObject({
+      status: 'cancelled',
+      entitlements: { pathways: false, communityChallenges: false },
     });
   });
   it('prevents concurrent duplicate assignment', async () => {

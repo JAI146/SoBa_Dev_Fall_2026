@@ -1,4 +1,8 @@
 import { z } from "zod";
+export const subscriptionAdminAccessSchema = z.object({
+  canEdit: z.boolean(),
+  canManagePlans: z.boolean(),
+});
 import { paginationQuerySchema } from "./api-error";
 
 export const billingCycleValues = ["monthly", "yearly"] as const;

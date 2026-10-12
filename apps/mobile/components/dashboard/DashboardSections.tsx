@@ -141,7 +141,7 @@ export function CommunityChallengeCard({
         <>
           <LockedRow
             onPress={onViewPlans}
-            title="Upgrade to Momentum to join challenges"
+            title="View plans with community challenges"
           />
           <Text style={styles.footnote}>
             Free tier includes read-only access to 1 monthly challenge
@@ -338,7 +338,7 @@ export function WaysToSaveCard({ onViewPlans }: { onViewPlans: () => void }) {
       <LockedRow
         onPress={onViewPlans}
         title="Want automatic savings?"
-        subtitle="Upgrade to Momentum for automatic transfers into a partner-bank account"
+        subtitle="Automatic bank transfers are not available yet"
       />
     </View>
   );
@@ -346,12 +346,12 @@ export function WaysToSaveCard({ onViewPlans }: { onViewPlans: () => void }) {
 
 export function PathwayProgressCard({
   items,
-  isElevation,
+  hasPathways,
   onOpenPathways,
   onViewPlans,
 }: {
   items: PathwayProgressPublic[];
-  isElevation: boolean;
+  hasPathways: boolean;
   onOpenPathways: () => void;
   onViewPlans: () => void;
 }) {
@@ -367,7 +367,7 @@ export function PathwayProgressCard({
           </Text>
         </View>
       ))}
-      {isElevation ? (
+      {hasPathways ? (
         <Pressable
           accessibilityLabel="Open Pathways"
           accessibilityRole="button"
@@ -384,7 +384,7 @@ export function PathwayProgressCard({
       ) : (
         <LockedRow
           onPress={onViewPlans}
-          title="Level 5: Pathways — included with Elevation"
+          title="Level 5: Pathways — view membership plans"
         />
       )}
     </View>

@@ -3,6 +3,10 @@ import {
   billingCycleValues,
   planKeySchema,
   promotionSchema,
+  planEntitlementsSchema,
+  planLimitsSchema,
+  billingTermsSchema,
+  subscriptionStatusValues,
 } from "./subscription-management";
 
 export const subscriptionPlanPublicSchema = z.object({
@@ -22,6 +26,14 @@ export const subscriptionPlanPublicSchema = z.object({
 export const subscriptionPlansResponseSchema = z.object({
   plans: z.array(subscriptionPlanPublicSchema),
   currentPlanKey: planKeySchema,
+  currentSubscription: z.object({
+    planKey: planKeySchema,
+    planName: z.string(),
+    status: z.enum(subscriptionStatusValues),
+    billing: billingTermsSchema,
+    entitlements: planEntitlementsSchema,
+    limits: planLimitsSchema,
+  }),
 });
 export const createUpgradeIntentSchema = z.object({
   planKey: planKeySchema,

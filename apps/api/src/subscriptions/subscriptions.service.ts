@@ -37,6 +37,7 @@ export class SubscriptionsService {
     ]);
     return {
       currentPlanKey: access.planKey,
+      currentSubscription: access,
       plans: plans.filter((plan) => planAvailable(plan)).map(toPublicPlan),
     };
   }
@@ -72,7 +73,12 @@ export class SubscriptionsService {
           );
         if (
           selectedPlan.key === currentPlan.key ||
-          selectedPlan.priceMonthly <= currentPlan.priceMonthly
+          (selectedPlan.billingCycles.includes('monthly')
+            ? selectedPlan.priceMonthly
+            : (selectedPlan.priceYearly ?? 0) / 12) <=
+            access.billing.regularAmountCents /
+              100 /
+              (access.billing.cycle === 'yearly' ? 12 : 1)
         ) {
           throw new BadRequestException(
             'Choose a plan above your current membership.',

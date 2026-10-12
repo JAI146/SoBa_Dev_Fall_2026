@@ -9,11 +9,11 @@ import {
   Query,
   Req,
   BadRequestException,
-  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   UserType,
+  AdminPermission,
   adminPlanInputSchema,
   adminPlanUpdateSchema,
   adminPlansQuerySchema,
@@ -30,7 +30,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { zodDto } from '../common/pipes/zod-validation.pipe';
 import { SubscriptionManagementService } from './subscription-management.service';
-import { SubscriptionAdminGuard } from './subscription-admin.guard';
+import { RequirePermission } from '../auth/decorators/permissions.decorator';
 
 class PlanDto extends zodDto(adminPlanInputSchema) {}
 class UpdatePlanDto extends zodDto(adminPlanUpdateSchema) {}
@@ -42,15 +42,18 @@ class CancelDto extends zodDto(subscriptionCancelSchema) {}
 class PaymentDto extends zodDto(subscriptionPaymentInputSchema) {}
 class VersionDto extends zodDto(subscriptionVersionSchema) {}
 
-// The checkout currently supports only super_admin. Keep this fail-closed policy
-// here so the future permission system can replace it without changing the domain.
 @ApiTags('admin-subscriptions')
 @ApiBearerAuth()
 @Roles(UserType.ADMIN)
-@UseGuards(SubscriptionAdminGuard)
+@RequirePermission(AdminPermission.SUBSCRIPTIONS_VIEW)
 @Controller('admin/subscription-management')
 export class SubscriptionManagementController {
   constructor(private readonly service: SubscriptionManagementService) {}
+  @Get('permissions')
+  @ApiOperation({ summary: 'Get effective subscription administration access' })
+  permissions(@CurrentUser() actor: AuthPrincipal) {
+    return this.service.adminAccess(actor);
+  }
   @Get('capabilities')
   @ApiOperation({ summary: 'List supported configurable capabilities' })
   capabilities() {
@@ -62,6 +65,7 @@ export class SubscriptionManagementController {
     return this.service.listPlans(query);
   }
   @Post('plans')
+  @RequirePermission(AdminPermission.SUBSCRIPTIONS_FULL)
   @ApiOperation({ summary: 'Create a subscription plan' })
   createPlan(
     @Body() input: PlanDto,
@@ -71,6 +75,7 @@ export class SubscriptionManagementController {
     return this.service.savePlan(input, actor.userId, request.ip ?? null);
   }
   @Patch('plans/:key')
+  @RequirePermission(AdminPermission.SUBSCRIPTIONS_FULL)
   @ApiOperation({ summary: 'Edit or retire a subscription plan' })
   updatePlan(
     @Param('key') key: string,
@@ -98,6 +103,7 @@ export class SubscriptionManagementController {
     return this.service.detail(id);
   }
   @Post('subscriptions')
+  @RequirePermission(AdminPermission.SUBSCRIPTIONS_EDIT)
   @ApiOperation({ summary: 'Assign a customer subscription' })
   assign(
     @Body() input: AssignDto,
@@ -107,6 +113,7 @@ export class SubscriptionManagementController {
     return this.service.assign(input, actor.userId, request.ip ?? null);
   }
   @Post('subscriptions/:id/change')
+  @RequirePermission(AdminPermission.SUBSCRIPTIONS_EDIT)
   @ApiOperation({
     summary: 'Change plan or billing cycle immediately or at renewal',
   })
@@ -119,6 +126,7 @@ export class SubscriptionManagementController {
     return this.service.change(id, input, actor.userId, request.ip ?? null);
   }
   @Post('subscriptions/:id/cancel')
+  @RequirePermission(AdminPermission.SUBSCRIPTIONS_EDIT)
   @ApiOperation({ summary: 'Cancel while retaining history' })
   cancel(
     @Param('id', ParseUUIDPipe) id: string,
@@ -129,6 +137,7 @@ export class SubscriptionManagementController {
     return this.service.cancel(id, input, actor.userId, request.ip ?? null);
   }
   @Post('subscriptions/:id/remove-scheduled-change')
+  @RequirePermission(AdminPermission.SUBSCRIPTIONS_EDIT)
   @ApiOperation({ summary: 'Remove a pending subscription change' })
   clear(
     @Param('id', ParseUUIDPipe) id: string,
@@ -144,6 +153,7 @@ export class SubscriptionManagementController {
     );
   }
   @Post('subscriptions/:id/payments')
+  @RequirePermission(AdminPermission.SUBSCRIPTIONS_EDIT)
   @ApiOperation({
     summary:
       'Record a staff-confirmed payment outcome without collecting payment',

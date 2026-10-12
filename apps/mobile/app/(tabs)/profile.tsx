@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import {
   PolicyDocumentKey,
-  Tier,
   type PolicyAgreementRecord,
 } from "@purposemint/contracts";
 import { router } from "expo-router";
@@ -30,6 +29,7 @@ import { theme } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useProfileActions } from "@/hooks/use-profile-actions";
+import { useSubscriptionPlans } from "@/hooks/use-subscriptions";
 
 type OpenModal =
   | "edit-profile"
@@ -40,14 +40,9 @@ type OpenModal =
   | "deletion"
   | null;
 
-const membershipNames = {
-  [Tier.FREE]: "Starter",
-  [Tier.GROWTH]: "Momentum",
-  [Tier.ELEVATE]: "Elevation",
-} as const;
-
 export default function ProfileScreen() {
   const userQuery = useCurrentUser();
+  const membership = useSubscriptionPlans();
   const actions = useProfileActions();
   const { logout, logoutAll } = useAuth();
   const [openModal, setOpenModal] = useState<OpenModal>(null);
@@ -55,16 +50,27 @@ export default function ProfileScreen() {
   const [actionError, setActionError] = useState<string>();
   const [signingOut, setSigningOut] = useState(false);
 
-  if (userQuery.error) {
+  if (userQuery.error || membership.error) {
     return (
       <QueryErrorState
-        message={userQuery.error.message}
-        onRetry={() => void userQuery.refetch()}
+        message={
+          (userQuery.error ?? membership.error)?.message ??
+          "Your membership could not be loaded."
+        }
+        onRetry={() => {
+          void userQuery.refetch();
+          void membership.refetch();
+        }}
       />
     );
   }
 
-  if (userQuery.isLoading || !userQuery.data) {
+  if (
+    userQuery.isLoading ||
+    !userQuery.data ||
+    membership.isLoading ||
+    !membership.data
+  ) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={theme.colors.deepGreen} size="large" />
@@ -73,7 +79,8 @@ export default function ProfileScreen() {
   }
 
   const user = userQuery.data;
-  const membershipName = membershipNames[user.tier];
+  const currentSubscription = membership.data.currentSubscription;
+  const membershipName = `${currentSubscription.planName}${currentSubscription.status === "active" ? "" : currentSubscription.status === "cancelled" ? " · Cancelled" : " · Payment overdue"}`;
   const fullName = `${user.firstName} ${user.lastName}`.trim();
   const displayName = user.displayName ?? fullName;
   const enabledNotifications = Object.values(

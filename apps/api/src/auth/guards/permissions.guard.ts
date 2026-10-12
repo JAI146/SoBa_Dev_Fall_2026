@@ -43,6 +43,11 @@ export class PermissionsGuard implements CanActivate {
       const customRole = user.customRoleId
         ? await this.customRoles.findOne({ where: { id: user.customRoleId } })
         : null;
+      if (user.customRoleId && !customRole) {
+        throw new ForbiddenException(
+          "This one isn't available on your account.",
+        );
+      }
       allowed = required.some((permission) =>
         customRole
           ? hasAdminPermission(null, permission, customRole.permissions)

@@ -6,6 +6,7 @@ import {
   UserType,
   AdminRole,
   userPublicSchema,
+  subscriptionAdminAccessSchema,
   type MessageResponse,
   type UserPublic,
 } from "@purposemint/contracts";
@@ -25,6 +26,7 @@ export default function DashboardLayout({
   // Keep the verified role for feature navigation; the API still enforces access.
   const [user, setUser] = useState<UserPublic | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [canViewSubscriptions, setCanViewSubscriptions] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,6 +55,17 @@ export default function DashboardLayout({
           return;
         }
         setUser(currentUser);
+        try {
+          await apiRequest(
+            "/admin/subscription-management/permissions",
+            {},
+            token,
+            subscriptionAdminAccessSchema,
+          );
+          if (!cancelled) setCanViewSubscriptions(true);
+        } catch {
+          if (!cancelled) setCanViewSubscriptions(false);
+        }
       } catch {
         if (!cancelled) {
           clearAuth();
@@ -141,7 +154,7 @@ export default function DashboardLayout({
       icon: "roles",
       active: pathname.startsWith("/dashboard/manage-roles"),
     },
-    ...(user.adminRole === AdminRole.SUPER_ADMIN
+    ...(canViewSubscriptions
       ? [
           {
             href: "/dashboard/subscriptions",

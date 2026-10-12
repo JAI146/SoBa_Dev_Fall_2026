@@ -12,6 +12,8 @@ import {
   AuditAction,
   AuditActorType,
   UserType,
+  AdminPermission,
+  hasAdminPermission,
   type AdminPlanInput,
   type AdminPlan,
   type AdminPlansQuery,
@@ -32,6 +34,8 @@ import { UserSubscription } from '../entities/user-subscription.entity';
 import { SubscriptionHistory } from '../entities/subscription-history.entity';
 import { SubscriptionBillingRecord } from '../entities/subscription-billing-record.entity';
 import { User } from '../entities/user.entity';
+import { CustomRole } from '../entities/custom-role.entity';
+import type { AuthPrincipal } from '../auth/auth-principal';
 import { captureTerms, changeAction, nextRenewal } from './subscription-policy';
 
 const emptyEntitlements: PlanEntitlements = {
@@ -86,6 +90,28 @@ export class SubscriptionManagementService
         limitKey: 'challengeParticipations' as const,
       },
     ];
+  }
+
+  async adminAccess(actor: AuthPrincipal) {
+    const custom = actor.customRoleId
+      ? await this.plans.manager.findOneBy(CustomRole, {
+          id: actor.customRoleId,
+        })
+      : null;
+    const allows = (
+      permission:
+        | typeof AdminPermission.SUBSCRIPTIONS_EDIT
+        | typeof AdminPermission.SUBSCRIPTIONS_FULL,
+    ) =>
+      actor.customRoleId
+        ? Boolean(
+            custom && hasAdminPermission(null, permission, custom.permissions),
+          )
+        : hasAdminPermission(actor.adminRole, permission);
+    return {
+      canEdit: allows(AdminPermission.SUBSCRIPTIONS_EDIT),
+      canManagePlans: allows(AdminPermission.SUBSCRIPTIONS_FULL),
+    };
   }
 
   async listPlans(query: AdminPlansQuery) {
@@ -512,6 +538,9 @@ export class SubscriptionManagementService
     entitlements: PlanEntitlements;
     limits: PlanLimits;
     planKey: string;
+    planName: string;
+    status: UserSubscription['status'];
+    billing: BillingTerms;
   }> {
     if (!manager)
       return this.plans.manager.transaction(async (m) => {
@@ -531,6 +560,9 @@ export class SubscriptionManagementService
     const allowed = row.status === 'active';
     return {
       planKey,
+      planName: plan?.name ?? row.billing.planName,
+      status: row.status,
+      billing: row.billing,
       entitlements: allowed && plan ? plan.entitlements : emptyEntitlements,
       limits: allowed && plan ? plan.limits : emptyLimits,
     };
