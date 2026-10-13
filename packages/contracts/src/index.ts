@@ -13,3 +13,4 @@ export * from "./admin";
 export * from "./permissions";
 // Export the shared incentives schemas and types through the package’s public entry point.
 export * from "./incentives";
+export * from "./subscription-management";

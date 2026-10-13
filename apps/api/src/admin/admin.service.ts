@@ -405,7 +405,7 @@ export class AdminService {
         .addGroupBy('plan.name')
         .addGroupBy('plan.sortOrder')
         .orderBy('plan.sortOrder', 'ASC')
-        .getRawMany<{ key: TierValue; label: string; count: string }>(),
+        .getRawMany<{ key: string; label: string; count: string }>(),
     ]);
 
     const tierCounts = new Map(
@@ -954,7 +954,7 @@ export class AdminService {
         .addGroupBy('plan.name')
         .addGroupBy('plan.sortOrder')
         .orderBy('plan.sortOrder', 'ASC')
-        .getRawMany<{ key: TierValue; label: string; count: string }>(),
+        .getRawMany<{ key: string; label: string; count: string }>(),
     ]);
 
     await this.record(

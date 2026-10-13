@@ -4,9 +4,11 @@ import { ChallengeParticipation } from '../entities/challenge-participation.enti
 import { CommunityChallenge } from '../entities/community-challenge.entity';
 import { CommunityChallengesController } from './community-challenges.controller';
 import { CommunityChallengesService } from './community-challenges.service';
+import { SubscriptionManagementModule } from '../subscription-management/subscription-management.module';
 
 @Module({
   imports: [
+    SubscriptionManagementModule,
     TypeOrmModule.forFeature([CommunityChallenge, ChallengeParticipation]),
   ],
   controllers: [CommunityChallengesController],
