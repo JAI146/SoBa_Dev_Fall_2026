@@ -11,5 +11,11 @@ export * from "./reflections";
 export * from "./membership";
 export * from "./admin";
 export * from "./permissions";
+export * from "./progress";
 // Export the shared incentives schemas and types through the package’s public entry point.
 export * from "./incentives";
+export * from "./system-health";
+
+export * from "./notifications";
+
+export * from "./coaching-operations";

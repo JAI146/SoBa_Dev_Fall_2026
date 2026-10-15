@@ -13,6 +13,12 @@ import {
 import { adminPermissionValues } from "./permissions";
 import { paginationQuerySchema } from "./api-error";
 import { valuePublicSchema } from "./onboarding";
+import {
+  goalHistoryEntrySchema,
+  habitProgressSchema,
+  goalSavingsProgressSchema,
+  overallUserProgressSchema,
+} from "./progress";
 
 const isoDate = z.string().datetime();
 
@@ -129,7 +135,8 @@ export const adminCustomRoleCreateSchema = z.object({
   permissions: z.array(z.enum(adminPermissionValues)).min(1),
 });
 
-export const adminCustomRoleUpdateSchema = adminCustomRoleCreateSchema.partial();
+export const adminCustomRoleUpdateSchema =
+  adminCustomRoleCreateSchema.partial();
 
 export const adminCustomRoleSchema = z.object({
   id: z.string().uuid(),
@@ -231,6 +238,7 @@ export const adminUserHabitSchema = z.object({
   category: z.enum(habitCategoryValues),
   isActive: z.boolean(),
   createdAt: isoDate,
+  progress: habitProgressSchema,
 });
 
 export const adminApplicantSchema = z.object({
@@ -274,6 +282,10 @@ export const adminUserDetailResponseSchema = adminUserListItemSchema.extend({
   lastLoginAt: isoDate.nullable(),
   goals: z.array(adminUserGoalSchema),
   habits: z.array(adminUserHabitSchema),
+  goalHistory: z.array(goalHistoryEntrySchema),
+  goalHistoryTruncated: z.boolean(),
+  savingsProgress: z.array(goalSavingsProgressSchema),
+  overallProgress: overallUserProgressSchema,
   pathwayApplications: z.array(adminPathwayApplicationListItemSchema),
   values: z.array(valuePublicSchema),
   activityCounts: z.object({
@@ -347,10 +359,16 @@ export type AdminStaffCreateInput = z.infer<typeof adminStaffCreateSchema>;
 export type AdminStaffUpdateInput = z.infer<typeof adminStaffUpdateSchema>;
 export type AdminStaffListItem = z.infer<typeof adminStaffListItemSchema>;
 export type AdminStaffResponse = z.infer<typeof adminStaffResponseSchema>;
-export type AdminCustomRoleCreateInput = z.infer<typeof adminCustomRoleCreateSchema>;
-export type AdminCustomRoleUpdateInput = z.infer<typeof adminCustomRoleUpdateSchema>;
+export type AdminCustomRoleCreateInput = z.infer<
+  typeof adminCustomRoleCreateSchema
+>;
+export type AdminCustomRoleUpdateInput = z.infer<
+  typeof adminCustomRoleUpdateSchema
+>;
 export type AdminCustomRole = z.infer<typeof adminCustomRoleSchema>;
-export type AdminCustomRolesResponse = z.infer<typeof adminCustomRolesResponseSchema>;
+export type AdminCustomRolesResponse = z.infer<
+  typeof adminCustomRolesResponseSchema
+>;
 export type AdminPathwayApplicationsQuery = z.infer<
   typeof adminPathwayApplicationsQuerySchema
 >;

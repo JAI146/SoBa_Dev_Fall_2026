@@ -190,6 +190,20 @@ export type AuditOutcomeValue =
 
 /** Actions written to `audit_events`. Kept as a closed set so queries stay honest. */
 export const AuditAction = {
+  NOTIFICATION_SMTP_UPDATED: "notification.smtp_updated",
+  NOTIFICATION_SEND_REQUESTED: "notification.send_requested",
+  NOTIFICATION_SEND_COMPLETED: "notification.send_completed",
+  NOTIFICATION_EMAIL_TEST: "notification.email_test",
+  NOTIFICATION_CATEGORY_UPDATED: "notification.category_updated",
+  NOTIFICATION_RETRY_REQUESTED: "notification.retry_requested",
+  REENGAGEMENT_PLANNED: "notification.reengagement_planned",
+  NOTIFICATION_QUEUED: "notification.queued",
+  NOTIFICATION_PREFERENCES_UPDATED: "notification.preferences_updated",
+  SYSTEM_HEALTH_REPORTED: "system_health.reported",
+  GOAL_CHANGED: "goal.changed",
+  HABIT_SELECTION_CHANGED: "habit.selection_changed",
+  HABIT_PAUSED: "habit.paused",
+  HABIT_RESUMED: "habit.resumed",
   // Track incentive reads, program creation/updates, eligibility reviews, and ledger events.
   INCENTIVES_VIEWED: "incentives.viewed",
   INCENTIVE_PROGRAM_UPDATED: "incentives.program_updated",

@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import { createHash } from 'node:crypto';
 import { Client } from 'pg';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -23,6 +24,13 @@ function uuid(group, index) {
   return `00000000-0000-4000-${group}-${String(index).padStart(12, '0')}`;
 }
 
+// Catalog positions change when templates are added. Key habit fixture IDs to
+// their relationship instead, preserving existing rows through the natural key.
+function relationshipUuid(kind, ...parts) {
+  const hex = createHash('sha256').update(JSON.stringify(['purposemint-mock', kind, ...parts])).digest('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
 await client.connect();
 try {
   await client.query('BEGIN');
@@ -30,7 +38,7 @@ try {
   const pathways = (await client.query('SELECT key FROM pathways ORDER BY sort_order')).rows;
   const values = (await client.query('SELECT id, key FROM "values" ORDER BY sort_order')).rows;
   const goalTemplates = (await client.query('SELECT id, title, target_amount, is_pathway_eligible, icon_emoji FROM goal_templates ORDER BY sort_order')).rows;
-  const habitTemplates = (await client.query('SELECT id, frequency FROM habit_templates ORDER BY sort_order')).rows;
+  const habitTemplates = (await client.query('SELECT id, frequency FROM habit_templates ORDER BY sort_order, id')).rows;
   const challenges = (await client.query('SELECT id FROM community_challenges ORDER BY active_month')).rows;
   if (!pathways.length) throw new Error('Reference data is missing; start the API before running the mock seed.');
   if (values.length < 2 || goalTemplates.length < 2 || habitTemplates.length < 2 || !challenges.length) {
@@ -143,7 +151,7 @@ try {
 
       for (let habitIndex = 0; habitIndex < 3; habitIndex += 1) {
         const template = habitTemplates[(index + habitIndex) % habitTemplates.length];
-        const habitId = uuid(`85${habitIndex}0`, number);
+        const habitId = relationshipUuid('habit', userId, template.id);
         const active = habitIndex !== 2 || index % 3 !== 0;
         await client.query(
           `INSERT INTO user_habits (id, user_id, source_template_id, is_active,
@@ -167,7 +175,7 @@ try {
             `INSERT INTO habit_completions (id, user_id, user_habit_id, completed_on)
              VALUES ($1, $2, $3, (now() AT TIME ZONE 'America/Chicago')::date - $4::int)
              ON CONFLICT DO NOTHING`,
-            [uuid(`86${habitIndex}0`, number * 100 + completionIndex),
+            [relationshipUuid('completion', savedHabitId, completionIndex),
               userId, savedHabitId, daysAgo + index % 3],
           );
         }

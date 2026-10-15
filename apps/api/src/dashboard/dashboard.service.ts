@@ -6,6 +6,9 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   OnboardingStatus,
+  AuditAction,
+  AuditActorType,
+  type HabitPauseInput,
   type CreateSavingsInput,
   type CreateSavingsResponse,
   type DashboardPayload,
@@ -16,6 +19,12 @@ import {
   type UpdateValuesInput,
 } from '@purposemint/contracts';
 import { In, IsNull, Not, QueryFailedError, Repository } from 'typeorm';
+import {
+  AuditService,
+  goalHistoryState,
+  loadHabitLifecycle,
+  habitIsPaused,
+} from '../audit/audit.service';
 import {
   toUserGoalPublic,
   toValuePublic,
@@ -62,7 +71,8 @@ export class DashboardService {
     private readonly completionsRepo: Repository<HabitCompletion>,
     @InjectRepository(SavingsEntry)
     private readonly savingsRepo: Repository<SavingsEntry>,
-    @InjectRepository(HabitTemplate) private readonly habitTemplatesRepo: Repository<HabitTemplate>,
+    @InjectRepository(HabitTemplate)
+    private readonly habitTemplatesRepo: Repository<HabitTemplate>,
     @InjectRepository(Value) private readonly valuesRepo: Repository<Value>,
     @InjectRepository(Pathway)
     private readonly pathwaysRepo: Repository<Pathway>,
@@ -71,34 +81,77 @@ export class DashboardService {
     private readonly usersService: UsersService,
     private readonly reflectionsService: ReflectionsService,
     private readonly communityChallengesService: CommunityChallengesService,
+    private readonly audit: AuditService,
   ) {}
 
-  async updateHabits(userId: string, input: UpdateHabitsInput): Promise<DashboardPayload> {
+  async updateHabits(
+    userId: string,
+    input: UpdateHabitsInput,
+  ): Promise<DashboardPayload> {
     await this.requireCompleted(userId);
     await this.userHabitsRepo.manager.transaction(async (manager) => {
-      await manager.findOneOrFail(User, { where: { id: userId }, lock: { mode: 'pessimistic_write' } });
+      await manager.findOneOrFail(User, {
+        where: { id: userId },
+        lock: { mode: 'pessimistic_write' },
+      });
       const selected = [...new Set(input.templateIds)];
-      const templates = selected.length ? await manager.find(HabitTemplate, { where: { id: In(selected) } }) : [];
-      if (templates.length !== selected.length) throw new NotFoundException("One or more habits aren't available.");
+      const templates = selected.length
+        ? await manager.find(HabitTemplate, { where: { id: In(selected) } })
+        : [];
+      if (templates.length !== selected.length)
+        throw new NotFoundException("One or more habits aren't available.");
       const existing = await manager.find(UserHabit, { where: { userId } });
-      const byTemplate = new Map(existing.map((row) => [row.sourceTemplateId, row]));
-      for (const row of existing) { row.isActive = selected.includes(row.sourceTemplateId); }
+      const byTemplate = new Map(
+        existing.map((row) => [row.sourceTemplateId, row]),
+      );
+      for (const row of existing) {
+        const previousActive = row.isActive;
+        row.isActive = selected.includes(row.sourceTemplateId);
+        await this.audit.recordHabitSelection(
+          manager,
+          userId,
+          row,
+          previousActive,
+        );
+      }
       await manager.save(existing);
-      const additions = selected.filter((id) => !byTemplate.has(id)).map((sourceTemplateId) => manager.create(UserHabit, { userId, sourceTemplateId, isActive: true }));
-      if (additions.length) await manager.save(additions);
+      const additions = selected
+        .filter((id) => !byTemplate.has(id))
+        .map((sourceTemplateId) =>
+          manager.create(UserHabit, {
+            userId,
+            sourceTemplateId,
+            isActive: true,
+          }),
+        );
+      if (additions.length) {
+        await manager.save(additions);
+        for (const habit of additions)
+          await this.audit.recordHabitSelection(manager, userId, habit, null);
+      }
     });
     return this.getDashboard(userId);
   }
 
-  async updateValues(userId: string, input: UpdateValuesInput): Promise<DashboardPayload> {
+  async updateValues(
+    userId: string,
+    input: UpdateValuesInput,
+  ): Promise<DashboardPayload> {
     await this.requireCompleted(userId);
     await this.userValuesRepo.manager.transaction(async (manager) => {
-      await manager.findOneOrFail(User, { where: { id: userId }, lock: { mode: 'pessimistic_write' } });
+      await manager.findOneOrFail(User, {
+        where: { id: userId },
+        lock: { mode: 'pessimistic_write' },
+      });
       const keys = [...new Set(input.valueKeys)];
       const values = await manager.find(Value, { where: { key: In(keys) } });
-      if (values.length !== keys.length) throw new NotFoundException("One or more values aren't available.");
+      if (values.length !== keys.length)
+        throw new NotFoundException("One or more values aren't available.");
       await manager.delete(UserValue, { userId });
-      await manager.insert(UserValue, values.map((value) => ({ userId, valueId: value.id })));
+      await manager.insert(
+        UserValue,
+        values.map((value) => ({ userId, valueId: value.id })),
+      );
     });
     return this.getDashboard(userId);
   }
@@ -111,7 +164,14 @@ export class DashboardService {
       );
     }
 
-    const [userValues, goals, habits, pathways, pathwayApplications, communityChallenge] = await Promise.all([
+    const [
+      userValues,
+      goals,
+      habits,
+      pathways,
+      pathwayApplications,
+      communityChallenge,
+    ] = await Promise.all([
       this.userValuesRepo.find({
         where: { userId },
         relations: { value: true },
@@ -141,6 +201,10 @@ export class DashboardService {
 
     const today = todayInTimeZone(user.timeZone);
     const habitIds = habits.map((habit) => habit.id);
+    const lifecycle = await loadHabitLifecycle(
+      this.userHabitsRepo.manager,
+      habitIds,
+    );
     const todaysCompletions =
       habitIds.length === 0
         ? []
@@ -188,6 +252,7 @@ export class DashboardService {
             iconEmoji: template.iconEmoji,
             isActive: habit.isActive,
             completedToday: completedIds.has(habit.id),
+            isPaused: habitIsPaused(lifecycle, habit.id),
           },
         ];
       }),
@@ -224,6 +289,11 @@ export class DashboardService {
       if (!goal) {
         throw new NotFoundException("We couldn't find that savings goal.");
       }
+      if (goal.isFocus) return toUserGoalPublic(goal);
+      const oldFocus = await manager.findOneBy(UserGoal, {
+        userId,
+        isFocus: true,
+      });
       await manager.update(
         UserGoal,
         { userId, isFocus: true },
@@ -231,6 +301,23 @@ export class DashboardService {
       );
       await manager.update(UserGoal, { id: goal.id }, { isFocus: true });
       const saved = await manager.findOneByOrFail(UserGoal, { id: goal.id });
+      if (oldFocus) {
+        const changed = await manager.findOneByOrFail(UserGoal, {
+          id: oldFocus.id,
+        });
+        await this.audit.recordGoalChange(
+          manager,
+          userId,
+          changed,
+          goalHistoryState(oldFocus),
+        );
+      }
+      await this.audit.recordGoalChange(
+        manager,
+        userId,
+        saved,
+        goalHistoryState(goal),
+      );
       return toUserGoalPublic(saved);
     });
   }
@@ -250,6 +337,13 @@ export class DashboardService {
         });
         if (!habit) {
           throw new NotFoundException("We couldn't find that habit.");
+        }
+        if (
+          habitIsPaused(await loadHabitLifecycle(manager, [habit.id]), habit.id)
+        ) {
+          throw new ForbiddenException(
+            'Resume this habit before recording a completion.',
+          );
         }
 
         const existing = await manager.findOne(HabitCompletion, {
@@ -283,39 +377,51 @@ export class DashboardService {
     input: CreateSavingsInput,
   ): Promise<CreateSavingsResponse> {
     await this.requireCompleted(userId);
-    const saved = await this.savingsRepo.manager.transaction(async (manager) => {
-      const goal = await manager.findOne(UserGoal, {
-        where: { id: input.goalId, userId, isActive: true },
-        lock: { mode: 'pessimistic_write' },
-      });
-      if (!goal) {
-        throw new NotFoundException("We couldn't find that savings goal.");
-      }
-      const entry = await manager.save(
-        SavingsEntry,
-        manager.create(SavingsEntry, {
+    const saved = await this.savingsRepo.manager.transaction(
+      async (manager) => {
+        const goal = await manager.findOne(UserGoal, {
+          where: { id: input.goalId, userId, isActive: true },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!goal) {
+          throw new NotFoundException("We couldn't find that savings goal.");
+        }
+        const entry = await manager.save(
+          SavingsEntry,
+          manager.create(SavingsEntry, {
+            userId,
+            userGoalId: goal.id,
+            amount: input.amount,
+            note: input.note?.trim() ? input.note.trim() : null,
+          }),
+        );
+
+        const raw = await manager
+          .createQueryBuilder(SavingsEntry, 'entry')
+          .select('COALESCE(SUM(entry.amount), 0)', 'total')
+          .where('entry.userGoalId = :goalId', { goalId: goal.id })
+          .getRawOne<{ total: string }>();
+
+        await manager.update(
+          UserGoal,
+          { id: goal.id },
+          {
+            savedAmount: Number(raw?.total ?? 0),
+          },
+        );
+
+        const updatedGoal = await manager.findOneByOrFail(UserGoal, {
+          id: goal.id,
+        });
+        await this.audit.recordGoalChange(
+          manager,
           userId,
-          userGoalId: goal.id,
-          amount: input.amount,
-          note: input.note?.trim() ? input.note.trim() : null,
-        }),
-      );
-
-      const raw = await manager
-        .createQueryBuilder(SavingsEntry, 'entry')
-        .select('COALESCE(SUM(entry.amount), 0)', 'total')
-        .where('entry.userGoalId = :goalId', { goalId: goal.id })
-        .getRawOne<{ total: string }>();
-
-      await manager.update(UserGoal, { id: goal.id }, {
-        savedAmount: Number(raw?.total ?? 0),
-      });
-
-      const updatedGoal = await manager.findOneByOrFail(UserGoal, {
-        id: goal.id,
-      });
-      return { entry, goal: updatedGoal };
-    });
+          updatedGoal,
+          goalHistoryState(goal),
+        );
+        return { entry, goal: updatedGoal };
+      },
+    );
 
     return {
       entry: {
@@ -327,6 +433,35 @@ export class DashboardService {
       },
       goal: toUserGoalPublic(saved.goal),
     };
+  }
+
+  async setHabitPause(userId: string, habitId: string, input: HabitPauseInput) {
+    await this.requireCompleted(userId);
+    return this.userHabitsRepo.manager.transaction(async (manager) => {
+      const habit = await manager.findOne(UserHabit, {
+        where: { id: habitId, userId, isActive: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!habit)
+        throw new NotFoundException("We couldn't find that selected habit.");
+      const paused = habitIsPaused(
+        await loadHabitLifecycle(manager, [habit.id]),
+        habit.id,
+      );
+      if (paused !== input.paused) {
+        await this.audit.recordTransactional(manager, {
+          action: input.paused
+            ? AuditAction.HABIT_PAUSED
+            : AuditAction.HABIT_RESUMED,
+          actorUserId: userId,
+          actorType: AuditActorType.USER,
+          entityType: 'habit',
+          entityId: habit.id,
+          metadata: { userId, paused: input.paused },
+        });
+      }
+      return { userHabitId: habit.id, isPaused: input.paused };
+    });
   }
 
   private async requireCompleted(userId: string): Promise<User> {

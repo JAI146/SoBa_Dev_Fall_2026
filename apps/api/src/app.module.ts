@@ -1,3 +1,6 @@
+import { CoachingOperationsModule } from './coaching-operations/coaching-operations.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { SystemHealthModule } from './system-health/system-health.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
@@ -60,6 +63,9 @@ import { IncentivesModule } from './incentives/incentives.module';
     // Mount incentive endpoints and seed the default program after database initialization.
     IncentivesModule,
     HealthModule,
+    SystemHealthModule,
+    NotificationsModule,
+    CoachingOperationsModule,
   ],
   providers: [
     // Order matters: rate limit, then authenticate, then authorize.

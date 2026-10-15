@@ -15,7 +15,7 @@ export const notificationPreferencesSchema = z.object({
   productUpdates: z.boolean(),
   goalReminders: z.boolean(),
   weeklyCheckIn: z.boolean(),
-  securityAlerts: z.boolean(),
+  securityAlerts: z.literal(true),
 });
 
 export type NotificationPreferences = z.infer<
@@ -31,6 +31,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
 
 export const updateNotificationPreferencesSchema = notificationPreferencesSchema
   .partial()
+  .strict()
   .refine((value) => Object.keys(value).length > 0, {
     message: "Pick at least one preference to update.",
   });
