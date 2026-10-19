@@ -141,6 +141,12 @@ export default function DashboardLayout({
       icon: "roles",
       active: pathname.startsWith("/dashboard/manage-roles"),
     },
+    {
+      href: "/dashboard/support-cases",
+      label: "Support cases",
+      icon: "support",
+      active: pathname.startsWith("/dashboard/support-cases"),
+    },
   ];
 
   return (

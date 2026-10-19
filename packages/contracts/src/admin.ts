@@ -298,6 +298,8 @@ export const adminUserDetailResponseSchema = adminUserListItemSchema.extend({
   state: z.string().nullable(),
   city: z.string().nullable(),
   lastLoginAt: isoDate.nullable(),
+  /** Milestone level, null until one is assigned. */
+  currentLevel: z.number().int().nullable(),
   goals: z.array(adminUserGoalSchema),
   habits: z.array(adminUserHabitSchema),
   pathwayApplications: z.array(adminPathwayApplicationListItemSchema),

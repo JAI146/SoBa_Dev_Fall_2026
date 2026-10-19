@@ -776,6 +776,7 @@ export class AdminService {
       state: user.state,
       city: user.city,
       lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+      currentLevel: user.currentLevel,
       goals: goals.map((goal) => {
         const progress = toUserGoalPublic(goal);
         return {
