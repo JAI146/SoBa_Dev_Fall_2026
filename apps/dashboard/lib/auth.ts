@@ -10,7 +10,7 @@ export type StoredUser = AuthResponse["user"];
 /** The subset of the account the chrome actually renders. */
 export type DashboardUser = Pick<
   StoredUser,
-  "firstName" | "lastName" | "email" | "profileImageUrl"
+  "id" | "firstName" | "lastName" | "email" | "profileImageUrl"
 >;
 
 function readStorageValue(key: string): string | null {
