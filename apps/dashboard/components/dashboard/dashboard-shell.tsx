@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
 import type { DashboardUser } from "@/lib/auth";
+import { SidebarNavGroup } from "./sidebar-nav-group";
 import { SidebarNavLink } from "./sidebar-nav-link";
 import type { SidebarNavIconName } from "./sidebar-nav-icons";
 import { DashboardTopbar } from "./dashboard-topbar";
@@ -12,6 +14,8 @@ export type DashboardNavItem = {
   active: boolean;
   icon: SidebarNavIconName;
   label: string;
+  /** Child pages shown indented under this item as an expandable group. */
+  children?: { href: string; label: string }[];
 };
 
 export function DashboardShell({
@@ -36,16 +40,26 @@ export function DashboardShell({
         </Link>
         <p className={styles["sidebar-nav-section-label"]}>Menu</p>
         <nav className={styles["sidebar-nav"]}>
-          {navItems.map((item) => (
-            <SidebarNavLink
-              key={item.href}
-              href={item.href}
-              active={item.active}
-              icon={item.icon}
-            >
-              {item.label}
-            </SidebarNavLink>
-          ))}
+          {navItems.map((item) => {
+            const link = (
+              <SidebarNavLink
+                key={item.href}
+                href={item.href}
+                active={item.active}
+                icon={item.icon}
+              >
+                {item.label}
+              </SidebarNavLink>
+            );
+            const children = item.children;
+            if (!children) return link;
+            // Groups read the URL's query, which needs a Suspense boundary.
+            return (
+              <Suspense key={item.href} fallback={link}>
+                <SidebarNavGroup item={{ ...item, children }} />
+              </Suspense>
+            );
+          })}
         </nav>
         <div className={styles["sidebar-footer"]}>
           <p className={styles["sidebar-nav-section-label"]}>General</p>

@@ -21,6 +21,7 @@ import { ReflectionsModule } from './reflections/reflections.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { CommunityChallengesModule } from './community-challenges/community-challenges.module';
 import { AdminModule } from './admin/admin.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { IncentivesModule } from './incentives/incentives.module';
 import { SubscriptionManagementModule } from './subscription-management/subscription-management.module';
 
@@ -58,6 +59,7 @@ import { SubscriptionManagementModule } from './subscription-management/subscrip
     SubscriptionsModule,
     CommunityChallengesModule,
     AdminModule,
+    AnalyticsModule,
     // Mount incentive endpoints and seed the default program after database initialization.
     IncentivesModule,
     SubscriptionManagementModule,

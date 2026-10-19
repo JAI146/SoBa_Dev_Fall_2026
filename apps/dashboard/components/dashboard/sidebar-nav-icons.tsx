@@ -7,7 +7,8 @@ export type SidebarNavIconName =
   | "upgrades"
   | "progress"
   | "roles"
-  | "incentives";
+  | "incentives"
+  | "analytics";
 
 function Svg({
   children,
@@ -32,6 +33,15 @@ function Svg({
   );
 }
 
+/** Rotated by CSS when its group is open. */
+export function SidebarChevron({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path d="m6 9 6 6 6-6" />
+    </Svg>
+  );
+}
+
 export function SidebarNavIcon({
   name,
   className,
@@ -45,6 +55,16 @@ export function SidebarNavIcon({
       <Svg className={className}>
         <rect x="3" y="8" width="18" height="4" rx="1" />
         <path d="M5 12v9h14v-9M12 8v13M12 8H8a3 3 0 1 1 3-3zM12 8h4a3 3 0 1 0-3-3z" />
+      </Svg>
+    );
+  }
+  if (name === "analytics") {
+    return (
+      <Svg className={className}>
+        <path d="M4 20V10" />
+        <path d="M10 20V4" />
+        <path d="M16 20v-7" />
+        <path d="M22 20H2" />
       </Svg>
     );
   }

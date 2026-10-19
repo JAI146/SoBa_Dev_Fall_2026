@@ -220,6 +220,8 @@ export const AuditAction = {
   ADMIN_PATHWAY_APPLICATION_VIEWED: "admin.pathway_application_viewed",
   ADMIN_PATHWAY_CHECKLIST_UPDATED: "admin.pathway_checklist_updated",
   ADMIN_UPGRADE_INTENTS_LISTED: "admin.upgrade_intents_listed",
+  ADMIN_ANALYTICS_VIEWED: "admin.analytics_viewed",
+  ADMIN_REPORT_EXPORTED: "admin.report_exported",
   ADMIN_PLAN_CREATED: "admin.plan_created",
   ADMIN_PLAN_UPDATED: "admin.plan_updated",
   ADMIN_SUBSCRIPTION_CHANGED: "admin.subscription_changed",

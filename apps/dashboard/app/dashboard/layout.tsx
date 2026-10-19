@@ -7,6 +7,7 @@ import {
   AdminRole,
   userPublicSchema,
   subscriptionAdminAccessSchema,
+  adminAnalyticsAccessSchema,
   type MessageResponse,
   type UserPublic,
 } from "@purposemint/contracts";
@@ -27,6 +28,7 @@ export default function DashboardLayout({
   const [user, setUser] = useState<UserPublic | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [canViewSubscriptions, setCanViewSubscriptions] = useState(false);
+  const [canViewAnalytics, setCanViewAnalytics] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,6 +67,18 @@ export default function DashboardLayout({
           if (!cancelled) setCanViewSubscriptions(true);
         } catch {
           if (!cancelled) setCanViewSubscriptions(false);
+        }
+        try {
+          // The probe is open to every admin, so hiding the link never costs a 403.
+          const analyticsAccess = await apiRequest(
+            "/admin/analytics/access",
+            {},
+            token,
+            adminAnalyticsAccessSchema,
+          );
+          if (!cancelled) setCanViewAnalytics(analyticsAccess.canView);
+        } catch {
+          if (!cancelled) setCanViewAnalytics(false);
         }
       } catch {
         if (!cancelled) {
@@ -113,6 +127,32 @@ export default function DashboardLayout({
       icon: "overview",
       active: pathname === "/dashboard",
     },
+    ...(canViewAnalytics
+      ? [
+          {
+            href: "/dashboard/analytics",
+            label: "Analytics",
+            icon: "analytics" as const,
+            active: pathname.startsWith("/dashboard/analytics"),
+            children: [
+              { href: "/dashboard/analytics", label: "User analytics" },
+              {
+                href: "/dashboard/analytics/wellness",
+                label: "Financial wellness",
+              },
+              {
+                href: "/dashboard/analytics/pathways",
+                label: "Pathways and plans",
+              },
+              {
+                href: "/dashboard/analytics/subscriptions",
+                label: "Subscriptions",
+              },
+              { href: "/dashboard/analytics/retention", label: "Retention" },
+            ],
+          },
+        ]
+      : []),
     {
       href: "/dashboard/pathway-applications",
       label: "Pathway applications",
