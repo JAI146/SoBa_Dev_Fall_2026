@@ -2,9 +2,11 @@ import { Tier } from '@purposemint/contracts';
 import type { CommunityChallenge } from '../entities/community-challenge.entity';
 import type { SubscriptionPlan } from '../entities/subscription-plan.entity';
 
-export const SEEDED_SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
+export const SEEDED_SUBSCRIPTION_PLANS: Partial<SubscriptionPlan>[] = [
   {
     key: Tier.FREE,
+    isDefault: true,
+    entitlements: { pathways: false, communityChallenges: false },
     name: 'Starter',
     tagline: 'Start your savings journey',
     priceMonthly: 0,
@@ -23,6 +25,7 @@ export const SEEDED_SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   },
   {
     key: Tier.GROWTH,
+    entitlements: { pathways: false, communityChallenges: true },
     name: 'Momentum',
     tagline: 'Open your account and save automatically',
     priceMonthly: 19,
@@ -42,6 +45,7 @@ export const SEEDED_SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   },
   {
     key: Tier.ELEVATE,
+    entitlements: { pathways: true, communityChallenges: true },
     name: 'Elevation',
     tagline: 'Unlock Level 5 Pathways',
     priceMonthly: 49,

@@ -282,12 +282,13 @@ export class SeedService implements OnModuleInit {
   }
 
   private async seedMembership() {
-    await this.subscriptionPlansRepo.upsert(
-      SEEDED_SUBSCRIPTION_PLANS.map((plan) =>
-        this.subscriptionPlansRepo.create(plan),
-      ),
-      ['key'],
-    );
+    // Insert missing starter offers only: never overwrite administrator configuration.
+    await this.subscriptionPlansRepo
+      .createQueryBuilder()
+      .insert()
+      .values(SEEDED_SUBSCRIPTION_PLANS)
+      .orIgnore()
+      .execute();
     await this.communityChallengesRepo.upsert(
       SEEDED_COMMUNITY_CHALLENGES.map((challenge) =>
         this.communityChallengesRepo.create(challenge),
