@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { SmtpConfigService } from '../mail/smtp-config.service';
 export class EmailDeliveryError extends Error {
-  constructor(public readonly uncertain: boolean) {
+  constructor(
+    public readonly uncertain: boolean,
+    public readonly retryable = false,
+  ) {
     super(
       uncertain
         ? 'Email outcome is unconfirmed. Check the SMTP provider before sending again.'
@@ -23,7 +26,12 @@ export class NotificationEmailSender {
       config.smtpEmailPassword,
     );
   }
-  async send(to: string, subject: string, text: string): Promise<void> {
+  async send(
+    to: string,
+    subject: string,
+    text: string,
+    html?: string,
+  ): Promise<void> {
     const config = await this.config.getConfig();
     if (!config?.smtpEnabled || !config.fromEmail || !config.smtpEmailPassword)
       throw new EmailDeliveryError(false);
@@ -43,6 +51,7 @@ export class NotificationEmailSender {
         to,
         subject,
         text,
+        ...(html ? { html } : {}),
         disableFileAccess: true,
         disableUrlAccess: true,
       });
@@ -59,10 +68,22 @@ export class NotificationEmailSender {
     } catch (error: unknown) {
       if (error instanceof EmailDeliveryError) throw error;
       const code = (error as { code?: unknown }).code;
+      const responseCode = (error as { responseCode?: number }).responseCode;
+      const temporaryRejection =
+        typeof responseCode === 'number' &&
+        responseCode >= 400 &&
+        responseCode < 500;
+      const definitive =
+        temporaryRejection ||
+        (typeof responseCode === 'number' &&
+          responseCode >= 500 &&
+          responseCode < 600);
       throw new EmailDeliveryError(
-        !['EAUTH', 'EENVELOPE', 'EMESSAGE', 'ECONNECTION', 'EDNS'].includes(
-          String(code),
-        ),
+        !definitive &&
+          !['EAUTH', 'EENVELOPE', 'EMESSAGE', 'ECONNECTION', 'EDNS'].includes(
+            String(code),
+          ),
+        temporaryRejection || ['ECONNECTION', 'EDNS'].includes(String(code)),
       );
     } finally {
       transport.close();

@@ -3,7 +3,11 @@ import {
   Logger,
   OnApplicationBootstrap,
   OnModuleDestroy,
+  Optional,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { NotificationEmailSender } from './notification-email.sender';
+import { notificationAutomation } from './notification-automation-config';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, In } from 'typeorm';
 import { UserStatus, UserType, AuditAction } from '@purposemint/contracts';
@@ -36,6 +40,8 @@ export class ReEngagementPlanner
   constructor(
     @InjectDataSource() private readonly db: DataSource,
     private readonly audit: AuditService,
+    @Optional() private readonly emailSender?: NotificationEmailSender,
+    @Optional() private readonly config: ConfigService = new ConfigService(),
   ) {}
   onApplicationBootstrap() {
     this.timer = setInterval(() => {
@@ -61,6 +67,14 @@ export class ReEngagementPlanner
     }
   }
   async planBatch(now = new Date(), actorUserId?: string) {
+    const automation = notificationAutomation(this.config);
+    const emailReady =
+      automation.configured && Boolean(await this.emailSender?.ready());
+    const emailReason = !automation.enabled
+      ? 'automation_disabled'
+      : !automation.appUrl
+        ? 'customer_app_url_required'
+        : 'provider_not_configured';
     const outcome = await this.db.transaction(async (manager) => {
       const [lock] = await manager.query<{ locked: boolean }[]>(
         'SELECT pg_try_advisory_xact_lock(hashtext($1)) AS locked',
@@ -146,8 +160,21 @@ export class ReEngagementPlanner
                 decision?.reason ??
                 (category ? 'account_inactive' : 'category_unavailable');
             } else {
-              job.status = 'blocked';
-              job.reason = 'provider_not_configured';
+              const ready = job.channel === 'email' && emailReady;
+              // Keep backoff and retry intent when a delivery was temporarily rejected.
+              const retry = job.status === 'retry_pending';
+              job.status = ready
+                ? retry
+                  ? 'retry_pending'
+                  : 'scheduled'
+                : 'blocked';
+              job.reason = ready
+                ? retry
+                  ? 'temporary_delivery_failure'
+                  : decision.reason
+                : job.channel === 'email'
+                  ? emailReason
+                  : 'provider_not_configured';
               job.scheduledAt = decision.scheduledAt;
             }
           }
@@ -222,8 +249,14 @@ export class ReEngagementPlanner
               eventType: 're_engagement',
               channel,
               mandatory: false,
-              status: 'blocked',
-              reason: 'provider_not_configured',
+              status:
+                channel === 'email' && emailReady ? 'scheduled' : 'blocked',
+              reason:
+                channel === 'email' && emailReady
+                  ? decision.reason
+                  : channel === 'email'
+                    ? emailReason
+                    : 'provider_not_configured',
               scheduledAt: decision.scheduledAt,
               createdAt: now,
               idempotencyKey: reengagementKey(user, channel),
@@ -264,7 +297,7 @@ export class ReEngagementPlanner
         suppressed: 0,
         examined: 0,
         busy: true,
-        deliveryAvailable: false as const,
+        deliveryAvailable: emailReady,
       };
     this.candidateCursor = outcome.candidateCursor;
     this.pendingCursor = outcome.pendingCursor;
@@ -274,7 +307,7 @@ export class ReEngagementPlanner
       suppressed: outcome.suppressed,
       examined: outcome.examined,
       busy: false,
-      deliveryAvailable: false as const,
+      deliveryAvailable: emailReady,
     };
   }
 }

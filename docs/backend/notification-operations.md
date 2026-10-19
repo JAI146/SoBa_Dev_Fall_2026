@@ -1,5 +1,12 @@
 # Notification preferences and admin operations (14.1–14.4)
 
+**Delivery update:** the earlier phase descriptions below predate SMTP and the
+inactivity worker. Current manual sending is documented in
+[notification-email-setup.md](notification-email-setup.md); explicitly enabled,
+HTML inactivity email delivery is documented in
+[notification-automation.md](notification-automation.md). Goal/habit triggers,
+push delivery, and live KiroMoney remain unconnected.
+
 Customer notification management is in the mobile Profile screen. Optional categories have independent push/email choices. Security, critical app updates and transactions remain enabled on both channels; the API rejects attempts to disable them. Existing category choices are preserved. New optional categories default off. Customers can also set optional opt-out and timezone-aware quiet hours.
 
 Authorized staff can open **Notification operations** in the dashboard. `notifications.view` permits queue status/filter/pagination and customer preference lookup. `notifications.edit` permits optional category configuration, queue intentions and eligibility rechecks. Required categories cannot be changed. Changes are recorded in the existing audit log.

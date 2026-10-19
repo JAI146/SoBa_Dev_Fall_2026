@@ -1,10 +1,13 @@
 import { NotificationEmailSender } from './notification-email.sender';
+import { ConfigService } from '@nestjs/config';
+import { notificationAutomation } from './notification-automation-config';
 import { isCurrentReengagement } from './re-engagement-policy';
 import {
   BadRequestException,
   Injectable,
   NotFoundException,
   OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In } from 'typeorm';
@@ -40,6 +43,7 @@ export class NotificationsService implements OnModuleInit {
     @InjectDataSource() private readonly db: DataSource,
     private readonly audit: AuditService,
     private readonly emailSender: NotificationEmailSender,
+    @Optional() private readonly config: ConfigService = new ConfigService(),
   ) {}
   async onModuleInit() {
     await this.db
@@ -301,6 +305,15 @@ export class NotificationsService implements OnModuleInit {
       .getRawMany<{ status: string; count: string }>();
     return {
       ...permissions,
+      automation: {
+        enabled: notificationAutomation(this.config).enabled,
+        configured: notificationAutomation(this.config).configured,
+        customerAppLinkConfigured: Boolean(
+          notificationAutomation(this.config).appUrl,
+        ),
+        batchSize: 25,
+        intervalSeconds: 60,
+      },
       items: items.map((j) => this.publicJob(j)),
       total,
       page: query.page,
@@ -342,6 +355,10 @@ export class NotificationsService implements OnModuleInit {
           'frequency_limit',
           'customer_active',
           'account_inactive',
+          'demo_address',
+          'temporary_delivery_failure',
+          'automation_disabled',
+          'customer_app_url_required',
         ].includes(job.reason)
           ? job.reason
           : job.reason

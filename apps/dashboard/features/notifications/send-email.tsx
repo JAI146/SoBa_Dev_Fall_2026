@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import {
   notificationEmailInputSchema,
   notificationEmailResultSchema,
+  notificationEmailDraft,
   type NotificationJobPublic,
 } from "@purposemint/contracts";
 import { Dialog } from "@/components/common/dialog";
@@ -21,6 +22,8 @@ export function SendEmail({
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const [draft, setDraft] = useState(() => notificationEmailDraft(job));
+  const [confirmed, setConfirmed] = useState(false);
   const sending = useRef(false);
   async function send(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -64,63 +67,109 @@ export function SendEmail({
         if (!busy) onClose();
       }}
     >
-      <p className={styles.recipient}>
-        To: <strong>{job.recipientName}</strong>
-        <br />
-        {job.recipientEmail}
-      </p>
-      {error && (
-        <p className={base["inline-error"]} role="alert">
-          {error}
+      <div className={styles.composer}>
+        <p className={styles.recipient}>
+          To: <strong>{job.recipientName}</strong>
+          <br />
+          {job.recipientEmail}
         </p>
-      )}
-      <form onSubmit={send} className={base["editor-form"]}>
-        <label>
-          Subject
-          <input
-            name="subject"
-            autoFocus
-            required
-            maxLength={120}
-            disabled={busy}
-          />
-        </label>
-        <label>
-          Message
-          <textarea
-            name="message"
-            rows={7}
-            required
-            maxLength={3000}
-            disabled={busy}
-            className={styles.message}
-          />
-        </label>
-        <p className={styles.note}>
-          Plain text email. Customer preferences, quiet hours, and sending
-          limits are checked before sending.
-        </p>
-        <label className={styles.check}>
-          <input type="checkbox" required disabled={busy} />I have checked the
-          recipient and message.
-        </label>
-        <div className={base["modal-actions"]}>
+        {error && (
+          <p className={base["inline-error"]} role="alert">
+            {error}
+          </p>
+        )}
+        <form onSubmit={send} className={base["editor-form"]}>
+          <label>
+            Subject
+            <input
+              name="subject"
+              autoFocus
+              required
+              maxLength={120}
+              disabled={busy}
+              value={draft.subject}
+              onChange={(event) => {
+                setDraft((previous) => ({
+                  ...previous,
+                  subject: event.target.value,
+                }));
+                setConfirmed(false);
+              }}
+            />
+          </label>
+          <label>
+            Message
+            <textarea
+              name="message"
+              aria-label="Message"
+              rows={7}
+              required
+              maxLength={3000}
+              disabled={busy}
+              className={styles.message}
+              value={draft.message}
+              onChange={(event) => {
+                setDraft((previous) => ({
+                  ...previous,
+                  message: event.target.value,
+                }));
+                setConfirmed(false);
+              }}
+            />
+          </label>
+          <p className={styles.note}>
+            A suggested message is filled in for this notification. Review or
+            edit it before sending. The email includes a PurposeMint-branded
+            layout and a plain-text fallback. Customer preferences, quiet hours,
+            and sending limits are checked before sending.
+          </p>
           <button
             type="button"
-            className={base["btn-toolbar-primary"]}
-            onClick={onClose}
             disabled={busy}
+            className={base["btn-toolbar-primary"]}
+            onClick={() => {
+              setDraft(notificationEmailDraft(job));
+              setConfirmed(false);
+            }}
           >
-            Cancel
+            Restore suggested message
           </button>
-          <button
-            className={base["btn-primary"]}
-            disabled={busy || !job.recipientEmail}
-          >
-            {busy ? "Sending…" : "Send email now"}
-          </button>
-        </div>
-      </form>
+          <details className={styles.preview}>
+            <summary>Review email content</summary>
+            <strong className={styles.brand}>PurposeMint</strong>
+            <h3>{draft.subject || "Add a subject"}</h3>
+            <p className={styles.previewMessage}>
+              {draft.message || "Add a message"}
+            </p>
+          </details>
+          <label className={styles.check}>
+            <input
+              type="checkbox"
+              required
+              disabled={busy}
+              checked={confirmed}
+              onChange={(event) => setConfirmed(event.target.checked)}
+            />
+            I have checked the recipient and message.
+          </label>
+          <div className={base["modal-actions"]}>
+            <button
+              type="button"
+              className={base["btn-toolbar-primary"]}
+              onClick={onClose}
+              disabled={busy}
+            >
+              Cancel
+            </button>
+            <button
+              className={base["btn-primary"]}
+              disabled={busy || !job.recipientEmail}
+            >
+              {busy ? "Sending…" : "Send email now"}
+            </button>
+          </div>
+        </form>
+      </div>
     </Dialog>
   );
 }

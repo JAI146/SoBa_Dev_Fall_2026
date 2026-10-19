@@ -131,6 +131,15 @@ export const notificationOperationsSchema = z.object({
   counts: z.record(z.string(), z.number().int()),
   categories: z.array(notificationCategorySchema),
   canManage: z.boolean(),
+  automation: z
+    .object({
+      enabled: z.boolean(),
+      configured: z.boolean(),
+      customerAppLinkConfigured: z.boolean().default(false),
+      batchSize: z.number().int().positive(),
+      intervalSeconds: z.number().int().positive(),
+    })
+    .optional(),
   canConfigureEmail: z.boolean().default(false),
   emailConfigured: z.boolean().default(false),
   pushConfigured: z.literal(false).default(false),
@@ -256,3 +265,37 @@ export type NotificationEmailInput = z.infer<
   typeof notificationEmailInputSchema
 >;
 export type NotificationSmtpInput = z.infer<typeof notificationSmtpInputSchema>;
+
+/** Editable starting content for real notification emails; no delivery rules live here. */
+export function notificationEmailDraft(
+  job: Pick<
+    NotificationJobPublic,
+    "categoryKey" | "eventType" | "recipientName"
+  >,
+): Pick<NotificationEmailInput, "subject" | "message"> {
+  const name = job.recipientName?.trim().slice(0, 100) || "there";
+  let subject = "A check-in from PurposeMint";
+  let body =
+    "Take a moment to review your PurposeMint journey and choose a next step that works for you.";
+  if (job.eventType === "re_engagement") {
+    subject = "Your next small step with PurposeMint";
+    body =
+      "It has been a few days since your last visit. Whenever you are ready, PurposeMint is here to help you take your next small step. Check in on your goals, review your progress, or return to a habit that matters to you. There is no pressure to catch up or make a contribution.";
+  } else if (job.categoryKey === "goals") {
+    subject = "A small step toward your goal";
+    body =
+      "Take a moment to review your current goal and the progress you have made. If a contribution fits your plans, you can record it in PurposeMint. Go at your own pace.";
+  } else if (job.categoryKey === "habits") {
+    subject = "Your PurposeMint habit check-in";
+    body =
+      "Whenever you have a moment, open PurposeMint and check in on a habit that matters to you. A small step can help build consistency. If you have already completed your check-in, you are all set.";
+  } else if (job.categoryKey === "weekly_savings") {
+    subject = "Your weekly PurposeMint savings check-in";
+    body =
+      "Review your savings journey this week, celebrate a small win, and choose your next step when you are ready. There is no pressure to make a contribution.";
+  }
+  return {
+    subject,
+    message: `Hi ${name},\n\n${body}\n\nOpen your PurposeMint app whenever you are ready.\n\nYou can manage optional reminders and quiet hours in Notification Management.\n\nThe PurposeMint team`,
+  };
+}

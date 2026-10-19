@@ -24,6 +24,11 @@ import {
 } from './notification-email.sender';
 import { allowedAt, settingsFor } from './notification-policy';
 import { isCurrentReengagement } from './re-engagement-policy';
+import {
+  reengagementEmail,
+  customerAppUrl,
+  formattedNotificationEmail,
+} from './notification-email-template';
 const isDemo = (email: string) =>
   /@[^@]+\.(local|invalid|test|example)$/i.test(email) ||
   /@(example\.com|example\.org|example\.net)$/i.test(email);
@@ -126,6 +131,24 @@ export class NotificationEmailService {
     id: string,
     input: NotificationEmailInput,
   ) {
+    return this.deliver(principal, id, input);
+  }
+  /** Internal worker only; no public endpoint accepts HTML or an automated flag. */
+  async sendAutomated(id: string, appUrl: string | null) {
+    const safeUrl = appUrl
+      ? customerAppUrl(appUrl, process.env.NODE_ENV === 'production')
+      : null;
+    if (appUrl && !safeUrl)
+      throw new BadRequestException('A valid customer app URL is required.');
+    return this.deliver(null, id, undefined, safeUrl);
+  }
+  private async deliver(
+    principal: AuthPrincipal | null,
+    id: string,
+    input?: NotificationEmailInput,
+    appUrl?: string | null,
+  ) {
+    const automatic = principal === null;
     if (!(await this.sender.ready()))
       throw new BadRequestException(
         'Configure and enable SMTP before sending email.',
@@ -143,7 +166,10 @@ export class NotificationEmailService {
       });
       if (!user || !job)
         throw new NotFoundException('Customer or notification not found.');
-      if (input.recipientEmail.toLowerCase() !== user.email.toLowerCase())
+      if (
+        input &&
+        input.recipientEmail.toLowerCase() !== user.email.toLowerCase()
+      )
         throw new BadRequestException(
           'The recipient address changed. Refresh Activity and review the new address before sending.',
         );
@@ -154,6 +180,14 @@ export class NotificationEmailService {
       if (job.mandatory)
         throw new BadRequestException(
           'Required account and transaction messages are sent by their own workflows. Choose an optional category.',
+        );
+      if (
+        automatic &&
+        (job.eventType !== 're_engagement' ||
+          job.categoryKey !== 'product_communications')
+      )
+        throw new BadRequestException(
+          'Only inactivity reminders have automatic delivery rules.',
         );
       if (
         [
@@ -169,18 +203,42 @@ export class NotificationEmailService {
         );
       if (job.attempts >= 5)
         throw new BadRequestException('Delivery attempt limit reached.');
-      if (user.status !== UserStatus.ACTIVE || !user.emailVerifiedAt)
+      const defer = async (
+        status: NotificationJob['status'],
+        reason: string,
+        until?: Date,
+      ) => {
+        job.status = status;
+        job.reason = reason;
+        if (until) job.scheduledAt = until;
+        await manager.save(job);
+        await this.audit.recordTransactional(manager, {
+          action: AuditAction.NOTIFICATION_SEND_COMPLETED,
+          actorType: 'system',
+          entityType: 'notification',
+          entityId: id,
+          metadata: { channel: 'email', status, reason, automatic: true },
+        });
+        return null;
+      };
+      if (user.status !== UserStatus.ACTIVE || !user.emailVerifiedAt) {
+        if (automatic) return defer('suppressed', 'account_inactive');
         throw new BadRequestException(
           'Only active customers with verified email can receive these messages.',
         );
-      if (isDemo(user.email))
+      }
+      if (isDemo(user.email)) {
+        if (automatic) return defer('suppressed', 'demo_address');
         throw new BadRequestException(
           'This customer has a demo address. Select a customer with a real inbox.',
         );
-      if (!isCurrentReengagement(job, user, new Date()))
+      }
+      if (!isCurrentReengagement(job, user, new Date())) {
+        if (automatic) return defer('cancelled', 'customer_active');
         throw new BadRequestException(
           'The customer has returned. This reminder is no longer eligible.',
         );
+      }
       const categories = await manager.find(NotificationCategory),
         category = categories.find((item) => item.key === job.categoryKey);
       if (category?.mandatory)
@@ -199,17 +257,35 @@ export class NotificationEmailService {
             new Date(),
           )
         : null;
-      if (!decision?.allowed)
+      if (!decision?.allowed) {
+        if (automatic)
+          return defer(
+            'suppressed',
+            decision?.reason ?? 'category_unavailable',
+          );
         throw new BadRequestException(
           'Customer preferences or category settings prevent this email.',
         );
+      }
       if (
         job.scheduledAt.getTime() > Date.now() ||
         decision.scheduledAt.getTime() > Date.now() + 1000
-      )
+      ) {
+        if (automatic)
+          return defer(
+            'scheduled',
+            decision.reason ?? 'quiet_hours',
+            new Date(
+              Math.max(
+                job.scheduledAt.getTime(),
+                decision.scheduledAt.getTime(),
+              ),
+            ),
+          );
         throw new BadRequestException(
           'The scheduled time or quiet hours prevent sending now.',
         );
+      }
       const interval = Math.max(
         category!.minIntervalHours,
         job.eventType === 're_engagement' ? 168 : 0,
@@ -226,27 +302,57 @@ export class NotificationEmailService {
           pending: ['processing', 'delivery_uncertain'],
         })
         .getCount();
-      if (previous)
+      if (previous) {
+        if (automatic)
+          return defer(
+            'scheduled',
+            'frequency_limit',
+            new Date(Date.now() + interval * 3600000),
+          );
         throw new BadRequestException(
           'A recent or unconfirmed email in this category prevents another send. Check activity and the category frequency limit.',
         );
+      }
+      const template = automatic
+        ? reengagementEmail(user.displayName || user.firstName, appUrl ?? null)
+        : null;
       job.status = 'processing';
       job.reason = null;
       job.attempts++;
       await manager.save(job);
       await this.audit.recordTransactional(manager, {
         action: AuditAction.NOTIFICATION_SEND_REQUESTED,
-        actorUserId: principal.userId,
+        actorUserId: principal?.userId,
+        actorType: automatic ? 'system' : 'admin',
         entityType: 'notification',
         entityId: id,
-        metadata: { channel: 'email', attempt: job.attempts },
+        metadata: { channel: 'email', attempt: job.attempts, automatic },
       });
-      return user.email;
+      return {
+        to: user.email,
+        subject: template?.subject ?? input!.subject,
+        text: template?.text ?? input!.message,
+        html:
+          template?.html ??
+          formattedNotificationEmail(input!.subject, input!.message),
+      };
     });
+    if (!recipient)
+      return { status: 'skipped', message: 'Reminder eligibility rechecked.' };
     let outcome: 'sent' | 'failed' | 'delivery_uncertain' = 'sent';
+    let retryable = false;
     try {
-      await this.sender.send(recipient, input.subject, input.message);
+      await this.sender.send(
+        recipient.to,
+        recipient.subject,
+        recipient.text,
+        recipient.html,
+      );
     } catch (error) {
+      retryable =
+        error instanceof EmailDeliveryError &&
+        !error.uncertain &&
+        error.retryable;
       outcome =
         error instanceof EmailDeliveryError && !error.uncertain
           ? 'failed'
@@ -261,16 +367,32 @@ export class NotificationEmailService {
         throw new BadRequestException(
           'Delivery state needs investigation before retrying.',
         );
-      job.status = outcome;
-      job.reason = outcome === 'sent' ? null : 'unknown_error';
+      const retry =
+        automatic && outcome === 'failed' && retryable && job.attempts < 5;
+      job.status = retry ? 'retry_pending' : outcome;
+      job.reason = retry
+        ? 'temporary_delivery_failure'
+        : outcome === 'sent'
+          ? null
+          : 'unknown_error';
+      if (retry)
+        job.scheduledAt = new Date(
+          Date.now() + Math.min(360, 5 * 2 ** (job.attempts - 1)) * 60000,
+        );
       job.sentAt = outcome === 'sent' ? new Date() : null;
       await manager.save(job);
       await this.audit.recordTransactional(manager, {
         action: AuditAction.NOTIFICATION_SEND_COMPLETED,
-        actorUserId: principal.userId,
+        actorUserId: principal?.userId,
+        actorType: automatic ? 'system' : 'admin',
         entityType: 'notification',
         entityId: id,
-        metadata: { channel: 'email', status: outcome },
+        metadata: {
+          channel: 'email',
+          status: job.status,
+          automatic,
+          attempt: job.attempts,
+        },
       });
     });
     return {

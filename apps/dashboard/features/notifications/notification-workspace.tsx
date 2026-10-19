@@ -4,6 +4,7 @@ import { CustomerPicker } from "@/components/dashboard/customer-picker";
 import { WorkspaceTabs } from "@/components/dashboard/workspace-tabs";
 import { notificationLabel } from "@/lib/notification-display";
 import { useRef, useState } from "react";
+import { CustomerBrowser } from "./customer-browser";
 import { EmailSetup } from "./email-setup";
 import { SendEmail } from "./send-email";
 import {
@@ -73,6 +74,7 @@ export function NotificationWorkspace() {
   const requestId = useRef<string | null>(null);
   const preferenceRequest = useRef(0);
   const [preferenceLoading, setPreferenceLoading] = useState(false);
+  const [preferenceCustomerName, setPreferenceCustomerName] = useState("");
   async function action(path: string, body?: unknown) {
     setBusy(true);
     setFeedback("");
@@ -127,13 +129,14 @@ export function NotificationWorkspace() {
       setBusy(false);
     }
   }
-  async function loadPreferences(event: React.FormEvent) {
-    event.preventDefault();
+  async function loadPreferences(customerId: string, customerName: string) {
+    setPreferenceCustomerName(customerName);
+    setUserId(customerId);
     setPreferenceError("");
     setPreferences(null);
     if (
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        userId,
+        customerId,
       )
     ) {
       setPreferenceError("Select a customer or enter a valid customer ID.");
@@ -143,7 +146,7 @@ export function NotificationWorkspace() {
     setPreferenceLoading(true);
     try {
       const result = await apiRequest(
-        `/admin/notifications/users/${userId}/preferences`,
+        `/admin/notifications/users/${customerId}/preferences`,
         {},
         getToken(),
         notificationSettingsResponseSchema,
@@ -266,7 +269,10 @@ export function NotificationWorkspace() {
           {data.emailConfigured ? "Email configured" : "Email setup needed"}
         </span>
         <span>
-          Push not connected · Emails are sent manually from Activity.
+          Push not connected ·{" "}
+          {data.automation?.configured && data.emailConfigured
+            ? "Inactivity emails send automatically. Other emails are sent from Activity."
+            : "Automatic inactivity emails are paused. Manual email is available from Activity."}
         </span>
       </div>
       {query.error && (
@@ -281,7 +287,7 @@ export function NotificationWorkspace() {
             id="notifications"
             items={[
               { key: "activity", label: "Activity" },
-              { key: "preferences", label: "Customer preferences" },
+              { key: "preferences", label: "Customer notifications" },
               { key: "settings", label: "Manage notifications" },
               ...(data.canConfigureEmail
                 ? [{ key: "email", label: "Email setup" }]
@@ -400,22 +406,20 @@ export function NotificationWorkspace() {
                   <option value="email">Email</option>
                 </select>
               </label>
-              {(status || category || channel) && (
-                <div className={styles.filterActions}>
-                  <button
-                    type="button"
-                    className={layout["btn-toolbar-primary"]}
-                    onClick={() => {
-                      setStatus("");
-                      setCategory("");
-                      setChannel("");
-                      setPage(1);
-                    }}
-                  >
-                    Reset filters
-                  </button>
-                </div>
-              )}
+              <div className={styles.filterActions}>
+                <button
+                  type="button"
+                  className={layout["btn-toolbar-primary"]}
+                  onClick={() => {
+                    setStatus("");
+                    setCategory("");
+                    setChannel("");
+                    setPage(1);
+                  }}
+                >
+                  Reset filters
+                </button>
+              </div>
             </div>
 
             <section className={layout.panel}>
@@ -427,8 +431,7 @@ export function NotificationWorkspace() {
                       <th>Notification</th>
                       <th>Channel</th>
                       <th>Status</th>
-                      <th>Timing (UTC)</th>
-                      <th>Attempts</th>
+                      <th>Planned (UTC)</th>
                       <th>Action</th>
                     </tr>
                   </thead>
@@ -466,28 +469,35 @@ export function NotificationWorkspace() {
                               : "No issue recorded"}
                           </small>
                         </td>
-                        <td data-label="Timing (UTC)">
-                          Planned: {formatAdminDateTime(job.scheduledAt, null)}
-                          <small>
-                            Sent:{" "}
-                            {job.sentAt
-                              ? formatAdminDateTime(job.sentAt, null)
-                              : "Not sent"}
-                          </small>
-                          <small>
-                            Delivered:{" "}
-                            {job.deliveredAt
-                              ? formatAdminDateTime(job.deliveredAt, null)
-                              : "Not confirmed"}
-                          </small>
-                        </td>
-                        <td data-label="Attempts">
-                          {job.attempts} send attempt
-                          {job.attempts === 1 ? "" : "s"}
-                          <small>
-                            {job.retryRequests} recheck
-                            {job.retryRequests === 1 ? "" : "s"}
-                          </small>
+                        <td data-label="Planned (UTC)">
+                          <time dateTime={job.scheduledAt}>
+                            {formatAdminDateTime(job.scheduledAt, null)}
+                          </time>
+                          <details className={styles.deliveryDetails}>
+                            <summary>Delivery details</summary>
+                            <div>
+                              <small>
+                                Sent:{" "}
+                                {job.sentAt
+                                  ? formatAdminDateTime(job.sentAt, null)
+                                  : "Not sent"}
+                              </small>
+                              <small>
+                                Delivered:{" "}
+                                {job.deliveredAt
+                                  ? formatAdminDateTime(job.deliveredAt, null)
+                                  : "Not confirmed"}
+                              </small>
+                              <small>
+                                {job.attempts} send attempt
+                                {job.attempts === 1 ? "" : "s"}
+                              </small>
+                              <small>
+                                {job.retryRequests} recheck
+                                {job.retryRequests === 1 ? "" : "s"}
+                              </small>
+                            </div>
+                          </details>
                         </td>
                         <td data-label="Action">
                           {data.canManage &&
@@ -537,7 +547,7 @@ export function NotificationWorkspace() {
                     ))}
                     {!data.items.length && (
                       <tr>
-                        <td colSpan={6}>
+                        <td colSpan={5}>
                           <div className={styles.emptyState}>
                             <strong>
                               {status || category || channel
@@ -610,25 +620,22 @@ export function NotificationWorkspace() {
             hidden={tab !== "preferences"}
           >
             <section className={layout.panel}>
-              <h2>Customer preferences</h2>
-              <form className={styles.filters} onSubmit={loadPreferences}>
-                <CustomerPicker
+              <h2>Customer notifications</h2>
+              <p className={styles.muted}>
+                Choose a customer to see which notifications they receive.
+              </p>
+              {tab === "preferences" && (
+                <CustomerBrowser
                   value={userId}
-                  onSelect={(id) => {
-                    ++preferenceRequest.current;
-                    setPreferenceLoading(false);
-                    setUserId(id);
-                    setPreferences(null);
-                    setPreferenceError("");
-                  }}
+                  onSelect={(id, name) => void loadPreferences(id, name)}
                 />
-                <button
-                  disabled={!userId || preferenceLoading}
-                  className={layout["btn-toolbar-primary"]}
-                >
-                  {preferenceLoading ? "Loading…" : "View preferences"}
-                </button>
-              </form>
+              )}
+              {userId && (
+                <h3>Notification settings for {preferenceCustomerName}</h3>
+              )}
+              {preferenceLoading && (
+                <p role="status">Loading notification settings…</p>
+              )}
               {preferenceError && (
                 <p role="alert" className={styles.error}>
                   {preferenceError}
@@ -764,6 +771,15 @@ export function NotificationWorkspace() {
               aria-labelledby="reengagement-heading"
             >
               <h2 id="reengagement-heading">Inactivity reminders</h2>
+              <p className={styles.muted}>
+                {data.automation?.configured && data.emailConfigured
+                  ? "Automatic email is on. Eligible reminders are processed every minute in batches of up to 25."
+                  : !data.automation?.enabled
+                    ? "Automatic email is off. A server administrator must explicitly enable it; checking inactivity only plans reminders."
+                    : !data.automation.configured
+                      ? "The configured customer app URL is invalid. Ask the server administrator to correct or remove it."
+                      : "Automatic email is enabled, but SMTP setup is required before messages can be sent."}
+              </p>
               <div className={styles.ruleGrid}>
                 <div>
                   <span>After no login</span>
@@ -779,11 +795,37 @@ export function NotificationWorkspace() {
                 </div>
               </div>
               <details className={styles.help}>
+                <summary>Email content</summary>
+                <p>
+                  <strong>Your next small step with PurposeMint</strong>
+                </p>
+                <p>Hi [customer name],</p>
+                <p>
+                  It has been a few days since your last visit. Whenever you are
+                  ready, PurposeMint is here to help you take your next small
+                  step.
+                </p>
+                <p>
+                  Check in on your goals, review your progress, or return to a
+                  habit that matters to you. There is no pressure to catch up or
+                  make a contribution.
+                </p>
+                <p>
+                  The email includes a PurposeMint-branded layout, preference
+                  guidance, and a plain-text fallback.{" "}
+                  {data.automation?.customerAppLinkConfigured
+                    ? "An Open PurposeMint button links to the configured customer app."
+                    : "The customer app link is not connected; the email asks customers to open their app instead of showing a broken button."}
+                </p>
+              </details>
+              <details className={styles.help}>
                 <summary>Reminder rules</summary>
                 <p>
                   One reminder per channel for each inactivity spell. A longer
                   category interval applies when configured. Returning
-                  customers’ old reminders are cancelled.
+                  customers’ old reminders are cancelled. Automatic delivery
+                  only applies to inactivity emails. Goal and habit triggers are
+                  not connected.
                 </p>
               </details>
               {data.canManage && (

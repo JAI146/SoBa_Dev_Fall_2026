@@ -1,6 +1,7 @@
 import { ReEngagementPlanner } from './re-engagement-planner.service';
 import { NotificationEmailSender } from './notification-email.sender';
 import { NotificationEmailService } from './notification-email.service';
+import { NotificationEmailWorker } from './notification-email-worker';
 import { MailModule } from '../mail/mail.module';
 import { Module } from '@nestjs/common';
 import { AuditModule } from '../audit/audit.module';
@@ -20,6 +21,7 @@ import { NotificationsService } from './notifications.service';
     ReEngagementPlanner,
     NotificationEmailSender,
     NotificationEmailService,
+    NotificationEmailWorker,
   ],
 })
 export class NotificationsModule {}
