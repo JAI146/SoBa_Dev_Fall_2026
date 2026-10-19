@@ -10,16 +10,16 @@ import { useAdminQuery } from "@/lib/use-admin-query";
 import styles from "../../dashboard.module.css";
 import {
   AnalyticsPageState,
-  useAnalyticsDays,
+  useAnalyticsRange,
   weekFullLabel,
   weekLabel,
 } from "../analytics-shared";
 import analyticsStyles from "../analytics.module.css";
 
 export default function RetentionAnalyticsPage() {
-  const days = useAnalyticsDays();
+  const { query: rangeQuery, phrase: windowPhrase } = useAnalyticsRange();
   const query = useAdminQuery(
-    `/admin/analytics/retention?days=${days}`,
+    `/admin/analytics/retention?${rangeQuery}`,
     adminRetentionResponseSchema,
   );
   const data = query.data;
@@ -34,9 +34,7 @@ export default function RetentionAnalyticsPage() {
       />
     );
   }
-  const { windowDays } = data;
   const retention = data;
-  const windowPhrase = `in the last ${windowDays} days`;
   // Week 1 retention across cohorts whose first week has fully ended.
   const weekOneCells = retention.cohorts.flatMap((cohort) =>
     cohort.cells

@@ -25,22 +25,24 @@
   padding: 0;
 }
 
-/* Window and export sit on one row; an export error spans the row below. */
+/* Report, window and export sit on one row (wrapping on small screens);
+   an export error takes the line below. */
 .headerActions {
-  display: grid;
-  grid-template-columns: auto auto;
-  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-end;
   gap: 6px 10px;
 }
 
-/* Window picker: the list opens directly below the button at its width. */
-.windowSelect {
+/* Header dropdowns: the list opens directly below the button at its width. */
+.headerSelect {
   position: relative;
-  /* Fit the button so the list matches it even when the grid cell is wider. */
+  /* Fit the button so the list matches it even when its cell is wider. */
   width: fit-content;
 }
 
-.windowSelectButton {
+.headerSelectButton {
   display: flex;
   min-width: 150px;
   min-height: 38px;
@@ -58,28 +60,28 @@
   font-weight: 650;
 }
 
-.windowSelectButton:hover {
+.headerSelectButton:hover {
   background: var(--background);
 }
 
-.windowSelectButton:focus-visible,
-.windowSelectList:focus-visible {
+.headerSelectButton:focus-visible,
+.headerSelectList:focus-visible {
   outline: 2px solid var(--chart-bar);
   outline-offset: 2px;
 }
 
-.windowSelectChevron {
+.headerSelectChevron {
   width: 16px;
   height: 16px;
   color: var(--muted);
   transition: transform 0.15s ease;
 }
 
-.windowSelectButton[aria-expanded="true"] .windowSelectChevron {
+.headerSelectButton[aria-expanded="true"] .headerSelectChevron {
   transform: rotate(180deg);
 }
 
-.windowSelectList {
+.headerSelectList {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
@@ -96,11 +98,11 @@
   list-style: none;
 }
 
-.windowSelectList[hidden] {
+.headerSelectList[hidden] {
   display: none;
 }
 
-.windowSelectList li {
+.headerSelectList li {
   border-radius: 7px;
   padding: 8px 10px;
   color: var(--foreground);
@@ -109,14 +111,37 @@
   font-weight: 600;
 }
 
-.windowSelectList li[data-active] {
+.headerSelectList li[data-active] {
   background: var(--background);
 }
 
-.windowSelectList li[aria-selected="true"] {
+.headerSelectList li[aria-selected="true"] {
   background: var(--success-bg);
   color: var(--success-text);
   font-weight: 700;
+}
+
+/* Native date inputs, styled like the header dropdown buttons. */
+.dateInput {
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--card);
+  padding: 8px 10px;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  color-scheme: light;
+}
+
+.dateInput:hover {
+  background: var(--background);
+}
+
+.dateInput:focus-visible {
+  outline: 2px solid var(--chart-bar);
+  outline-offset: 2px;
 }
 
 .exportAction {
@@ -124,22 +149,61 @@
 }
 
 .exportError {
-  grid-column: 1 / -1;
-  justify-self: end;
-  /* Wrap within the controls' width instead of widening their columns. */
-  width: 0;
-  min-width: 100%;
+  flex-basis: 100%;
+  /* Wrap within the controls' width instead of widening the row. */
+  contain: inline-size;
   color: var(--error-text);
   font-size: 12px;
   line-height: 1.4;
   text-align: right;
 }
 
+/* The header's primary action: filled with the brand color. */
+.exportButton {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--primary);
+  border-radius: 9px;
+  background: var(--primary);
+  padding: 8px 14px;
+  color: var(--brand-white);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.exportButton:hover:not(:disabled) {
+  border-color: var(--primary-hover);
+  background: var(--primary-hover);
+}
+
+.exportButton:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.exportButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.exportIcon {
+  width: 15px;
+  height: 15px;
+}
+
 .buttonSpinner {
   width: 12px;
   height: 12px;
-  border: 2px solid var(--border);
-  border-top-color: var(--chart-bar);
+  border: 2px solid color-mix(in srgb, var(--brand-white) 40%, transparent);
+  border-top-color: var(--brand-white);
   border-radius: 999px;
   animation: buttonSpin 0.8s linear infinite;
 }
@@ -357,6 +421,7 @@
   font-size: 12px;
   font-weight: 400;
   line-height: 1.45;
+  text-align: left;
   pointer-events: none;
 }
 
@@ -380,6 +445,7 @@
 
 .scaleLegend {
   display: flex;
+  flex-basis: 100%;
   flex-shrink: 0;
   align-items: center;
   gap: 6px;
@@ -415,6 +481,17 @@
 /* Lets the legend drop below the title instead of squeezing it. */
 .wrapHeading {
   flex-wrap: wrap;
+}
+
+@media (max-width: 960px) {
+  /* The header stacks here, so controls start at the left edge. */
+  .headerActions {
+    justify-content: flex-start;
+  }
+
+  .exportError {
+    text-align: left;
+  }
 }
 
 @media (max-width: 720px) {
@@ -461,8 +538,15 @@
   fill: var(--chart-series-month);
 }
 
+/* Legends sit on their own line under the panel title, aligned left. */
+div:has(> .legend),
+div:has(> .scaleLegend) {
+  flex-wrap: wrap;
+}
+
 .legend {
   display: flex;
+  flex-basis: 100%;
   flex-wrap: wrap;
   gap: 14px;
   color: var(--muted);
@@ -524,4 +608,9 @@
   color: #6b7280;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.customRange {
+  display: flex;
+  gap: 10px;
 }

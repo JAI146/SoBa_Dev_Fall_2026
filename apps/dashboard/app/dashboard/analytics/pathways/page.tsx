@@ -17,7 +17,8 @@ import { useAdminQuery } from "@/lib/use-admin-query";
 import styles from "../../dashboard.module.css";
 import {
   AnalyticsPageState,
-  useAnalyticsDays,
+  categoryTick,
+  useAnalyticsRange,
   CountList,
   pathwayTitle,
   tooltipCursor,
@@ -28,9 +29,13 @@ import {
 import analyticsStyles from "../analytics.module.css";
 
 export default function PathwayAnalyticsPage() {
-  const days = useAnalyticsDays();
+  const {
+    query: rangeQuery,
+    label: windowLabel,
+    phrase: windowPhrase,
+  } = useAnalyticsRange();
   const query = useAdminQuery(
-    `/admin/analytics/pathways?days=${days}`,
+    `/admin/analytics/pathways?${rangeQuery}`,
     adminPathwayAnalyticsResponseSchema,
   );
   const data = query.data;
@@ -45,7 +50,6 @@ export default function PathwayAnalyticsPage() {
       />
     );
   }
-  const { windowDays } = data;
   const { applications, checklist, partners, eligibility, premium } = data;
   const submittedApplications =
     applications.byStatus.find((item) => item.key === "submitted")?.count ?? 0;
@@ -56,7 +60,6 @@ export default function PathwayAnalyticsPage() {
   ).length;
   // Demo levels mean the mock seed is loaded, and its savings are small.
   const seededData = data.demoLevelsPresent;
-  const windowPhrase = `in the last ${windowDays} days`;
 
   return (
     <main
@@ -68,7 +71,7 @@ export default function PathwayAnalyticsPage() {
         aria-label="Pathway and plan metrics"
       >
         <DashboardStatCard
-          label={`Applications · ${windowDays} days`}
+          label={`Applications · ${windowLabel}`}
           value={
             <>
               {applications.total.toLocaleString()}
@@ -124,7 +127,7 @@ export default function PathwayAnalyticsPage() {
           <div className={styles["panel-heading"]}>
             <div>
               <h2>Applications by pathway</h2>
-              <p>Started in the last {windowDays} days, by status</p>
+              <p>Started {windowPhrase}, by status</p>
             </div>
             <ul className={analyticsStyles.legend} aria-label="Statuses">
               <li>
@@ -159,6 +162,7 @@ export default function PathwayAnalyticsPage() {
                   type="category"
                   dataKey="label"
                   width={200}
+                  tick={categoryTick(200)}
                   axisLine={false}
                   tickLine={false}
                 />
@@ -222,6 +226,7 @@ export default function PathwayAnalyticsPage() {
                   type="category"
                   dataKey="label"
                   width={210}
+                  tick={categoryTick(210)}
                   interval={0}
                   axisLine={false}
                   tickLine={false}
@@ -304,6 +309,7 @@ export default function PathwayAnalyticsPage() {
                   type="category"
                   dataKey="label"
                   width={200}
+                  tick={categoryTick(200)}
                   axisLine={false}
                   tickLine={false}
                 />

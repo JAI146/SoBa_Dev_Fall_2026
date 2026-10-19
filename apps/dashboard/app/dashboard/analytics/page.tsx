@@ -17,7 +17,8 @@ import { useAdminQuery } from "@/lib/use-admin-query";
 import styles from "../dashboard.module.css";
 import {
   AnalyticsPageState,
-  useAnalyticsDays,
+  categoryTick,
+  useAnalyticsRange,
   CountList,
   percent,
   tooltipCursor,
@@ -30,9 +31,9 @@ import {
 import analyticsStyles from "./analytics.module.css";
 
 export default function UserAnalyticsPage() {
-  const days = useAnalyticsDays();
+  const { query: rangeQuery, label: windowLabel, range } = useAnalyticsRange();
   const query = useAdminQuery(
-    `/admin/analytics/users?days=${days}`,
+    `/admin/analytics/users?${rangeQuery}`,
     adminUserAnalyticsResponseSchema,
   );
   const data = query.data;
@@ -68,7 +69,6 @@ export default function UserAnalyticsPage() {
       />
     );
   }
-  const { windowDays } = data;
   const { acquisition, activation, dropOff } = data;
   const lapsedRate = percent(
     dropOff.lapsed.inactiveCustomers,
@@ -91,13 +91,13 @@ export default function UserAnalyticsPage() {
           accent
         />
         <DashboardStatCard
-          label={`New customers · ${windowDays} days`}
+          label={`New customers · ${windowLabel}`}
           value={
             <>
               {acquisition.newCustomers.toLocaleString()}
               <small className={analyticsStyles.statHint}>
                 {acquisition.previousPeriodNewCustomers.toLocaleString()} in the
-                previous {windowDays} days
+                previous {range.days} days
               </small>
             </>
           }
@@ -263,6 +263,7 @@ export default function UserAnalyticsPage() {
                   type="category"
                   dataKey="label"
                   width={200}
+                  tick={categoryTick(200)}
                   axisLine={false}
                   tickLine={false}
                 />

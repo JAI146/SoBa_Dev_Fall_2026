@@ -8,6 +8,7 @@ import {
   userPublicSchema,
   subscriptionAdminAccessSchema,
   adminAnalyticsAccessSchema,
+  DEFAULT_ANALYTICS_WINDOW_DAYS,
   type MessageResponse,
   type UserPublic,
 } from "@purposemint/contracts";
@@ -17,6 +18,7 @@ import {
 } from "@/components/dashboard/dashboard-shell";
 import { clearAuth, getToken } from "@/lib/auth";
 import { apiRequest } from "@/lib/api-client";
+import { analyticsReportOptions } from "./analytics/analytics-shared";
 import styles from "./dashboard.module.css";
 
 export default function DashboardLayout({
@@ -28,7 +30,7 @@ export default function DashboardLayout({
   const [user, setUser] = useState<UserPublic | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [canViewSubscriptions, setCanViewSubscriptions] = useState(false);
-  const [canViewAnalytics, setCanViewAnalytics] = useState(false);
+  const [canViewReports, setCanViewReports] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,16 +71,16 @@ export default function DashboardLayout({
           if (!cancelled) setCanViewSubscriptions(false);
         }
         try {
-          // The probe is open to every admin, so hiding the link never costs a 403.
-          const analyticsAccess = await apiRequest(
+          // Open to every admin, so hiding the reports never costs a 403.
+          const reportAccess = await apiRequest(
             "/admin/analytics/access",
             {},
             token,
             adminAnalyticsAccessSchema,
           );
-          if (!cancelled) setCanViewAnalytics(analyticsAccess.canView);
+          if (!cancelled) setCanViewReports(reportAccess.canView);
         } catch {
-          if (!cancelled) setCanViewAnalytics(false);
+          if (!cancelled) setCanViewReports(false);
         }
       } catch {
         if (!cancelled) {
@@ -126,33 +128,22 @@ export default function DashboardLayout({
       label: "Dashboard",
       icon: "overview",
       active: pathname === "/dashboard",
+      // Reports are listed under Dashboard, for staff who can view them.
+      ...(canViewReports
+        ? {
+            group: {
+              label: "Reports",
+              links: analyticsReportOptions.map((report) => ({
+                href: report.value,
+                label: report.label,
+              })),
+              sectionPath: "/dashboard/analytics",
+              keepQueryKeys: ["days", "from", "to"],
+              defaultQuery: `days=${DEFAULT_ANALYTICS_WINDOW_DAYS}`,
+            },
+          }
+        : {}),
     },
-    ...(canViewAnalytics
-      ? [
-          {
-            href: "/dashboard/analytics",
-            label: "Analytics",
-            icon: "analytics" as const,
-            active: pathname.startsWith("/dashboard/analytics"),
-            children: [
-              { href: "/dashboard/analytics", label: "User analytics" },
-              {
-                href: "/dashboard/analytics/wellness",
-                label: "Financial wellness",
-              },
-              {
-                href: "/dashboard/analytics/pathways",
-                label: "Pathways and plans",
-              },
-              {
-                href: "/dashboard/analytics/subscriptions",
-                label: "Subscriptions",
-              },
-              { href: "/dashboard/analytics/retention", label: "Retention" },
-            ],
-          },
-        ]
-      : []),
     {
       href: "/dashboard/pathway-applications",
       label: "Pathway applications",

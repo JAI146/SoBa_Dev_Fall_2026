@@ -23,6 +23,8 @@ import {
   type AdminRetentionResponse,
   type AdminAnalyticsExport,
   type AnalyticsReportKey,
+  type AnalyticsRange,
+  utcToday,
   analyticsExportColumns,
   retentionWeekValues,
   type AdminPermissionValue,
@@ -45,6 +47,44 @@ import {
 } from './analytics-export';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The resolved reporting window. A preset ends now; a custom range runs from
+ * the start of its first day to the end of its last day (UTC), never past now.
+ */
+interface ReportWindow {
+  start: Date;
+  end: Date;
+  days: number;
+}
+
+function resolveWindow(range: AnalyticsRange, now = new Date()): ReportWindow {
+  if (!range.from || !range.to) {
+    return {
+      start: new Date(now.getTime() - range.days * DAY_MS),
+      end: now,
+      days: range.days,
+    };
+  }
+  const endOfLastDay = Date.parse(`${range.to}T00:00:00Z`) + DAY_MS;
+  return {
+    start: new Date(`${range.from}T00:00:00Z`),
+    end: new Date(Math.min(endOfLastDay, now.getTime())),
+    days: range.days,
+  };
+}
+
+/** The last instant inside a window, for week series that must not run past it. */
+function lastInstant(end: Date): Date {
+  return new Date(end.getTime() - 1);
+}
+
+/** What audit rows record about the range a report covered. */
+function rangeMetadata(range: AnalyticsRange) {
+  return range.from && range.to
+    ? { windowDays: range.days, from: range.from, to: range.to }
+    : { windowDays: range.days };
+}
 
 /** Runs a report's queries in one transaction (one consistent snapshot). */
 type SnapshotRunner = <T>(
@@ -307,7 +347,7 @@ export class AnalyticsService {
   ): Promise<AdminAnalyticsExport> {
     const headers = [...analyticsExportColumns];
     return this.dataSource.transaction('REPEATABLE READ', async (manager) => {
-      const metadata = { report, windowDays: query.days, columns: headers };
+      const metadata = { report, ...rangeMetadata(query), columns: headers };
       const event = await this.audit.recordTransactional(manager, {
         action: AuditAction.ADMIN_REPORT_EXPORTED,
         actorUserId: principal.userId,
@@ -318,14 +358,17 @@ export class AnalyticsService {
         metadata: { ...metadata, rowCount: null },
       });
       const run: SnapshotRunner = (work) => work(manager);
-      const rows = await this.exportRows(report, query.days, run);
+      const rows = await this.exportRows(report, resolveWindow(query), run);
       // Same transaction, so the row count lands before anything commits.
       await manager.update(AuditEvent, event.id, {
         metadata: { ...metadata, rowCount: rows.length },
       });
-      const date = new Date().toISOString().slice(0, 10);
+      const span =
+        query.from && query.to
+          ? `${query.from}-to-${query.to}`
+          : `${query.days}d-${utcToday()}`;
       return {
-        filename: `purposemint-${report}-analytics-${query.days}d-${date}.csv`,
+        filename: `purposemint-${report}-analytics-${span}.csv`,
         headers,
         rows,
       };
@@ -334,20 +377,22 @@ export class AnalyticsService {
 
   private async exportRows(
     report: AnalyticsReportKey,
-    days: number,
+    window: ReportWindow,
     run: SnapshotRunner,
   ): Promise<AdminAnalyticsExport['rows']> {
     switch (report) {
       case 'users':
-        return userAnalyticsRows(await this.buildUserAnalytics(days, run));
+        return userAnalyticsRows(await this.buildUserAnalytics(window, run));
       case 'wellness':
-        return wellnessRows(await this.buildWellnessAnalytics(days, run));
+        return wellnessRows(await this.buildWellnessAnalytics(window, run));
       case 'pathways':
-        return pathwayRows(await this.buildPathwayAnalytics(days, run));
+        return pathwayRows(await this.buildPathwayAnalytics(window, run));
       case 'subscriptions':
-        return subscriptionRows(await this.buildCommercialAnalytics(days, run));
+        return subscriptionRows(
+          await this.buildCommercialAnalytics(window, run),
+        );
       case 'retention':
-        return retentionRows(await this.buildRetention(days, run));
+        return retentionRows(await this.buildRetention(window, run));
     }
   }
 
@@ -373,22 +418,28 @@ export class AnalyticsService {
     query: AdminAnalyticsQuery,
     context: RequestContext,
   ): Promise<AdminUserAnalyticsResponse> {
-    const response = await this.buildUserAnalytics(query.days, this.snapshot);
+    const response = await this.buildUserAnalytics(
+      resolveWindow(query),
+      this.snapshot,
+    );
     await this.record(principal, context, {
       report: 'user_analytics',
-      windowDays: query.days,
+      ...rangeMetadata(query),
     });
     return response;
   }
 
   /** Acquisition, activation and drop off. Shared by the page and its CSV export. */
   private async buildUserAnalytics(
-    days: number,
+    window: ReportWindow,
     run: SnapshotRunner,
   ): Promise<AdminUserAnalyticsResponse> {
     const now = new Date();
-    const windowStart = new Date(now.getTime() - days * DAY_MS);
-    const previousStart = new Date(now.getTime() - 2 * days * DAY_MS);
+    const { start: windowStart, end: windowEnd } = window;
+    // The equal-length span immediately before the window.
+    const previousStart = new Date(
+      windowStart.getTime() - (windowEnd.getTime() - windowStart.getTime()),
+    );
     const inactiveSince = new Date(
       now.getTime() - INACTIVE_WINDOW_DAYS * DAY_MS,
     );
@@ -398,11 +449,12 @@ export class AnalyticsService {
         const [acquisitionRow] = await manager.query<AcquisitionRow[]>(
           `SELECT
              COUNT(*)::int AS total_customers,
-             COUNT(*) FILTER (WHERE u.created_at >= $1)::int AS new_customers,
+             COUNT(*) FILTER (WHERE u.created_at >= $1 AND u.created_at < $3)::int AS new_customers,
              COUNT(*) FILTER (WHERE u.created_at >= $2 AND u.created_at < $1)::int AS previous_new_customers,
-             COUNT(*) FILTER (WHERE u.created_at >= $1 AND u.email_verified_at IS NOT NULL)::int AS new_verified
+             COUNT(*) FILTER (WHERE u.created_at >= $1 AND u.created_at < $3
+               AND u.email_verified_at IS NOT NULL)::int AS new_verified
            FROM users u WHERE ${CUSTOMER}`,
-          [windowStart, previousStart],
+          [windowStart, previousStart, windowEnd],
         );
         const weekRows = await manager.query<WeekRow[]>(
           `SELECT to_char(weeks.week_start, 'YYYY-MM-DD') AS week_start,
@@ -413,22 +465,25 @@ export class AnalyticsService {
              interval '1 week'
            ) AS weeks(week_start)
            LEFT JOIN users u ON ${CUSTOMER} AND u.created_at >= $1
+             AND u.created_at < $3
              AND date_trunc('week', u.created_at AT TIME ZONE 'UTC') = weeks.week_start
            GROUP BY weeks.week_start
            ORDER BY weeks.week_start`,
-          [windowStart, now],
+          [windowStart, lastInstant(windowEnd), windowEnd],
         );
         const statusRows = await manager.query<GroupRow[]>(
           `SELECT u.status::text AS key, COUNT(*)::int AS count
            FROM users u WHERE ${CUSTOMER} AND u.created_at >= $1
+             AND u.created_at < $2
            GROUP BY u.status`,
-          [windowStart],
+          [windowStart, windowEnd],
         );
         const onboardingRows = await manager.query<GroupRow[]>(
           `SELECT u.onboarding_status::text AS key, COUNT(*)::int AS count
            FROM users u WHERE ${CUSTOMER} AND u.created_at >= $1
+             AND u.created_at < $2
            GROUP BY u.onboarding_status`,
-          [windowStart],
+          [windowStart, windowEnd],
         );
         const [cohortRow] = await manager.query<CohortRow[]>(
           `WITH cohort AS (
@@ -452,6 +507,7 @@ export class AnalyticsService {
                    WHERE us.user_id = u.id AND us.created_at >= $2)
                ) AS recently_active
              FROM users u WHERE ${CUSTOMER} AND u.created_at >= $1
+               AND u.created_at < $3
            ), staged AS (
              SELECT c.*,
                c.email_verified_at IS NOT NULL AS s_verified,
@@ -485,7 +541,7 @@ export class AnalyticsService {
              COUNT(*) FILTER (WHERE s_completed AND NOT recently_active)::int AS lapsed_inactive,
              COUNT(*) FILTER (WHERE delete_account_requested_at IS NOT NULL)::int AS deletion_requested
            FROM staged`,
-          [windowStart, inactiveSince],
+          [windowStart, inactiveSince, windowEnd],
         );
         return {
           acquisition: acquisitionRow,
@@ -504,7 +560,7 @@ export class AnalyticsService {
     const median = cohort.median_days_to_onboarding;
 
     const response: AdminUserAnalyticsResponse = {
-      windowDays: days,
+      windowDays: window.days,
       generatedAt: now.toISOString(),
       acquisition: {
         totalCustomers: acquisition.total_customers,
@@ -625,23 +681,23 @@ export class AnalyticsService {
     context: RequestContext,
   ): Promise<AdminWellnessAnalyticsResponse> {
     const response = await this.buildWellnessAnalytics(
-      query.days,
+      resolveWindow(query),
       this.snapshot,
     );
     await this.record(principal, context, {
       report: 'wellness_analytics',
-      windowDays: query.days,
+      ...rangeMetadata(query),
     });
     return response;
   }
 
   /** Savings, goals, habits and levels. Shared by the page and its CSV export. */
   private async buildWellnessAnalytics(
-    days: number,
+    window: ReportWindow,
     run: SnapshotRunner,
   ): Promise<AdminWellnessAnalyticsResponse> {
     const now = new Date();
-    const windowStart = new Date(now.getTime() - days * DAY_MS);
+    const { start: windowStart, end: windowEnd } = window;
     // Habit check-ins are calendar dates; periods end on today's UTC date.
     const today = now.toISOString().slice(0, 10);
 
@@ -651,11 +707,11 @@ export class AnalyticsService {
           `SELECT
              COALESCE(SUM(s.amount), 0)::float8 AS total_saved,
              COALESCE(SUM(s.amount) FILTER (WHERE s.created_at < $1), 0)::float8 AS starting_total,
-             COALESCE(SUM(s.amount) FILTER (WHERE s.created_at >= $1), 0)::float8 AS saved_in_window,
-             COUNT(DISTINCT s.user_id) FILTER (WHERE s.created_at >= $1)::int AS savers_in_window
+             COALESCE(SUM(s.amount) FILTER (WHERE s.created_at >= $1 AND s.created_at < $2), 0)::float8 AS saved_in_window,
+             COUNT(DISTINCT s.user_id) FILTER (WHERE s.created_at >= $1 AND s.created_at < $2)::int AS savers_in_window
            FROM savings_entries s JOIN users u ON u.id = s.user_id
            WHERE ${CUSTOMER}`,
-          [windowStart],
+          [windowStart, windowEnd],
         );
         const weekRows = await manager.query<SavingsWeekRow[]>(
           `SELECT to_char(weeks.week_start, 'YYYY-MM-DD') AS week_start,
@@ -667,11 +723,11 @@ export class AnalyticsService {
            ) AS weeks(week_start)
            LEFT JOIN (
              savings_entries s JOIN users u ON u.id = s.user_id AND ${CUSTOMER}
-           ) ON s.created_at >= $1
+           ) ON s.created_at >= $1 AND s.created_at < $3
              AND date_trunc('week', s.created_at AT TIME ZONE 'UTC') = weeks.week_start
            GROUP BY weeks.week_start
            ORDER BY weeks.week_start`,
-          [windowStart, now],
+          [windowStart, lastInstant(windowEnd), windowEnd],
         );
         const [goalRow] = await manager.query<Record<string, number>[]>(
           `SELECT
@@ -764,7 +820,7 @@ export class AnalyticsService {
     );
 
     const response: AdminWellnessAnalyticsResponse = {
-      windowDays: days,
+      windowDays: window.days,
       generatedAt: now.toISOString(),
       savings: {
         totalSaved: this.round(totals.total_saved),
@@ -818,27 +874,27 @@ export class AnalyticsService {
     context: RequestContext,
   ): Promise<AdminPathwayAnalyticsResponse> {
     const response = await this.buildPathwayAnalytics(
-      query.days,
+      resolveWindow(query),
       this.snapshot,
     );
     await this.record(principal, context, {
       report: 'pathway_analytics',
-      windowDays: query.days,
+      ...rangeMetadata(query),
     });
     return response;
   }
 
   /** Pathway applications, partners, eligibility and plans. Shared by the page and its CSV export. */
   private async buildPathwayAnalytics(
-    days: number,
+    window: ReportWindow,
     run: SnapshotRunner,
   ): Promise<AdminPathwayAnalyticsResponse> {
     const now = new Date();
-    const windowStart = new Date(now.getTime() - days * DAY_MS);
+    const { start: windowStart, end: windowEnd } = window;
     // Applications started in the window by customers who are not deleted.
     const windowApplications = `SELECT a.id, a.pathway_key, a.status
       FROM pathway_applications a JOIN users u ON u.id = a.user_id
-      WHERE ${CUSTOMER} AND a.created_at >= $1`;
+      WHERE ${CUSTOMER} AND a.created_at >= $1 AND a.created_at < $2`;
 
     const { applications, checklist, partners, eligibility, totals, plans } =
       await run(async (manager) => {
@@ -850,7 +906,7 @@ export class AnalyticsService {
            FROM pathways p LEFT JOIN apps a ON a.pathway_key = p.key
            GROUP BY p.key, p.title, p.sort_order
            ORDER BY p.sort_order`,
-          [windowStart],
+          [windowStart, windowEnd],
         );
         const [checklistRow] = await manager.query<ChecklistRow[]>(
           `WITH apps AS (${windowApplications}), progress AS (
@@ -865,7 +921,7 @@ export class AnalyticsService {
              (AVG(CASE WHEN items > 0 THEN done::float8 / items ELSE 0 END) * 100)::float8
                AS average_progress
            FROM progress`,
-          [windowStart],
+          [windowStart, windowEnd],
         );
         // Every partner is listed so unpicked partners show as zero.
         const partnerRows = await manager.query<PartnerRow[]>(
@@ -879,7 +935,7 @@ export class AnalyticsService {
            GROUP BY pr.id, pr.name, pr.partner_type, pr.pathway_key, pr.sort_order
            HAVING pr.is_active OR COUNT(pk.partner_id) > 0
            ORDER BY count DESC, pr.pathway_key, pr.sort_order`,
-          [windowStart],
+          [windowStart, windowEnd],
         );
         const eligibilityRows = await manager.query<EligibilityRow[]>(
           `WITH sums AS (
@@ -906,7 +962,7 @@ export class AnalyticsService {
                JOIN user_subscriptions s ON s.id = h.subscription_id
                JOIN users u ON u.id = s.user_id
                WHERE ${CUSTOMER} AND ${FREE_TO_PAID_MOVE}
-                 AND h.effective_at >= $1 AND h.effective_at <= $2)::int AS new_paid,
+                 AND h.effective_at >= $1 AND h.effective_at < $2)::int AS new_paid,
              (SELECT COUNT(DISTINCT u.id) FROM users u
                JOIN user_goals g ON g.user_id = u.id
                  AND g.is_pathway_eligible AND g.is_active
@@ -915,7 +971,7 @@ export class AnalyticsService {
                WHERE ${CUSTOMER} AND u.current_level_source = 'mock') AS demo_levels
            FROM user_subscriptions s JOIN users u ON u.id = s.user_id
            WHERE ${CUSTOMER} AND ${PAID_SUBSCRIPTION}`,
-          [windowStart, now],
+          [windowStart, windowEnd],
         );
         // Paid plans always appear; a free plan only if someone pays for it.
         const planRows = await manager.query<PlanRow[]>(
@@ -951,7 +1007,7 @@ export class AnalyticsService {
     }
 
     const response: AdminPathwayAnalyticsResponse = {
-      windowDays: days,
+      windowDays: window.days,
       generatedAt: now.toISOString(),
       applications: {
         total: draft + submitted,
@@ -1012,23 +1068,23 @@ export class AnalyticsService {
     context: RequestContext,
   ): Promise<AdminCommercialAnalyticsResponse> {
     const response = await this.buildCommercialAnalytics(
-      query.days,
+      resolveWindow(query),
       this.snapshot,
     );
     await this.record(principal, context, {
       report: 'commercial_analytics',
-      windowDays: query.days,
+      ...rangeMetadata(query),
     });
     return response;
   }
 
   /** Subscription conversion, cancellation and payments. Shared by the page and its CSV export. */
   private async buildCommercialAnalytics(
-    days: number,
+    window: ReportWindow,
     run: SnapshotRunner,
   ): Promise<AdminCommercialAnalyticsResponse> {
     const now = new Date();
-    const windowStart = new Date(now.getTime() - days * DAY_MS);
+    const { start: windowStart, end: windowEnd } = window;
     const subscriber = `user_subscriptions s JOIN users u ON u.id = s.user_id`;
 
     const { plans, conversions, intents, cancellations, payments } = await run(
@@ -1042,9 +1098,9 @@ export class AnalyticsService {
            FROM subscription_history h
            JOIN ${subscriber} ON s.id = h.subscription_id
            WHERE ${CUSTOMER} AND ${FREE_TO_PAID_MOVE}
-             AND h.effective_at >= $1 AND h.effective_at <= $2
+             AND h.effective_at >= $1 AND h.effective_at < $2
            GROUP BY h.action, h.new_plan_key`,
-          [windowStart, now],
+          [windowStart, windowEnd],
         );
         const intentRows = await manager.query<IntentRow[]>(
           `SELECT i.plan_key, COUNT(*)::int AS intents,
@@ -1054,9 +1110,9 @@ export class AnalyticsService {
            JOIN users u ON u.id = i.user_id
            LEFT JOIN user_subscriptions s ON s.user_id = i.user_id
              AND ${PAID_SUBSCRIPTION}
-           WHERE ${CUSTOMER} AND i.created_at >= $1
+           WHERE ${CUSTOMER} AND i.created_at >= $1 AND i.created_at < $2
            GROUP BY i.plan_key`,
-          [windowStart],
+          [windowStart, windowEnd],
         );
         const cancellationRows = await manager.query<CancellationRow[]>(
           `SELECT plan_key, SUM(cancelled)::int AS cancelled,
@@ -1067,16 +1123,16 @@ export class AnalyticsService {
                ${MONTHLY_AMOUNT} AS amount
              FROM ${subscriber}
              WHERE ${CUSTOMER} AND s.status = 'cancelled'
-               AND s.cancelled_at >= $1 AND s.cancelled_at <= $2
+               AND s.cancelled_at >= $1 AND s.cancelled_at < $2
              UNION ALL
              SELECT h.previous_plan_key, 0, 1, 0
              FROM subscription_history h
              JOIN ${subscriber} ON s.id = h.subscription_id
              WHERE ${CUSTOMER} AND h.action = 'cancellation_scheduled'
-               AND h.recorded_at >= $1
+               AND h.recorded_at >= $1 AND h.recorded_at < $2
            ) events
            GROUP BY plan_key`,
-          [windowStart, now],
+          [windowStart, windowEnd],
         );
         const [paymentRow] = await manager.query<PaymentRow[]>(
           `SELECT
@@ -1097,9 +1153,9 @@ export class AnalyticsService {
                CASE WHEN r.status = 'paid' THEN r.amount_cents / 100.0 ELSE 0 END AS paid_amount
              FROM subscription_billing_records r
              JOIN ${subscriber} ON s.id = r.subscription_id
-             WHERE ${CUSTOMER} AND r.occurred_at >= $1 AND r.occurred_at <= $2
+             WHERE ${CUSTOMER} AND r.occurred_at >= $1 AND r.occurred_at < $2
            ) b`,
-          [windowStart, now],
+          [windowStart, windowEnd],
         );
         return {
           plans: planRows,
@@ -1124,7 +1180,7 @@ export class AnalyticsService {
     const converted = sumBy(intents, (row) => row.converted);
 
     const response: AdminCommercialAnalyticsResponse = {
-      windowDays: days,
+      windowDays: window.days,
       generatedAt: now.toISOString(),
       conversions: {
         freeToPaid,
@@ -1200,21 +1256,24 @@ export class AnalyticsService {
     query: AdminAnalyticsQuery,
     context: RequestContext,
   ): Promise<AdminRetentionResponse> {
-    const response = await this.buildRetention(query.days, this.snapshot);
+    const response = await this.buildRetention(
+      resolveWindow(query),
+      this.snapshot,
+    );
     await this.record(principal, context, {
       report: 'retention',
-      windowDays: query.days,
+      ...rangeMetadata(query),
     });
     return response;
   }
 
   /** Weekly cohort retention and recent activity. Shared by the page and its CSV export. */
   private async buildRetention(
-    days: number,
+    window: ReportWindow,
     run: SnapshotRunner,
   ): Promise<AdminRetentionResponse> {
     const now = new Date();
-    const windowStart = new Date(now.getTime() - days * DAY_MS);
+    const { start: windowStart, end: windowEnd } = window;
     const today = now.toISOString().slice(0, 10);
 
     const { cells, share } = await run(async (manager) => {
@@ -1225,6 +1284,7 @@ export class AnalyticsService {
              SELECT u.id, (u.created_at AT TIME ZONE 'UTC')::date AS signup_on,
                date_trunc('week', u.created_at AT TIME ZONE 'UTC')::date AS cohort_week
              FROM users u WHERE ${CUSTOMER} AND u.created_at >= $1
+               AND u.created_at < $4
            ), activity AS (
              SELECT a.user_id, a.active_on
              FROM (${CUSTOMER_ACTIVITY_DAYS}) a
@@ -1246,7 +1306,7 @@ export class AnalyticsService {
            FROM member_weeks
            GROUP BY cohort_week, week
            ORDER BY cohort_week, week`,
-        [windowStart, today, [...retentionWeekValues]],
+        [windowStart, today, [...retentionWeekValues], windowEnd],
       );
       // Last 7 days is today and the six days before it; 30 days likewise.
       const [shareRow] = await manager.query<ActiveShareRow[]>(
@@ -1286,7 +1346,7 @@ export class AnalyticsService {
     }
 
     const response: AdminRetentionResponse = {
-      windowDays: days,
+      windowDays: window.days,
       generatedAt: now.toISOString(),
       overall: {
         totalCustomers: share.total_customers,

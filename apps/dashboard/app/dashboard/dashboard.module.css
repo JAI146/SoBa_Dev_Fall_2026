@@ -76,26 +76,56 @@
   width: 19px;
   height: 19px;
 }
-.sidebar-nav a:focus-visible,
-.sidebar-logout:focus-visible {
-  outline: 2px solid #059669;
-  outline-offset: 2px;
-}
+/* A sidebar item with pages under it: the link and a chevron toggle share a
+   row, and the pages sit indented below. */
 .sidebar-group {
   display: grid;
   gap: 5px;
 }
-/* The section is current; the child page carries the strong highlight. */
-.sidebar-nav a.sidebar-group-active {
+.sidebar-group-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sidebar-group-row > a {
+  min-width: 0;
+  flex: 1;
+}
+/* One of the group's pages is open: quieter than the active style. */
+.sidebar-nav a.sidebar-section-active {
   color: #047857;
+}
+.sidebar-group-toggle {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+.sidebar-group-toggle:hover:not(:disabled) {
+  background: #f3f4f6;
+  color: #111827;
+}
+.sidebar-group-toggle:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
+}
+.sidebar-group-toggle:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 .sidebar-nav-chevron {
   width: 16px;
   height: 16px;
-  margin-left: auto;
   transition: transform 0.15s ease;
 }
-.sidebar-nav a[aria-expanded="true"] .sidebar-nav-chevron {
+.sidebar-group-toggle[aria-expanded="true"] .sidebar-nav-chevron {
   transform: rotate(180deg);
 }
 .sidebar-subnav {
@@ -111,6 +141,11 @@
 .sidebar-nav .sidebar-subnav a {
   padding: 8px 12px;
   font-size: 13px;
+}
+.sidebar-nav a:focus-visible,
+.sidebar-logout:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
 }
 .sidebar-footer {
   margin-top: auto;

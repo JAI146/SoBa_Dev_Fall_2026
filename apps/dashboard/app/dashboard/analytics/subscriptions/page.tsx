@@ -16,7 +16,7 @@ import { useAdminQuery } from "@/lib/use-admin-query";
 import styles from "../../dashboard.module.css";
 import {
   AnalyticsPageState,
-  useAnalyticsDays,
+  useAnalyticsRange,
   CountList,
   percent,
   tooltipCursor,
@@ -27,9 +27,13 @@ import {
 import analyticsStyles from "../analytics.module.css";
 
 export default function SubscriptionAnalyticsPage() {
-  const days = useAnalyticsDays();
+  const {
+    query: rangeQuery,
+    label: windowLabel,
+    phrase: windowPhrase,
+  } = useAnalyticsRange();
   const query = useAdminQuery(
-    `/admin/analytics/commercial?days=${days}`,
+    `/admin/analytics/commercial?${rangeQuery}`,
     adminCommercialAnalyticsResponseSchema,
   );
   const data = query.data;
@@ -44,11 +48,9 @@ export default function SubscriptionAnalyticsPage() {
       />
     );
   }
-  const { windowDays } = data;
   const { conversions, intents, cancellations, payments } = data;
   const staffAssigned =
     conversions.byAction.find((item) => item.key === "assigned")?.count ?? 0;
-  const windowPhrase = `in the last ${windowDays} days`;
   const hasPaymentActivity =
     payments.failedRecords +
       payments.paidRecords +
@@ -66,7 +68,7 @@ export default function SubscriptionAnalyticsPage() {
         aria-label="Subscription metrics"
       >
         <DashboardStatCard
-          label={`Free to paid · ${windowDays} days`}
+          label={`Free to paid · ${windowLabel}`}
           value={
             <>
               {conversions.freeToPaid.toLocaleString()}
@@ -95,7 +97,7 @@ export default function SubscriptionAnalyticsPage() {
           icon="goals"
         />
         <DashboardStatCard
-          label={`Cancellations · ${windowDays} days`}
+          label={`Cancellations · ${windowLabel}`}
           value={
             <>
               {cancellations.cancelled.toLocaleString()}
@@ -109,7 +111,7 @@ export default function SubscriptionAnalyticsPage() {
           icon="accounts"
         />
         <DashboardStatCard
-          label={`Failed payments · ${windowDays} days`}
+          label={`Failed payments · ${windowLabel}`}
           value={
             <>
               {payments.failedRecords.toLocaleString()}

@@ -1,10 +1,12 @@
 "use client";
 
 import {
-  analyticsWindowDaysValues,
+  DEFAULT_ANALYTICS_WINDOW_DAYS,
+  adminAnalyticsQuerySchema,
+  analyticsRangeQuery,
   type AdminUserAnalyticsResponse,
+  type AnalyticsRange,
   type AnalyticsReportKey,
-  type AnalyticsWindowDays,
 } from "@purposemint/contracts";
 import { useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
@@ -15,19 +17,64 @@ import {
 import styles from "../dashboard.module.css";
 import analyticsStyles from "./analytics.module.css";
 
-export const DEFAULT_WINDOW_DAYS: AnalyticsWindowDays = 90;
+const DEFAULT_RANGE: AnalyticsRange = {
+  kind: "preset",
+  days: DEFAULT_ANALYTICS_WINDOW_DAYS,
+  from: null,
+  to: null,
+};
 
-/** Reads the reporting window from `?days=`, falling back to the default. */
-export function parseWindowDays(value: string | null): AnalyticsWindowDays {
-  const days = Number(value);
-  return (analyticsWindowDaysValues as readonly number[]).includes(days)
-    ? (days as AnalyticsWindowDays)
-    : DEFAULT_WINDOW_DAYS;
-}
+const shortDate = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+const longDate = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+const utcDay = (value: string) => new Date(`${value}T00:00:00Z`);
 
-/** The window selected in the URL, shared by every analytics page. */
-export function useAnalyticsDays(): AnalyticsWindowDays {
-  return parseWindowDays(useSearchParams().get("days"));
+export type AnalyticsRangeState = {
+  range: AnalyticsRange;
+  /** The query string pages and exports send, e.g. `days=90`. */
+  query: string;
+  /** Short form for card labels: "90 days" or "Sep 1 – Sep 30". */
+  label: string;
+  /** Sentence form: "in the last 90 days" or "from Sep 1 to Sep 30, 2026". */
+  phrase: string;
+  /** Why the range in the URL was rejected; the default is shown instead. */
+  error: string | null;
+};
+
+/**
+ * The reporting range in the URL (`?days=` or `?from=&to=`), checked with the
+ * same schema the API uses. Old `?days=` links keep working.
+ */
+export function useAnalyticsRange(): AnalyticsRangeState {
+  const params = useSearchParams();
+  const parsed = adminAnalyticsQuerySchema.safeParse({
+    days: params.get("days") ?? undefined,
+    from: params.get("from") ?? undefined,
+    to: params.get("to") ?? undefined,
+  });
+  const range = parsed.success ? parsed.data : DEFAULT_RANGE;
+  const custom = range.from && range.to ? [range.from, range.to] : null;
+  return {
+    range,
+    query: analyticsRangeQuery(range),
+    label: custom
+      ? `${shortDate.format(utcDay(custom[0]!))} – ${shortDate.format(utcDay(custom[1]!))}`
+      : `${range.days} days`,
+    phrase: custom
+      ? `from ${shortDate.format(utcDay(custom[0]!))} to ${longDate.format(utcDay(custom[1]!))}`
+      : `in the last ${range.days} days`,
+    error: parsed.success
+      ? null
+      : (parsed.error.issues[0]?.message ?? "That range is not valid."),
+  };
 }
 
 /** Header copy for each analytics route, keyed by pathname. */
@@ -35,7 +82,8 @@ export const analyticsPages: Record<
   string,
   {
     title: string;
-    description: (days: number) => string;
+    /** Takes the range phrase, e.g. "in the last 90 days". */
+    description: (phrase: string) => string;
     /** The CSV export that matches this page. */
     report: AnalyticsReportKey;
   }
@@ -43,8 +91,8 @@ export const analyticsPages: Record<
   "/dashboard/analytics": {
     report: "users",
     title: "User analytics",
-    description: (days) =>
-      `Acquisition, activation and drop off for customers who signed up in the last ${days} days.`,
+    description: (phrase) =>
+      `Acquisition, activation and drop off for customers who signed up ${phrase}.`,
   },
   "/dashboard/analytics/wellness": {
     report: "wellness",
@@ -61,26 +109,36 @@ export const analyticsPages: Record<
   "/dashboard/analytics/subscriptions": {
     report: "subscriptions",
     title: "Subscriptions",
-    description: (days) =>
-      `Conversions, cancellations and billing records in the last ${days} days; past due subscriptions as they stand today.`,
+    description: (phrase) =>
+      `Conversions, cancellations and billing records ${phrase}; past due subscriptions as they stand today.`,
   },
   "/dashboard/analytics/retention": {
     report: "retention",
     title: "Retention",
-    description: (days) =>
-      `Weekly signup cohorts in the last ${days} days, and the share of all customers active recently.`,
+    description: (phrase) =>
+      `Weekly signup cohorts ${phrase}, and the share of all customers active recently.`,
   },
 };
 
+/** Every analytics report, in menu order, for the sidebar report list. */
+export const analyticsReportOptions = Object.entries(analyticsPages).map(
+  ([path, page]) => ({ value: path, label: page.title }),
+);
+
+// Every chart tooltip reads left to right: heading, series rows and values.
 export const tooltipStyle = {
   borderRadius: 10,
   border: "1px solid var(--chart-tooltip-border)",
   background: "var(--chart-tooltip-bg)",
   color: "var(--chart-tooltip-text)",
   fontSize: 12,
+  textAlign: "left" as const,
 };
 // Recharts colors tooltip text with the series fill unless told otherwise.
-export const tooltipTextStyle = { color: "var(--chart-tooltip-text)" };
+export const tooltipTextStyle = {
+  color: "var(--chart-tooltip-text)",
+  textAlign: "left" as const,
+};
 export const tooltipLabelStyle = { ...tooltipTextStyle, fontWeight: 700 };
 export const tooltipCursor = { fill: "var(--chart-cursor)" };
 // Line and area charts draw a vertical cursor line instead of a band.
@@ -195,4 +253,67 @@ export function pathwayTitle(
 
 export function percent(part: number, whole: number) {
   return whole === 0 ? 0 : Math.round((part / whole) * 100);
+}
+
+type AxisTickProps = {
+  x?: string | number;
+  y?: string | number;
+  payload?: { value?: string | number };
+};
+
+const categoryTicks = new Map<number, (props: AxisTickProps) => ReactNode>();
+
+/** Average glyph width of the 12px axis font, for deciding where to wrap. */
+const AXIS_CHAR_WIDTH = 6.4;
+
+/** Splits a label into lines that fit `maxWidth` at the axis font size. */
+function wrapLabel(label: string, maxWidth: number): string[] {
+  const maxChars = Math.max(8, Math.floor(maxWidth / AXIS_CHAR_WIDTH));
+  const lines: string[] = [];
+  for (const word of label.split(" ")) {
+    const last = lines[lines.length - 1];
+    if (last !== undefined && `${last} ${word}`.length <= maxChars) {
+      lines[lines.length - 1] = `${last} ${word}`;
+    } else {
+      lines.push(word);
+    }
+  }
+  return lines;
+}
+
+/**
+ * Left-aligned labels for the category axis of a horizontal bar chart, so
+ * they start at the panel's left edge instead of hugging the bars. `width`
+ * is the YAxis width; long labels wrap inside it.
+ */
+export function categoryTick(width: number) {
+  let tick = categoryTicks.get(width);
+  if (!tick) {
+    tick = function CategoryTick({ x = 0, y = 0, payload }: AxisTickProps) {
+      const left = Number(x) - width + 8;
+      const lines = wrapLabel(String(payload?.value ?? ""), width - 16);
+      return (
+        <text
+          x={left}
+          y={Number(y)}
+          textAnchor="start"
+          dominantBaseline="middle"
+          className="recharts-cartesian-axis-tick-value"
+        >
+          {lines.map((line, index) => (
+            <tspan
+              key={index}
+              x={left}
+              // Centre the block of lines on the bar.
+              dy={index === 0 ? `${-(lines.length - 1) * 0.55}em` : "1.1em"}
+            >
+              {line}
+            </tspan>
+          ))}
+        </text>
+      );
+    };
+    categoryTicks.set(width, tick);
+  }
+  return tick;
 }

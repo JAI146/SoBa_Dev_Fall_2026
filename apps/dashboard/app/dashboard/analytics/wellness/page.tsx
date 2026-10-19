@@ -20,7 +20,8 @@ import { useAdminQuery } from "@/lib/use-admin-query";
 import styles from "../../dashboard.module.css";
 import {
   AnalyticsPageState,
-  useAnalyticsDays,
+  categoryTick,
+  useAnalyticsRange,
   CountList,
   checkIns,
   compactMoney,
@@ -35,9 +36,9 @@ import {
 import analyticsStyles from "../analytics.module.css";
 
 export default function WellnessAnalyticsPage() {
-  const days = useAnalyticsDays();
+  const { query: rangeQuery, label: windowLabel } = useAnalyticsRange();
   const query = useAdminQuery(
-    `/admin/analytics/wellness?days=${days}`,
+    `/admin/analytics/wellness?${rangeQuery}`,
     adminWellnessAnalyticsResponseSchema,
   );
   const data = query.data;
@@ -74,7 +75,6 @@ export default function WellnessAnalyticsPage() {
       />
     );
   }
-  const { windowDays } = data;
   const { savings, goals, habits, levels } = data;
   const dailyHabits = habits.byFrequency.find((row) => row.key === "daily");
   const assignedLevels =
@@ -90,7 +90,7 @@ export default function WellnessAnalyticsPage() {
         aria-label="Financial wellness metrics"
       >
         <DashboardStatCard
-          label={`Saved · ${windowDays} days`}
+          label={`Saved · ${windowLabel}`}
           value={
             <>
               {formatMoney(savings.savedInWindow)}
@@ -103,7 +103,7 @@ export default function WellnessAnalyticsPage() {
           accent
         />
         <DashboardStatCard
-          label={`Customers saving · ${windowDays} days`}
+          label={`Customers saving · ${windowLabel}`}
           value={savings.saversInWindow.toLocaleString()}
           icon="users"
         />
@@ -226,6 +226,7 @@ export default function WellnessAnalyticsPage() {
                   type="category"
                   dataKey="label"
                   width={120}
+                  tick={categoryTick(120)}
                   axisLine={false}
                   tickLine={false}
                 />

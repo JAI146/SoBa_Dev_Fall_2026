@@ -14,8 +14,20 @@ export type DashboardNavItem = {
   active: boolean;
   icon: SidebarNavIconName;
   label: string;
-  /** Child pages shown indented under this item as an expandable group. */
-  children?: { href: string; label: string }[];
+  /** Pages listed under this item in an expandable group. */
+  group?: DashboardNavGroup;
+};
+
+export type DashboardNavGroup = {
+  /** Names the list and its toggle, e.g. "Reports". */
+  label: string;
+  links: { href: string; label: string }[];
+  /** Pages under this path keep the list open. */
+  sectionPath: string;
+  /** Query keys carried between the group's pages, e.g. the date range. */
+  keepQueryKeys: string[];
+  /** Query used when arriving from outside the group. */
+  defaultQuery: string;
 };
 
 export function DashboardShell({
@@ -51,12 +63,11 @@ export function DashboardShell({
                 {item.label}
               </SidebarNavLink>
             );
-            const children = item.children;
-            if (!children) return link;
+            if (!item.group) return link;
             // Groups read the URL's query, which needs a Suspense boundary.
             return (
               <Suspense key={item.href} fallback={link}>
-                <SidebarNavGroup item={{ ...item, children }} />
+                <SidebarNavGroup item={item} group={item.group} />
               </Suspense>
             );
           })}

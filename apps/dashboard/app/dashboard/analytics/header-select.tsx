@@ -1,27 +1,25 @@
 "use client";
 
-import {
-  analyticsWindowDaysValues,
-  type AnalyticsWindowDays,
-} from "@purposemint/contracts";
 import { useEffect, useId, useRef, useState } from "react";
 import { SidebarChevron } from "@/components/dashboard/sidebar-nav-icons";
 import analyticsStyles from "./analytics.module.css";
 
-const label = (days: AnalyticsWindowDays) => `Last ${days} days`;
+export type HeaderSelectOption<T extends string> = { value: T; label: string };
 
 /**
- * The reporting window picker: a button that opens a listbox directly below
- * it. Focus moves to the list while open, and arrows, Home, End, Enter, Space,
+ * A dropdown: a button that opens a listbox directly below it, at its width.
+ * Focus moves to the list while open, and arrows, Home, End, Enter, Space,
  * Escape and Tab behave like a native select.
  */
-export function WindowSelect({
+export function HeaderSelect<T extends string>({
   value,
+  options,
   onChange,
   labelId,
 }: {
-  value: AnalyticsWindowDays;
-  onChange: (value: AnalyticsWindowDays) => void;
+  value: T;
+  options: readonly HeaderSelectOption<T>[];
+  onChange: (value: T) => void;
   /** The visible label's id, read together with the current choice. */
   labelId: string;
 }) {
@@ -33,8 +31,10 @@ export function WindowSelect({
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLUListElement>(null);
-  const options = analyticsWindowDaysValues;
-  const selectedIndex = Math.max(0, options.indexOf(value));
+  const selectedIndex = Math.max(
+    0,
+    options.findIndex((option) => option.value === value),
+  );
 
   function show() {
     setActive(selectedIndex);
@@ -48,7 +48,7 @@ export function WindowSelect({
 
   function choose(index: number) {
     const next = options[index];
-    if (next !== undefined && next !== value) onChange(next);
+    if (next && next.value !== value) onChange(next.value);
     close(true);
   }
 
@@ -57,7 +57,7 @@ export function WindowSelect({
     if (open) list.current?.focus();
   }, [open]);
 
-  // Close on a press anywhere outside the picker.
+  // Close on a press anywhere outside the dropdown.
   useEffect(() => {
     if (!open) return;
     function onPointerDown(event: PointerEvent) {
@@ -68,12 +68,12 @@ export function WindowSelect({
   }, [open]);
 
   return (
-    <div ref={root} className={analyticsStyles.windowSelect}>
+    <div ref={root} className={analyticsStyles.headerSelect}>
       <button
         ref={button}
         id={buttonId}
         type="button"
-        className={analyticsStyles.windowSelectButton}
+        className={analyticsStyles.headerSelectButton}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
@@ -86,8 +86,8 @@ export function WindowSelect({
           }
         }}
       >
-        <span>{label(value)}</span>
-        <SidebarChevron className={analyticsStyles.windowSelectChevron} />
+        <span>{options[selectedIndex]?.label}</span>
+        <SidebarChevron className={analyticsStyles.headerSelectChevron} />
       </button>
       <ul
         ref={list}
@@ -96,7 +96,7 @@ export function WindowSelect({
         tabIndex={-1}
         aria-labelledby={labelId}
         aria-activedescendant={open ? `${id}-option-${active}` : undefined}
-        className={analyticsStyles.windowSelectList}
+        className={analyticsStyles.headerSelectList}
         hidden={!open}
         onKeyDown={(event) => {
           const last = options.length - 1;
@@ -122,15 +122,15 @@ export function WindowSelect({
       >
         {options.map((option, index) => (
           <li
-            key={option}
+            key={option.value}
             id={`${id}-option-${index}`}
             role="option"
-            aria-selected={option === value}
+            aria-selected={option.value === value}
             data-active={index === active || undefined}
             onPointerEnter={() => setActive(index)}
             onClick={() => choose(index)}
           >
-            {label(option)}
+            {option.label}
           </li>
         ))}
       </ul>

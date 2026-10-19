@@ -9,17 +9,131 @@ const count = z.number().int().min(0);
 const rate = z.number().min(0).max(100);
 const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
-export const adminAnalyticsQuerySchema = z.object({
-  days: z.coerce
-    .number()
-    .int()
-    .refine(
-      (value): value is AnalyticsWindowDays =>
-        (analyticsWindowDaysValues as readonly number[]).includes(value),
-      { message: "Choose a 30, 90 or 180 day window." },
-    )
-    .default(90),
-});
+/** Longest custom range, counting both the start and end day. */
+export const ANALYTICS_MAX_RANGE_DAYS = 365;
+export const DEFAULT_ANALYTICS_WINDOW_DAYS: AnalyticsWindowDays = 90;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Today's calendar date in UTC, the timezone every analytics range uses. */
+export function utcToday(now: Date = new Date()): string {
+  return now.toISOString().slice(0, 10);
+}
+
+/** Days from `from` to `to`, counting both ends. */
+export function inclusiveDays(from: string, to: string): number {
+  return (
+    Math.round(
+      (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /
+        DAY_MS,
+    ) + 1
+  );
+}
+
+const calendarDay = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date.")
+  .refine(
+    (value) =>
+      !Number.isNaN(Date.parse(`${value}T00:00:00Z`)) &&
+      utcToday(new Date(`${value}T00:00:00Z`)) === value,
+    "That date does not exist.",
+  );
+
+/**
+ * The reporting range. A preset is the last 30, 90 or 180 days up to now; a
+ * custom range runs from the start of `from` to the end of `to`, in UTC.
+ */
+export type AnalyticsRange = {
+  kind: "preset" | "custom";
+  /** Days covered: the preset length, or the custom span counting both ends. */
+  days: number;
+  /** Set for custom ranges only (YYYY-MM-DD, UTC). */
+  from: string | null;
+  to: string | null;
+};
+
+/**
+ * Accepts `?days=30|90|180` (old links keep working) or `?from=&to=`, never
+ * both. Custom ranges must start on or before they end, end no later than
+ * today (UTC) and span at most 365 days.
+ */
+export const adminAnalyticsQuerySchema = z
+  .object({
+    days: z.coerce
+      .number()
+      .int()
+      .refine(
+        (value): value is AnalyticsWindowDays =>
+          (analyticsWindowDaysValues as readonly number[]).includes(value),
+        { message: "Choose a 30, 90 or 180 day window." },
+      )
+      .optional(),
+    from: calendarDay.optional(),
+    to: calendarDay.optional(),
+  })
+  .superRefine((query, ctx) => {
+    const custom = query.from !== undefined || query.to !== undefined;
+    if (custom && query.days !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["days"],
+        message: "Use either days or a from and to date, not both.",
+      });
+    }
+    if (custom && (query.from === undefined || query.to === undefined)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [query.from === undefined ? "from" : "to"],
+        message: "Choose both a start date and an end date.",
+      });
+      return;
+    }
+    if (query.from === undefined || query.to === undefined) return;
+    if (query.from > query.to) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["from"],
+        message: "The start date must be on or before the end date.",
+      });
+    }
+    if (query.to > utcToday()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["to"],
+        message: "The end date cannot be in the future.",
+      });
+    }
+    if (inclusiveDays(query.from, query.to) > ANALYTICS_MAX_RANGE_DAYS) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["to"],
+        message: `Choose a range of ${ANALYTICS_MAX_RANGE_DAYS} days or fewer.`,
+      });
+    }
+  })
+  .transform((query): AnalyticsRange =>
+    query.from !== undefined && query.to !== undefined
+      ? {
+          kind: "custom",
+          from: query.from,
+          to: query.to,
+          days: inclusiveDays(query.from, query.to),
+        }
+      : {
+          kind: "preset",
+          days: query.days ?? DEFAULT_ANALYTICS_WINDOW_DAYS,
+          from: null,
+          to: null,
+        },
+  );
+
+/** The query string for a range, as the pages and the API both read it. */
+export function analyticsRangeQuery(range: AnalyticsRange): string {
+  return range.from && range.to
+    ? `from=${range.from}&to=${range.to}`
+    : `days=${range.days}`;
+}
 
 /** Effective analytics access for the signed-in staff member. */
 export const adminAnalyticsAccessSchema = z.object({
@@ -132,9 +246,7 @@ export const adminHabitConsistencySchema = z.object({
 
 /** Same counts as the progress levels report, plus where assignments came from. */
 export const adminLevelDistributionSchema = z.object({
-  levels: z.array(
-    z.object({ level: z.number().int().min(1).max(5), count }),
-  ),
+  levels: z.array(z.object({ level: z.number().int().min(1).max(5), count })),
   unassignedCount: count,
   sources: z.object({ mock: count, calculated: count, manual: count }),
 });

@@ -5,26 +5,17 @@ import styles from "../../app/dashboard/dashboard.module.css";
 export function SidebarNavLink({
   href,
   active,
+  sectionActive,
   icon,
   children,
-  groupActive,
-  expanded,
-  controls,
-  onClick,
-  trailing,
 }: {
   href: string;
   active: boolean;
-  /** A group parent whose section holds the current page: a quieter style. */
-  groupActive?: boolean;
+  /** A page in this link's group is open: a quieter style. */
+  sectionActive?: boolean;
   /** Omitted for links nested in a group, which are indented instead. */
   icon?: SidebarNavIconName;
   children: React.ReactNode;
-  /** Set on a group's parent link to expose its open state. */
-  expanded?: boolean;
-  controls?: string;
-  onClick?: React.MouseEventHandler<HTMLAnchorElement>;
-  trailing?: React.ReactNode;
 }) {
   return (
     <Link
@@ -32,20 +23,16 @@ export function SidebarNavLink({
       className={
         active
           ? styles.active
-          : groupActive
-            ? styles["sidebar-group-active"]
+          : sectionActive
+            ? styles["sidebar-section-active"]
             : undefined
       }
       aria-current={active ? "page" : undefined}
-      aria-expanded={expanded}
-      aria-controls={controls}
-      onClick={onClick}
     >
       {icon ? (
         <SidebarNavIcon name={icon} className={styles["sidebar-nav-icon"]} />
       ) : null}
       <span>{children}</span>
-      {trailing}
     </Link>
   );
 }
