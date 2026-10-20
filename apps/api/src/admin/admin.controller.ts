@@ -21,7 +21,10 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { requestContext } from '../common/request-context';
 import { AdminService } from './admin.service';
+import { AdminKycService } from './admin-kyc.service';
 import {
+  AdminKycEscalateDto,
+  AdminKycQueryDto,
   AdminChecklistUpdateDto,
   AdminCustomRoleCreateDto,
   AdminCustomRoleUpdateDto,
@@ -41,7 +44,47 @@ import {
 @ApiBearerAuth()
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly kyc: AdminKycService,
+  ) {}
+
+  @Get('kyc')
+  @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.USER_MANAGEMENT_VIEW)
+  @ApiOperation({ summary: 'View customer onboarding and KYC status' })
+  listKyc(
+    @CurrentUser() principal: AuthPrincipal,
+    @Query() query: AdminKycQueryDto,
+    @Req() request: Request,
+  ) {
+    return this.kyc.list(principal, query, requestContext(request));
+  }
+
+  @Post('kyc/:userId/retry')
+  @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.USER_MANAGEMENT_EDIT)
+  @ApiOperation({ summary: 'Retry a customer verification' })
+  retryKyc(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Req() request: Request,
+  ) {
+    return this.kyc.retry(principal, userId, requestContext(request));
+  }
+
+  @Post('kyc/:userId/escalate')
+  @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.USER_MANAGEMENT_EDIT)
+  @ApiOperation({ summary: 'Escalate a customer verification case' })
+  escalateKyc(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() body: AdminKycEscalateDto,
+    @Req() request: Request,
+  ) {
+    return this.kyc.escalate(principal, userId, body, requestContext(request));
+  }
 
   @Get('overview')
   @Roles(UserType.ADMIN)

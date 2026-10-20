@@ -136,6 +136,12 @@ export default function DashboardLayout({
       active: pathname.startsWith("/dashboard/upgrade-intents"),
     },
     {
+      href: "/dashboard/kyc",
+      label: "Onboarding & KYC",
+      icon: "kyc",
+      active: pathname.startsWith("/dashboard/kyc"),
+    },
+    {
       href: "/dashboard/manage-roles",
       label: "Manage roles",
       icon: "roles",

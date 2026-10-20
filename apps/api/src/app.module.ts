@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CustomRole } from './entities/custom-role.entity';
 import { AdminRolePermission } from './entities/admin-role-permission.entity';
 import { AdminUserPermission } from './entities/admin-user-permission.entity';
+import { KycVerification } from './entities/kyc-verification.entity';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
@@ -31,6 +32,7 @@ import { IncentivesModule } from './incentives/incentives.module';
       CustomRole,
       AdminRolePermission,
       AdminUserPermission,
+      KycVerification,
     ]),
     ConfigModule.forRoot({
       isGlobal: true,

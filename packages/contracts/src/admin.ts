@@ -4,6 +4,7 @@ import {
   adminRoleValues,
   habitCategoryValues,
   habitFrequencyValues,
+  kycStatusValues,
   onboardingStatusValues,
   pathwayApplicationStatusValues,
   pathwayVerificationMethodValues,
@@ -62,6 +63,19 @@ export const adminPathwayApplicationsQuerySchema = paginationQuerySchema.extend(
 );
 
 export const adminUpgradeIntentsQuerySchema = paginationQuerySchema;
+
+export const adminKycQuerySchema = paginationQuerySchema.extend({
+  search: z.string().trim().max(255).optional(),
+  status: z.enum(kycStatusValues).optional(),
+  stuck: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
+});
+
+export const adminKycEscalateSchema = z.object({
+  note: z.string().trim().min(1).max(1000),
+});
 
 export const adminChecklistUpdateSchema = z.object({
   isComplete: z.boolean(),
@@ -383,6 +397,38 @@ export const adminUpgradeIntentsResponseSchema = z.object({
   ...paginationFields,
 });
 
+export const adminKycItemSchema = z.object({
+  user: adminApplicantSchema,
+  status: z.enum(kycStatusValues),
+  provider: z.string(),
+  failureCode: z.string().nullable(),
+  failureReason: z.string().nullable(),
+  attemptCount: z.number().int(),
+  statusChangedAt: isoDate.nullable(),
+  lastRetryAt: isoDate.nullable(),
+  isStuck: z.boolean(),
+  canRetry: z.boolean(),
+  escalatedAt: isoDate.nullable(),
+  escalationNote: z.string().nullable(),
+});
+
+export const adminKycResponseSchema = z.object({
+  summary: z.object({
+    counts: z.array(
+      adminCountGroupSchema.extend({ key: z.enum(kycStatusValues) }),
+    ),
+    stuck: z.number().int(),
+    escalated: z.number().int(),
+    stuckAfterDays: z.number().int(),
+  }),
+  items: z.array(adminKycItemSchema),
+  ...paginationFields,
+});
+
+export type AdminKycQuery = z.infer<typeof adminKycQuerySchema>;
+export type AdminKycEscalateInput = z.infer<typeof adminKycEscalateSchema>;
+export type AdminKycItem = z.infer<typeof adminKycItemSchema>;
+export type AdminKycResponse = z.infer<typeof adminKycResponseSchema>;
 export type AdminUsersQuery = z.infer<typeof adminUsersQuerySchema>;
 export type AdminStaffQuery = z.infer<typeof adminStaffQuerySchema>;
 export type AdminStaffCreateInput = z.infer<typeof adminStaffCreateSchema>;

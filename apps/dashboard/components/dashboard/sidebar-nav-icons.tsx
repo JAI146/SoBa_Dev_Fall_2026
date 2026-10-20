@@ -7,6 +7,7 @@ export type SidebarNavIconName =
   | "upgrades"
   | "progress"
   | "roles"
+  | "kyc"
   | "incentives";
 
 function Svg({
@@ -94,6 +95,15 @@ export function SidebarNavIcon({
         <path d="M3 20a6 6 0 0 1 12 0" />
         <path d="M16 11h5" />
         <path d="M18.5 8.5v5" />
+      </Svg>
+    );
+  }
+
+  if (name === "kyc") {
+    return (
+      <Svg className={className}>
+        <path d="M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6z" />
+        <path d="m9 12 2 2 4-4" />
       </Svg>
     );
   }

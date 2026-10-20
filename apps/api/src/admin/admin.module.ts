@@ -17,7 +17,9 @@ import { User } from '../entities/user.entity';
 import { CustomRole } from '../entities/custom-role.entity';
 import { AdminRolePermission } from '../entities/admin-role-permission.entity';
 import { AdminUserPermission } from '../entities/admin-user-permission.entity';
+import { KycVerification } from '../entities/kyc-verification.entity';
 import { AdminController } from './admin.controller';
+import { AdminKycService } from './admin-kyc.service';
 import { AdminService } from './admin.service';
 
 @Module({
@@ -29,6 +31,7 @@ import { AdminService } from './admin.service';
       CustomRole,
       AdminRolePermission,
       AdminUserPermission,
+      KycVerification,
       UserGoal,
       UserHabit,
       UserValue,
@@ -43,6 +46,6 @@ import { AdminService } from './admin.service';
     ]),
   ],
   controllers: [AdminController],
-  providers: [AdminService],
+  providers: [AdminService, AdminKycService],
 })
 export class AdminModule {}

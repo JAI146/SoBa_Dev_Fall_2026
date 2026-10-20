@@ -1251,3 +1251,38 @@
     justify-content: flex-end;
   }
 }
+
+.badge-warning {
+  background: #fffbeb;
+  color: #b45309;
+}
+.badge-danger {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+.kyc-filters {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 18px 20px;
+}
+.kyc-filters .search-field {
+  flex: 1 1 260px;
+}
+.kyc-detail {
+  display: grid;
+  gap: 4px;
+  color: #6b7280;
+  font-size: 12px;
+}
+.kyc-detail strong {
+  color: #111827;
+  font-weight: 650;
+}
+.kyc-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
