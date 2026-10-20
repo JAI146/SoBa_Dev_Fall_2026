@@ -70,6 +70,7 @@ export class SeedService implements OnModuleInit {
 
   async onModuleInit() {
     await this.seedAdmin();
+    await this.seedSupportDashboardUser();
     await this.seedS3Config();
     await this.seedSmtpConfig();
     await this.seedOnboardingContent();
@@ -123,6 +124,56 @@ export class SeedService implements OnModuleInit {
       }),
     );
     this.logger.log('Seeded the configured admin account.');
+  }
+
+  private async seedSupportDashboardUser() {
+    if (this.config.get('NODE_ENV', { infer: true }) !== 'development') return;
+
+    const email = this.config
+      .get('INITIAL_SUPPORT_ADMIN_EMAIL', { infer: true })
+      ?.trim()
+      .toLowerCase();
+    const password = this.config.get('INITIAL_SUPPORT_ADMIN_PASSWORD', {
+      infer: true,
+    });
+    if (!email && !password) return;
+    if (!email || !password) {
+      this.logger.warn(
+        'Set both INITIAL_SUPPORT_ADMIN_EMAIL and INITIAL_SUPPORT_ADMIN_PASSWORD to seed the support test account.',
+      );
+      return;
+    }
+
+    const existing = await this.usersRepo.findOne({ where: { email } });
+    if (existing) {
+      if (
+        existing.userType !== UserType.ADMIN ||
+        existing.adminRole !== AdminRole.SUPPORT
+      ) {
+        this.logger.warn(
+          `The configured support test account email ${email} is already used by an account with a different role; leaving it unchanged.`,
+        );
+      }
+      return;
+    }
+
+    const rounds = this.config.get('BCRYPT_ROUNDS', { infer: true });
+    await this.usersRepo.save(
+      this.usersRepo.create({
+        email,
+        passwordHash: await bcrypt.hash(password, rounds),
+        firstName: 'QA',
+        lastName: 'Support',
+        userType: UserType.ADMIN,
+        adminRole: AdminRole.SUPPORT,
+        status: UserStatus.ACTIVE,
+        emailVerifiedAt: new Date(),
+        notificationPreferences: { ...DEFAULT_NOTIFICATION_PREFERENCES },
+        policyAgreements: {},
+        profileImageUrl: null,
+      }),
+    );
+    this.logger.log('Seeded the development Support dashboard test account.');
   }
 
   private async seedS3Config() {

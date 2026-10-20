@@ -14,6 +14,8 @@ import {
 import type { AuthPrincipal } from '../auth-principal';
 import { Repository } from 'typeorm';
 import { CustomRole } from '../../entities/custom-role.entity';
+import { AdminRolePermission } from '../../entities/admin-role-permission.entity';
+import { AdminUserPermission } from '../../entities/admin-user-permission.entity';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 
 /**
@@ -26,6 +28,10 @@ export class PermissionsGuard implements CanActivate {
     private readonly reflector: Reflector,
     @InjectRepository(CustomRole)
     private readonly customRoles: Repository<CustomRole>,
+    @InjectRepository(AdminRolePermission)
+    private readonly rolePermissionOverrides: Repository<AdminRolePermission>,
+    @InjectRepository(AdminUserPermission)
+    private readonly userPermissionOverrides: Repository<AdminUserPermission>,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -40,6 +46,33 @@ export class PermissionsGuard implements CanActivate {
       .getRequest<Request & { user?: AuthPrincipal }>();
     let allowed = false;
     if (user) {
+      const userOverride = await this.userPermissionOverrides.findOne({
+        where: { userId: user.userId },
+      });
+      if (userOverride) {
+        allowed = required.some((permission) =>
+          hasAdminPermission(null, permission, userOverride.permissions),
+        );
+      } else {
+        const customRole = user.customRoleId
+          ? await this.customRoles.findOne({
+              where: { id: user.customRoleId },
+            })
+          : null;
+        const roleOverride =
+          !customRole && user.adminRole
+            ? await this.rolePermissionOverrides.findOne({
+                where: { roleKey: user.adminRole },
+              })
+            : null;
+        allowed = required.some((permission) =>
+          customRole
+            ? hasAdminPermission(null, permission, customRole.permissions)
+            : roleOverride
+              ? hasAdminPermission(null, permission, roleOverride.permissions)
+              : hasAdminPermission(user.adminRole, permission),
+        );
+      }
       const customRole = user.customRoleId
         ? await this.customRoles.findOne({ where: { id: user.customRoleId } })
         : null;

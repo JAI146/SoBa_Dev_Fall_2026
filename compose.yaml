@@ -43,6 +43,8 @@ services:
       CORS_ORIGINS: http://127.0.0.1:3000
       INITIAL_ADMIN_EMAIL: admin@purposemint.local
       INITIAL_ADMIN_PASSWORD: PurposeMint123!
+      INITIAL_SUPPORT_ADMIN_EMAIL: qa.support@purposemint.local
+      INITIAL_SUPPORT_ADMIN_PASSWORD: PurposeMintSupport123!
     command: sh -c "pnpm --filter @purposemint/contracts build && pnpm --filter @purposemint/api migration:run"
     depends_on:
       db:

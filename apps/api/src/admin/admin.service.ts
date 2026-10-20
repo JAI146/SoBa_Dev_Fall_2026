@@ -1,7 +1,9 @@
 import {
   ConflictException,
+  BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -9,16 +11,21 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   AuditAction,
   AuditActorType,
+  AdminPermission,
   AdminRole,
+  adminRoleValues,
   UserStatus,
   OnboardingStatus,
   PathwayApplicationStatus,
   Tier,
   UserType,
+  rolePermissions,
   type AdminChecklistItem,
   type AdminChecklistUpdateInput,
   type AdminStaffCreateInput,
   type AdminStaffListItem,
+  type AdminStaffPermissionsUpdateInput,
+  type AdminStaffRoleUpdateInput,
   type AdminStaffQuery,
   type AdminStaffResponse,
   type AdminStaffUpdateInput,
@@ -26,6 +33,11 @@ import {
   type AdminCustomRoleCreateInput,
   type AdminCustomRoleUpdateInput,
   type AdminCustomRolesResponse,
+  type AdminRolePermissionProfile,
+  type AdminRolePermissionProfilesResponse,
+  type AdminRolePermissionsUpdateInput,
+  type AdminRoleValue,
+  type AdminPermissionValue,
   type AdminOverviewResponse,
   type AdminPathwayApplicationDetailResponse,
   type AdminPathwayApplicationListItem,
@@ -44,7 +56,7 @@ import {
   type PaginationQuery,
   type TierValue,
 } from '@purposemint/contracts';
-import { MoreThanOrEqual, Repository } from 'typeorm';
+import { In, MoreThanOrEqual, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { toUserGoalPublic } from '../common/mappers/onboarding.mapper';
 import { AuditService } from '../audit/audit.service';
@@ -67,6 +79,8 @@ import { UserValue } from '../entities/user-value.entity';
 import { User } from '../entities/user.entity';
 import { Value } from '../entities/value.entity';
 import { CustomRole } from '../entities/custom-role.entity';
+import { AdminRolePermission } from '../entities/admin-role-permission.entity';
+import { AdminUserPermission } from '../entities/admin-user-permission.entity';
 
 const ACTIVE_WINDOW_DAYS = 30;
 const TIER_LABELS: Record<TierValue, string> = {
@@ -74,13 +88,21 @@ const TIER_LABELS: Record<TierValue, string> = {
   [Tier.GROWTH]: 'Momentum',
   [Tier.ELEVATE]: 'Elevation',
 };
+type AdminStaffMutation = AdminStaffUpdateInput &
+  Partial<AdminStaffRoleUpdateInput>;
 
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(CustomRole)
     private readonly customRoles: Repository<CustomRole>,
+    @InjectRepository(AdminRolePermission)
+    private readonly rolePermissionOverrides: Repository<AdminRolePermission>,
+    @InjectRepository(AdminUserPermission)
+    private readonly userPermissionOverrides: Repository<AdminUserPermission>,
     @InjectRepository(UserGoal) private readonly goals: Repository<UserGoal>,
     @InjectRepository(UserHabit)
     private readonly habits: Repository<UserHabit>,
@@ -103,12 +125,115 @@ export class AdminService {
     private readonly plans: Repository<SubscriptionPlan>,
     private readonly audit: AuditService,
     private readonly sessions: SessionService,
-    config: ConfigService<Env, true>,
+    private readonly config: ConfigService<Env, true>,
   ) {
     this.bcryptRounds = config.get('BCRYPT_ROUNDS', { infer: true });
   }
 
   private readonly bcryptRounds: number;
+
+  async listRolePermissionProfiles(
+    principal: AuthPrincipal,
+    context: RequestContext,
+  ): Promise<AdminRolePermissionProfilesResponse> {
+    const [customRoles, overrides] = await Promise.all([
+      this.customRoles.find({ order: { name: 'ASC' } }),
+      this.rolePermissionOverrides.find(),
+    ]);
+    const overrideMap = new Map(
+      overrides.map((override) => [override.roleKey, override.permissions]),
+    );
+    const builtInProfiles: AdminRolePermissionProfile[] = Object.values(
+      AdminRole,
+    ).map((role) => ({
+      key: role,
+      name: this.adminRoleLabel(role),
+      description: 'Built-in administrative role',
+      isCustom: false,
+      permissions: [...(overrideMap.get(role) ?? rolePermissions[role])],
+    }));
+    await this.record(
+      principal,
+      context,
+      AuditAction.ADMIN_CUSTOM_ROLES_LISTED,
+      {
+        entityType: 'admin_roles',
+      },
+    );
+    return {
+      items: [
+        ...builtInProfiles,
+        ...customRoles.map((role) => ({
+          key: `custom:${role.id}`,
+          name: role.name,
+          description: role.description,
+          isCustom: true,
+          permissions: role.permissions,
+        })),
+      ],
+    };
+  }
+
+  async updateRolePermissions(
+    principal: AuthPrincipal,
+    roleKey: string,
+    input: AdminRolePermissionsUpdateInput,
+    context: RequestContext,
+  ): Promise<AdminRolePermissionProfile> {
+    if (roleKey.startsWith('custom:')) {
+      const id = roleKey.slice('custom:'.length);
+      const role = await this.customRoles.findOne({ where: { id } });
+      if (!role) throw new NotFoundException('Custom role not found.');
+      role.permissions = input.permissions;
+      await this.customRoles.save(role);
+      await this.record(
+        principal,
+        context,
+        AuditAction.ADMIN_ROLE_PERMISSIONS_UPDATED,
+        { entityType: 'custom_role', entityId: id },
+      );
+      return {
+        key: roleKey,
+        name: role.name,
+        description: role.description,
+        isCustom: true,
+        permissions: role.permissions,
+      };
+    }
+
+    if (!adminRoleValues.includes(roleKey as AdminRoleValue)) {
+      throw new NotFoundException('Role not found.');
+    }
+    if (
+      roleKey === AdminRole.SUPER_ADMIN &&
+      (!input.permissions.includes(AdminPermission.SETTINGS_FULL) ||
+        !input.permissions.includes(AdminPermission.USER_MANAGEMENT_VIEW))
+    ) {
+      throw new ForbiddenException(
+        'Super Admin must retain full settings and user-management view access.',
+      );
+    }
+
+    await this.rolePermissionOverrides.save(
+      this.rolePermissionOverrides.create({
+        roleKey,
+        permissions: input.permissions,
+      }),
+    );
+    await this.record(
+      principal,
+      context,
+      AuditAction.ADMIN_ROLE_PERMISSIONS_UPDATED,
+      { entityType: 'admin_role', entityId: roleKey },
+    );
+    return {
+      key: roleKey,
+      name: this.adminRoleLabel(roleKey as AdminRoleValue),
+      description: 'Built-in administrative role',
+      isCustom: false,
+      permissions: input.permissions,
+    };
+  }
 
   async listCustomRoles(
     principal: AuthPrincipal,
@@ -212,13 +337,51 @@ export class AdminService {
       .skip((query.page - 1) * query.pageSize)
       .take(query.pageSize)
       .getManyAndCount();
+    const staffIds = staff.map((user) => user.id);
+    const customRoleIds = staff.flatMap((user) =>
+      user.customRoleId ? [user.customRoleId] : [],
+    );
+    const [customRoles, userOverrides, roleOverrides] = await Promise.all([
+      customRoleIds.length
+        ? this.customRoles.find({ where: { id: In(customRoleIds) } })
+        : Promise.resolve([]),
+      staffIds.length
+        ? this.userPermissionOverrides.find({
+            where: { userId: In(staffIds) },
+          })
+        : Promise.resolve([]),
+      this.rolePermissionOverrides.find(),
+    ]);
+    const customRoleById = new Map(customRoles.map((role) => [role.id, role]));
+    const userOverrideById = new Map(
+      userOverrides.map((override) => [override.userId, override.permissions]),
+    );
+    const roleOverrideByKey = new Map(
+      roleOverrides.map((override) => [override.roleKey, override.permissions]),
+    );
 
     await this.record(principal, context, AuditAction.ADMIN_STAFF_LISTED, {
       entityType: 'admin_staff',
       metadata: { page: query.page, pageSize: query.pageSize },
     });
     return {
-      items: staff.map((user) => this.toStaffListItem(user)),
+      items: staff.map((user) => {
+        const customRole = user.customRoleId
+          ? customRoleById.get(user.customRoleId)
+          : undefined;
+        const roleKey = customRole
+          ? `custom:${customRole.id}`
+          : (user.adminRole ?? AdminRole.SUPPORT);
+        return this.toStaffListItem(
+          user,
+          roleKey,
+          userOverrideById.get(user.id) ??
+            customRole?.permissions ??
+            roleOverrideByKey.get(user.adminRole ?? AdminRole.SUPPORT) ??
+            rolePermissions[user.adminRole ?? AdminRole.SUPPORT],
+          userOverrideById.has(user.id),
+        );
+      }),
       ...this.pagination(query.page, query.pageSize, total),
     };
   }
@@ -242,7 +405,6 @@ export class AdminService {
         adminRole: input.adminRole,
         status: UserStatus.ACTIVE,
         emailVerifiedAt: new Date(),
-        notificationPreferences: {},
         policyAgreements: {},
       }),
     );
@@ -251,13 +413,18 @@ export class AdminService {
       entityId: user.id,
       metadata: { adminRole: user.adminRole },
     });
-    return this.toStaffListItem(user);
+    return this.toStaffListItem(
+      user,
+      input.adminRole,
+      rolePermissions[input.adminRole],
+      false,
+    );
   }
 
   async updateStaff(
     principal: AuthPrincipal,
     id: string,
-    input: AdminStaffUpdateInput,
+    input: AdminStaffMutation,
     context: RequestContext,
   ): Promise<AdminStaffListItem> {
     const user = await this.users.findOne({
@@ -268,13 +435,44 @@ export class AdminService {
       throw new ForbiddenException('You cannot deactivate your own account.');
     }
 
+    let nextAdminRole = input.adminRole ?? user.adminRole!;
+    let nextCustomRoleId = user.customRoleId;
+    let selectedCustomRole: CustomRole | null = null;
+    if (input.roleKey !== undefined) {
+      if (input.roleKey.startsWith('custom:')) {
+        const roleId = input.roleKey.slice('custom:'.length);
+        selectedCustomRole = await this.customRoles.findOne({
+          where: { id: roleId },
+        });
+        if (!selectedCustomRole) {
+          throw new NotFoundException('Custom role not found.');
+        }
+        nextAdminRole = AdminRole.SUPPORT;
+        nextCustomRoleId = selectedCustomRole.id;
+      } else {
+        nextAdminRole = input.roleKey as AdminRoleValue;
+        nextCustomRoleId = null;
+      }
+    } else if (input.adminRole !== undefined) {
+      nextCustomRoleId = null;
+    }
+
+    if (
+      id === principal.userId &&
+      (nextAdminRole !== user.adminRole ||
+        nextCustomRoleId !== user.customRoleId)
+    ) {
+      throw new ForbiddenException('You cannot change your own role.');
+    }
+
     const wasActiveSuperAdmin =
       user.adminRole === AdminRole.SUPER_ADMIN &&
+      user.customRoleId === null &&
       user.status === UserStatus.ACTIVE;
     const becomesInactiveSuperAdmin =
       wasActiveSuperAdmin &&
-      ((input.adminRole !== undefined &&
-        input.adminRole !== AdminRole.SUPER_ADMIN) ||
+      (nextAdminRole !== AdminRole.SUPER_ADMIN ||
+        nextCustomRoleId !== null ||
         input.status === UserStatus.SUSPENDED);
     if (becomesInactiveSuperAdmin) {
       const activeSuperAdmins = await this.users.count({
@@ -297,7 +495,8 @@ export class AdminService {
         : {}),
       ...(input.firstName !== undefined ? { firstName: input.firstName } : {}),
       ...(input.lastName !== undefined ? { lastName: input.lastName } : {}),
-      ...(input.adminRole !== undefined ? { adminRole: input.adminRole } : {}),
+      adminRole: nextAdminRole,
+      customRoleId: nextCustomRoleId,
       ...(input.status !== undefined ? { status: input.status } : {}),
     });
     try {
@@ -326,10 +525,94 @@ export class AdminService {
       {
         entityType: 'user',
         entityId: user.id,
-        metadata: { adminRole: user.adminRole },
+        metadata: {
+          adminRole: user.adminRole,
+          roleKey: nextCustomRoleId
+            ? `custom:${nextCustomRoleId}`
+            : nextAdminRole,
+        },
       },
     );
-    return this.toStaffListItem(user);
+    const [userOverride, roleOverride] = await Promise.all([
+      this.userPermissionOverrides.findOne({ where: { userId: user.id } }),
+      nextCustomRoleId
+        ? Promise.resolve(null)
+        : this.rolePermissionOverrides.findOne({
+            where: { roleKey: nextAdminRole },
+          }),
+    ]);
+    const effectivePermissions =
+      userOverride?.permissions ??
+      selectedCustomRole?.permissions ??
+      (nextCustomRoleId
+        ? (
+            await this.customRoles.findOne({
+              where: { id: nextCustomRoleId },
+            })
+          )?.permissions
+        : undefined) ??
+      roleOverride?.permissions ??
+      rolePermissions[nextAdminRole];
+    return this.toStaffListItem(
+      user,
+      nextCustomRoleId ? `custom:${nextCustomRoleId}` : nextAdminRole,
+      effectivePermissions,
+      Boolean(userOverride),
+    );
+  }
+
+  async updateStaffPermissions(
+    principal: AuthPrincipal,
+    id: string,
+    input: AdminStaffPermissionsUpdateInput,
+    context: RequestContext,
+  ): Promise<{ permissions: AdminPermissionValue[] | null }> {
+    const user = await this.users.findOne({
+      where: { id, userType: UserType.ADMIN },
+    });
+    if (!user) throw new NotFoundException('Staff account not found.');
+    if (id === principal.userId) {
+      throw new ForbiddenException(
+        'You cannot change your own individual permissions.',
+      );
+    }
+
+    if (
+      user.adminRole === AdminRole.SUPER_ADMIN &&
+      user.customRoleId === null &&
+      input.permissions !== null &&
+      (!input.permissions.includes(AdminPermission.SETTINGS_FULL) ||
+        !input.permissions.includes(AdminPermission.USER_MANAGEMENT_VIEW))
+    ) {
+      throw new BadRequestException(
+        'Super Admin accounts must retain full settings and user-management view access.',
+      );
+    }
+
+    if (input.permissions === null) {
+      await this.userPermissionOverrides.delete({ userId: id });
+    } else {
+      await this.userPermissionOverrides.save(
+        this.userPermissionOverrides.create({
+          userId: id,
+          permissions: input.permissions,
+        }),
+      );
+    }
+    await this.record(
+      principal,
+      context,
+      AuditAction.ADMIN_STAFF_PERMISSIONS_UPDATED,
+      {
+        entityType: 'user',
+        entityId: user.id,
+        metadata: {
+          permissionCount: input.permissions?.length ?? null,
+          resetToRoleDefaults: input.permissions === null,
+        },
+      },
+    );
+    return { permissions: input.permissions };
   }
 
   async overview(
@@ -1042,18 +1325,33 @@ export class AdminService {
     };
   }
 
-  private toStaffListItem(user: User): AdminStaffListItem {
+  private toStaffListItem(
+    user: User,
+    roleKey: string,
+    permissions: readonly AdminPermissionValue[],
+    hasPermissionOverride: boolean,
+  ): AdminStaffListItem {
     return {
       id: user.id,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
       adminRole: user.adminRole!,
+      roleKey,
+      permissions: [...permissions],
+      hasPermissionOverride,
       status: user.status as 'active' | 'suspended',
       emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
       createdAt: user.createdAt.toISOString(),
       lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
     };
+  }
+
+  private adminRoleLabel(role: AdminRoleValue): string {
+    return role
+      .split('_')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
   }
 
   private toCustomRole(role: CustomRole): AdminCustomRole {

@@ -404,11 +404,15 @@ and `\q` exits.
 
 ## 8. Future scope
 
+Administrative access uses built-in or custom roles. Per-staff permission
+overrides are stored separately and take precedence over the assigned role;
+resetting an override restores inheritance from that role.
+
 There are currently no dedicated tables for banking accounts, KYC/provider
 events, payments, reconciliation, badges/awards, level transition history,
-support cases, notification delivery history, custom role permissions, or full
-subscription/billing history. They should not be inferred from similarly named
-fields or plan descriptions. The current savings model records manual progress.
+support cases, notification delivery history, or full subscription/billing
+history. They should not be inferred from similarly named fields or plan
+descriptions. The current savings model records manual progress.
 
 When adding a feature, update migrations/entities for schema changes, extend
 appropriate seed fixtures, and revise this inventory. Keep future goal totals

@@ -4,6 +4,8 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CustomRole } from './entities/custom-role.entity';
+import { AdminRolePermission } from './entities/admin-role-permission.entity';
+import { AdminUserPermission } from './entities/admin-user-permission.entity';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
@@ -26,7 +28,11 @@ import { SubscriptionManagementModule } from './subscription-management/subscrip
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CustomRole]),
+    TypeOrmModule.forFeature([
+      CustomRole,
+      AdminRolePermission,
+      AdminUserPermission,
+    ]),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env'],
