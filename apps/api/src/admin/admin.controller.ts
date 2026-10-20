@@ -25,6 +25,7 @@ import { AdminKycService } from './admin-kyc.service';
 import {
   AdminKycEscalateDto,
   AdminKycQueryDto,
+  AdminKycResolveDto,
   AdminChecklistUpdateDto,
   AdminCustomRoleCreateDto,
   AdminCustomRoleUpdateDto,
@@ -84,6 +85,19 @@ export class AdminController {
     @Req() request: Request,
   ) {
     return this.kyc.escalate(principal, userId, body, requestContext(request));
+  }
+
+  @Post('kyc/:userId/resolve')
+  @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.USER_MANAGEMENT_EDIT)
+  @ApiOperation({ summary: 'Resolve an escalated verification case' })
+  resolveKyc(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() body: AdminKycResolveDto,
+    @Req() request: Request,
+  ) {
+    return this.kyc.resolve(principal, userId, body, requestContext(request));
   }
 
   @Get('overview')

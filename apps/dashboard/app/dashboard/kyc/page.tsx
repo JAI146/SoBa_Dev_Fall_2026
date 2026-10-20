@@ -41,6 +41,9 @@ export default function KycPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [escalating, setEscalating] = useState<AdminKycItem | null>(null);
+  const [resolving, setResolving] = useState<AdminKycItem | null>(null);
+  const [outcome, setOutcome] = useState("not_started");
+  const [resolveNote, setResolveNote] = useState("");
   const [note, setNote] = useState("");
 
   const path = useMemo(() => {
@@ -63,7 +66,7 @@ export default function KycPage() {
 
   async function runAction(
     userId: string,
-    action: "retry" | "escalate",
+    action: "retry" | "escalate" | "resolve",
     body?: unknown,
   ) {
     setBusyUserId(userId);
@@ -81,7 +84,9 @@ export default function KycPage() {
       setMessage(
         action === "retry"
           ? "Verification retry started."
-          : "Case escalated for review.",
+          : action === "escalate"
+            ? "Case escalated for review."
+            : "Escalated case resolved.",
       );
       await query.reload();
       return true;
@@ -101,6 +106,18 @@ export default function KycPage() {
     if (await runAction(escalating.user.id, "escalate", { note })) {
       setEscalating(null);
       setNote("");
+    }
+  }
+
+  async function submitResolution(event: FormEvent) {
+    event.preventDefault();
+    if (!resolving) return;
+    const body = {
+      outcome,
+      ...(resolveNote.trim() ? { note: resolveNote.trim() } : {}),
+    };
+    if (await runAction(resolving.user.id, "resolve", body)) {
+      setResolving(null);
     }
   }
 
@@ -281,21 +298,35 @@ export default function KycPage() {
                       >
                         Retry
                       </button>
-                      <button
-                        type="button"
-                        className={styles["btn-toolbar-primary"]}
-                        disabled={
-                          item.status === "verified" ||
-                          !!item.escalatedAt ||
-                          busyUserId === item.user.id
-                        }
-                        onClick={() => {
-                          setNote("");
-                          setEscalating(item);
-                        }}
-                      >
-                        Escalate
-                      </button>
+                      {item.escalatedAt ? (
+                        <button
+                          type="button"
+                          className={styles["btn-toolbar-primary"]}
+                          disabled={busyUserId === item.user.id}
+                          onClick={() => {
+                            setOutcome("not_started");
+                            setResolveNote("");
+                            setResolving(item);
+                          }}
+                        >
+                          Resolve
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className={styles["btn-toolbar-primary"]}
+                          disabled={
+                            item.status === "verified" ||
+                            busyUserId === item.user.id
+                          }
+                          onClick={() => {
+                            setNote("");
+                            setEscalating(item);
+                          }}
+                        >
+                          Escalate
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -362,6 +393,48 @@ export default function KycPage() {
             </button>
             <button type="submit" disabled={!!busyUserId || !note.trim()}>
               Escalate
+            </button>
+          </div>
+        </form>
+      </Dialog>
+      <Dialog
+        open={!!resolving}
+        title="Resolve escalated case"
+        onClose={() => {
+          if (!busyUserId) setResolving(null);
+        }}
+      >
+        <form className={styles["role-form"]} onSubmit={submitResolution}>
+          <label>
+            Outcome
+            <select
+              value={outcome}
+              onChange={(event) => setOutcome(event.target.value)}
+            >
+              <option value="not_started">Reset to Not started (retest)</option>
+              <option value="verified">Mark as Verified</option>
+              <option value="failed">Mark as Failed</option>
+            </select>
+          </label>
+          <label>
+            Resolution note (optional)
+            <textarea
+              maxLength={1000}
+              rows={3}
+              value={resolveNote}
+              onChange={(event) => setResolveNote(event.target.value)}
+            />
+          </label>
+          <div className={styles["form-actions"]}>
+            <button
+              type="button"
+              disabled={!!busyUserId}
+              onClick={() => setResolving(null)}
+            >
+              Cancel
+            </button>
+            <button type="submit" disabled={!!busyUserId}>
+              Resolve
             </button>
           </div>
         </form>

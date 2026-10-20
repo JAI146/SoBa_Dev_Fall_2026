@@ -77,6 +77,11 @@ export const adminKycEscalateSchema = z.object({
   note: z.string().trim().min(1).max(1000),
 });
 
+export const adminKycResolveSchema = z.object({
+  outcome: z.enum(["verified", "failed", "not_started"]),
+  note: z.string().trim().max(1000).optional(),
+});
+
 export const adminChecklistUpdateSchema = z.object({
   isComplete: z.boolean(),
 });
@@ -427,6 +432,7 @@ export const adminKycResponseSchema = z.object({
 
 export type AdminKycQuery = z.infer<typeof adminKycQuerySchema>;
 export type AdminKycEscalateInput = z.infer<typeof adminKycEscalateSchema>;
+export type AdminKycResolveInput = z.infer<typeof adminKycResolveSchema>;
 export type AdminKycItem = z.infer<typeof adminKycItemSchema>;
 export type AdminKycResponse = z.infer<typeof adminKycResponseSchema>;
 export type AdminUsersQuery = z.infer<typeof adminUsersQuerySchema>;

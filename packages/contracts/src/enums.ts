@@ -245,6 +245,7 @@ export const AuditAction = {
   ADMIN_KYC_LISTED: "admin.kyc_listed",
   ADMIN_KYC_RETRIED: "admin.kyc_retried",
   ADMIN_KYC_ESCALATED: "admin.kyc_escalated",
+  ADMIN_KYC_RESOLVED: "admin.kyc_resolved",
 } as const;
 
 export type AuditActionValue = (typeof AuditAction)[keyof typeof AuditAction];

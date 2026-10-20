@@ -12,6 +12,7 @@ import {
   UserType,
   kycStatusValues,
   type AdminKycEscalateInput,
+  type AdminKycResolveInput,
   type AdminKycItem,
   type AdminKycQuery,
   type AdminKycResponse,
@@ -205,6 +206,47 @@ export class AdminKycService {
       entityType: 'kyc_verification',
       entityId: user.id,
       metadata: { previousStatus: status },
+    });
+    return this.toItem(user, saved, this.stuckBefore());
+  }
+
+  async resolve(
+    principal: AuthPrincipal,
+    userId: string,
+    input: AdminKycResolveInput,
+    context: RequestContext,
+  ): Promise<AdminKycItem> {
+    const { user, record } = await this.load(userId);
+    if (!record?.escalatedAt) {
+      throw new BadRequestException('This case has not been escalated.');
+    }
+
+    const now = new Date();
+    const failed = input.outcome === KycStatus.FAILED;
+    const saved = await this.verifications.save(
+      this.verifications.create({
+        ...record,
+        status: input.outcome,
+        statusChangedAt: now,
+        failureCode: failed ? 'manual_review_failed' : null,
+        failureReason: failed
+          ? (input.note ?? 'Rejected after manual review.')
+          : null,
+        escalatedAt: null,
+        escalatedBy: null,
+        escalationNote: null,
+      }),
+    );
+
+    await this.record(principal, context, AuditAction.ADMIN_KYC_RESOLVED, {
+      entityType: 'kyc_verification',
+      entityId: user.id,
+      metadata: {
+        previousStatus: record.status,
+        outcome: input.outcome,
+        note: input.note ?? null,
+        escalationNote: record.escalationNote,
+      },
     });
     return this.toItem(user, saved, this.stuckBefore());
   }
