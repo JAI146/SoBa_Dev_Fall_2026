@@ -230,10 +230,16 @@ export const AuditAction = {
   ADMIN_CUSTOM_ROLE_CREATED: "admin.custom_role_created",
   ADMIN_CUSTOM_ROLE_UPDATED: "admin.custom_role_updated",
   ADMIN_CUSTOM_ROLE_DELETED: "admin.custom_role_deleted",
+  ADMIN_ROLE_PERMISSIONS_UPDATED: "admin.role_permissions_updated",
+  ADMIN_STAFF_PERMISSIONS_UPDATED: "admin.staff_permissions_updated",
   ADMIN_PATHWAY_APPLICATIONS_LISTED: "admin.pathway_applications_listed",
   ADMIN_PATHWAY_APPLICATION_VIEWED: "admin.pathway_application_viewed",
   ADMIN_PATHWAY_CHECKLIST_UPDATED: "admin.pathway_checklist_updated",
   ADMIN_UPGRADE_INTENTS_LISTED: "admin.upgrade_intents_listed",
+  ADMIN_PLAN_CREATED: "admin.plan_created",
+  ADMIN_PLAN_UPDATED: "admin.plan_updated",
+  ADMIN_SUBSCRIPTION_CHANGED: "admin.subscription_changed",
+  ADMIN_SUBSCRIPTION_PAYMENT_RECORDED: "admin.subscription_payment_recorded",
 } as const;
 
 export type AuditActionValue = (typeof AuditAction)[keyof typeof AuditAction];

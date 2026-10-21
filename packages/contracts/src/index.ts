@@ -19,3 +19,4 @@ export * from "./system-health";
 export * from "./notifications";
 
 export * from "./coaching-operations";
+export * from "./subscription-management";

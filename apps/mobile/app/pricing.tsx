@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import {
   OnboardingStatus,
-  Tier,
   type SubscriptionPlanPublic,
   type UpgradeIntentResponse,
 } from '@purposemint/contracts';
@@ -27,8 +26,6 @@ import {
   useUpgradeIntent,
 } from '@/hooks/use-subscriptions';
 import { postAuthHref } from '@/lib/auth/post-auth-href';
-
-type IoniconName = keyof typeof Ionicons.glyphMap;
 
 export default function PricingScreen() {
   const { session } = useAuth();
@@ -70,9 +67,11 @@ export default function PricingScreen() {
     );
   }
 
-  const { currentPlanKey, plans } = plansQuery.data;
-  const currentSortOrder =
-    plans.find((plan) => plan.key === currentPlanKey)?.sortOrder ?? 0;
+  const { currentPlanKey, plans, currentSubscription } = plansQuery.data;
+  const currentMonthlyPrice =
+    currentSubscription.billing.regularAmountCents /
+    100 /
+    (currentSubscription.billing.cycle === 'yearly' ? 12 : 1);
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safe}>
@@ -101,8 +100,13 @@ export default function PricingScreen() {
         <View style={styles.planList}>
           {plans.map((plan) => {
             const current = plan.key === currentPlanKey;
-            const included = plan.sortOrder < currentSortOrder;
-            const canUpgrade = plan.sortOrder > currentSortOrder;
+            const included = false;
+            const offeredMonthlyPrice =
+              (plan.billingCycles?.includes('monthly') ?? true)
+                ? plan.priceMonthly
+                : (plan.priceYearly ?? 0) / 12;
+            const canUpgrade =
+              !current && offeredMonthlyPrice > currentMonthlyPrice;
             return (
               <PlanCard
                 current={current}
@@ -155,7 +159,7 @@ export default function PricingScreen() {
             accessibilityLabel="View Pathways"
             accessibilityRole="button"
             onPress={() =>
-              currentPlanKey === Tier.ELEVATE
+              currentSubscription.entitlements.pathways
                 ? router.push('/(pathways)')
                 : setPathwaysNoteOpen(true)
             }
@@ -193,10 +197,10 @@ export default function PricingScreen() {
             style={styles.backdrop}
           />
           <View style={styles.sheet}>
-            <Text style={styles.sheetTitle}>Pathways come with Elevation</Text>
+            <Text style={styles.sheetTitle}>Find a plan with Pathways</Text>
             <Text style={styles.sheetBody}>
-              You can review the Elevation plan above. Your current plan and
-              progress stay exactly as they are.
+              Choose a plan that includes Pathways. Requesting information does
+              not change your subscription.
             </Text>
             <AppButton
               accessibilityLabel="Back to plans"
@@ -226,7 +230,8 @@ function PlanCard({
   loading: boolean;
   onUpgrade?: () => void;
 }) {
-  const emphasized = plan.key === Tier.GROWTH;
+  const emphasized = Boolean(plan.badge);
+  const monthly = plan.billingCycles?.includes('monthly') ?? true;
   const buttonTitle = current
     ? 'Current plan'
     : included
@@ -239,15 +244,15 @@ function PlanCard({
       <View style={[styles.planIcon, emphasized && styles.planIconEmphasized]}>
         <Ionicons
           color={emphasized ? theme.colors.white : theme.colors.deepGreen}
-          name={planIcon(plan.key)}
+          name="star-outline"
           size={25}
         />
       </View>
       <Text style={styles.planName}>{plan.name}</Text>
       <Text style={styles.tagline}>{plan.tagline}</Text>
       <Text style={styles.price}>
-        ${formatPrice(plan.priceMonthly)}
-        <Text style={styles.perMonth}>/month</Text>
+        ${formatPrice(monthly ? plan.priceMonthly : (plan.priceYearly ?? 0))}
+        <Text style={styles.perMonth}>{monthly ? '/month' : '/year'}</Text>
       </Text>
       <Text style={styles.description}>{plan.description}</Text>
       <View style={styles.featureList}>
@@ -308,12 +313,6 @@ function AcknowledgementModal({
       </View>
     </Modal>
   );
-}
-
-function planIcon(planKey: SubscriptionPlanPublic['key']): IoniconName {
-  if (planKey === Tier.GROWTH) return 'flash-outline';
-  if (planKey === Tier.ELEVATE) return 'ribbon-outline';
-  return 'star-outline';
 }
 
 function formatPrice(price: number): string {

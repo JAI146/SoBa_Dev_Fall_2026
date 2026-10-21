@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { planKeySchema } from "./subscription-management";
 import {
   checklistCategoryValues,
   adminRoleValues,
@@ -49,6 +50,17 @@ export const adminStaffUpdateSchema = z.object({
   status: z.enum(["active", "suspended"] as const).optional(),
 });
 
+export const adminStaffRoleUpdateSchema = z.object({
+  roleKey: z.union([
+    z.enum(adminRoleValues),
+    z
+      .string()
+      .regex(
+        /^custom:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      ),
+  ]),
+});
+
 export const adminPathwayApplicationsQuerySchema = paginationQuerySchema.extend(
   {
     pathwayKey: z.string().trim().max(100).optional(),
@@ -77,7 +89,7 @@ export const adminOverviewResponseSchema = z.object({
   submittedPathwayApplications: z.number().int().min(0),
   pathwayApplicationsByPathway: z.array(adminCountGroupSchema),
   upgradeIntentsByPlan: z.array(
-    adminCountGroupSchema.extend({ key: z.enum(tierValues) }),
+    adminCountGroupSchema.extend({ key: planKeySchema }),
   ),
   activeUsers: z.object({
     count: z.number().int().min(0),
@@ -118,6 +130,16 @@ export const adminStaffListItemSchema = z.object({
   lastName: z.string(),
   email: z.string().email(),
   adminRole: z.enum(adminRoleValues),
+  roleKey: z.union([
+    z.enum(adminRoleValues),
+    z
+      .string()
+      .regex(
+        /^custom:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      ),
+  ]),
+  permissions: z.array(z.enum(adminPermissionValues)),
+  hasPermissionOverride: z.boolean(),
   status: z.enum(["active", "suspended"] as const),
   emailVerifiedAt: isoDate.nullable(),
   createdAt: isoDate,
@@ -149,6 +171,26 @@ export const adminCustomRoleSchema = z.object({
 
 export const adminCustomRolesResponseSchema = z.object({
   items: z.array(adminCustomRoleSchema),
+});
+
+export const adminRolePermissionProfileSchema = z.object({
+  key: z.string(),
+  name: z.string(),
+  description: z.string(),
+  isCustom: z.boolean(),
+  permissions: z.array(z.enum(adminPermissionValues)),
+});
+
+export const adminRolePermissionProfilesResponseSchema = z.object({
+  items: z.array(adminRolePermissionProfileSchema),
+});
+
+export const adminRolePermissionsUpdateSchema = z.object({
+  permissions: z.array(z.enum(adminPermissionValues)),
+});
+
+export const adminStaffPermissionsUpdateSchema = z.object({
+  permissions: z.array(z.enum(adminPermissionValues)).nullable(),
 });
 
 export const adminUsersResponseSchema = z.object({
@@ -342,13 +384,13 @@ export const adminPathwayApplicationDetailResponseSchema = z.object({
 export const adminUpgradeIntentSchema = z.object({
   id: z.string().uuid(),
   user: adminApplicantSchema,
-  planKey: z.enum(tierValues),
+  planKey: planKeySchema,
   planName: z.string(),
   createdAt: isoDate,
 });
 
 export const adminUpgradeIntentsResponseSchema = z.object({
-  groups: z.array(adminCountGroupSchema.extend({ key: z.enum(tierValues) })),
+  groups: z.array(adminCountGroupSchema.extend({ key: planKeySchema })),
   items: z.array(adminUpgradeIntentSchema),
   ...paginationFields,
 });
@@ -357,6 +399,12 @@ export type AdminUsersQuery = z.infer<typeof adminUsersQuerySchema>;
 export type AdminStaffQuery = z.infer<typeof adminStaffQuerySchema>;
 export type AdminStaffCreateInput = z.infer<typeof adminStaffCreateSchema>;
 export type AdminStaffUpdateInput = z.infer<typeof adminStaffUpdateSchema>;
+export type AdminStaffRoleUpdateInput = z.infer<
+  typeof adminStaffRoleUpdateSchema
+>;
+export type AdminStaffPermissionsUpdateInput = z.infer<
+  typeof adminStaffPermissionsUpdateSchema
+>;
 export type AdminStaffListItem = z.infer<typeof adminStaffListItemSchema>;
 export type AdminStaffResponse = z.infer<typeof adminStaffResponseSchema>;
 export type AdminCustomRoleCreateInput = z.infer<
@@ -368,6 +416,15 @@ export type AdminCustomRoleUpdateInput = z.infer<
 export type AdminCustomRole = z.infer<typeof adminCustomRoleSchema>;
 export type AdminCustomRolesResponse = z.infer<
   typeof adminCustomRolesResponseSchema
+>;
+export type AdminRolePermissionProfile = z.infer<
+  typeof adminRolePermissionProfileSchema
+>;
+export type AdminRolePermissionProfilesResponse = z.infer<
+  typeof adminRolePermissionProfilesResponseSchema
+>;
+export type AdminRolePermissionsUpdateInput = z.infer<
+  typeof adminRolePermissionsUpdateSchema
 >;
 export type AdminPathwayApplicationsQuery = z.infer<
   typeof adminPathwayApplicationsQuerySchema

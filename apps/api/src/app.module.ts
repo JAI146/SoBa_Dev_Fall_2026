@@ -7,6 +7,8 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CustomRole } from './entities/custom-role.entity';
+import { AdminRolePermission } from './entities/admin-role-permission.entity';
+import { AdminUserPermission } from './entities/admin-user-permission.entity';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
@@ -25,10 +27,15 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { CommunityChallengesModule } from './community-challenges/community-challenges.module';
 import { AdminModule } from './admin/admin.module';
 import { IncentivesModule } from './incentives/incentives.module';
+import { SubscriptionManagementModule } from './subscription-management/subscription-management.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CustomRole]),
+    TypeOrmModule.forFeature([
+      CustomRole,
+      AdminRolePermission,
+      AdminUserPermission,
+    ]),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env'],
@@ -62,6 +69,7 @@ import { IncentivesModule } from './incentives/incentives.module';
     AdminModule,
     // Mount incentive endpoints and seed the default program after database initialization.
     IncentivesModule,
+    SubscriptionManagementModule,
     HealthModule,
     SystemHealthModule,
     NotificationsModule,

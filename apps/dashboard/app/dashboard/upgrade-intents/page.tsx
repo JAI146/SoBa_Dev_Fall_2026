@@ -39,7 +39,7 @@ export default function UpgradeIntentsPage() {
         <div>
           <p className={styles.eyebrow}>Membership demand</p>
           <h1>Upgrade intents</h1>
-          <p>Customer interest recorded before paid plans open.</p>
+          <p>Customer requests to change membership plans.</p>
         </div>
       </div>
       <section

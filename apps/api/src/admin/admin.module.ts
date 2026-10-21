@@ -16,6 +16,8 @@ import { UserHabit } from '../entities/user-habit.entity';
 import { UserValue } from '../entities/user-value.entity';
 import { User } from '../entities/user.entity';
 import { CustomRole } from '../entities/custom-role.entity';
+import { AdminRolePermission } from '../entities/admin-role-permission.entity';
+import { AdminUserPermission } from '../entities/admin-user-permission.entity';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 
@@ -27,6 +29,8 @@ import { AdminService } from './admin.service';
       AuditEvent,
       User,
       CustomRole,
+      AdminRolePermission,
+      AdminUserPermission,
       UserGoal,
       UserHabit,
       UserValue,

@@ -90,6 +90,33 @@ try {
     );
     const userId = userResult.rows[0].id;
 
+    // Mock users are inserted after migrations run. Import their configured
+    // membership once; reruns must preserve any administrator changes/history.
+    await client.query(
+      `WITH inserted AS (
+         INSERT INTO user_subscriptions
+           (user_id, plan_key, status, billing, payment_status, started_at, renewal_at, failed_payments, version)
+         SELECT u.id, p.key, 'active',
+           jsonb_build_object('planKey', p.key, 'planName', p.name, 'planVersion', p.version,
+             'cycle', 'monthly', 'currency', 'USD', 'amountCents', round(p.price_monthly * 100)::int,
+             'regularAmountCents', round(p.price_monthly * 100)::int, 'promotionEndsAt', NULL),
+           CASE WHEN p.price_monthly = 0 THEN 'not_required' ELSE 'pending' END,
+           u.created_at, now() + interval '1 month', 0, 1
+         FROM users u JOIN subscription_plans p ON p.key = u.tier::text
+         WHERE u.id = $1 AND u.user_type = 'customer' AND u.deleted_at IS NULL
+         ON CONFLICT (user_id) DO NOTHING RETURNING *
+       ), history AS (
+         INSERT INTO subscription_history
+           (subscription_id, action, new_plan_key, new_billing, effective_at)
+         SELECT id, 'legacy_imported', plan_key, billing, started_at FROM inserted
+       )
+       INSERT INTO audit_events (actor_type, action, entity_type, entity_id, outcome, metadata)
+       SELECT 'system', 'admin.subscription_changed', 'subscription', id::text, 'success',
+         jsonb_build_object('action', 'legacy_imported', 'source', 'mock_seed', 'newBilling', billing)
+       FROM inserted`,
+      [userId],
+    );
+
     // The operational dashboard needs real relationships, not just catalog rows.
     // Keep a few incomplete accounts empty to exercise empty and onboarding states.
     if (completed || index % 5 === 0) {
