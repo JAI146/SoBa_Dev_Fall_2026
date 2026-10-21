@@ -14,6 +14,12 @@ import {
 import { adminPermissionValues } from "./permissions";
 import { paginationQuerySchema } from "./api-error";
 import { valuePublicSchema } from "./onboarding";
+import {
+  goalHistoryEntrySchema,
+  habitProgressSchema,
+  goalSavingsProgressSchema,
+  overallUserProgressSchema,
+} from "./progress";
 
 const isoDate = z.string().datetime();
 
@@ -274,6 +280,7 @@ export const adminUserHabitSchema = z.object({
   category: z.enum(habitCategoryValues),
   isActive: z.boolean(),
   createdAt: isoDate,
+  progress: habitProgressSchema,
 });
 
 export const adminApplicantSchema = z.object({
@@ -317,6 +324,10 @@ export const adminUserDetailResponseSchema = adminUserListItemSchema.extend({
   lastLoginAt: isoDate.nullable(),
   goals: z.array(adminUserGoalSchema),
   habits: z.array(adminUserHabitSchema),
+  goalHistory: z.array(goalHistoryEntrySchema),
+  goalHistoryTruncated: z.boolean(),
+  savingsProgress: z.array(goalSavingsProgressSchema),
+  overallProgress: overallUserProgressSchema,
   pathwayApplications: z.array(adminPathwayApplicationListItemSchema),
   values: z.array(valuePublicSchema),
   activityCounts: z.object({

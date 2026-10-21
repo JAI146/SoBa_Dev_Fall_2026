@@ -220,7 +220,7 @@
 }
 .overview-grid {
   display: grid;
-  grid-template-columns: 1.25fr 1fr;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
   gap: 16px;
   margin-top: 16px;
 }
@@ -1231,6 +1231,11 @@
   }
 }
 
+/* Keep wide tables inside their grid cards instead of widening the page. */
+.main-content, .dashboard-page, .panel, .table-wrap, .stacked-panels { min-width: 0; }
+.stacked-panels { grid-template-columns: minmax(0, 1fr); }
+.overview-grid > *, .stacked-panels > * { min-width: 0; }
+.table-wrap { max-width: 100%; }
 @media (max-width: 480px) {
   .dialog-backdrop {
     place-items: start center;

@@ -154,6 +154,18 @@ export default function DashboardLayout({
       icon: "roles",
       active: pathname.startsWith("/dashboard/manage-roles"),
     },
+    {
+      href: "/dashboard/coaching",
+      label: "KiroMoney",
+      icon: "coaching",
+      active: pathname.startsWith("/dashboard/coaching"),
+    },
+    {
+      href: "/dashboard/system-health",
+      label: "System health",
+      icon: "health",
+      active: pathname.startsWith("/dashboard/system-health"),
+    },
     ...(canViewSubscriptions
       ? [
           {
@@ -164,6 +176,12 @@ export default function DashboardLayout({
           },
         ]
       : []),
+    {
+      href: "/dashboard/settings",
+      label: "Settings",
+      icon: "settings",
+      active: pathname.startsWith("/dashboard/settings"),
+    },
   ];
 
   return (

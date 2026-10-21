@@ -1,6 +1,9 @@
 import { AdminRole, type AdminRoleValue } from "./enums";
 
 export const AdminPermission = {
+  COACHING_OPERATIONS_VIEW: "coaching_operations.view",
+  NOTIFICATIONS_VIEW: "notifications.view",
+  NOTIFICATIONS_EDIT: "notifications.edit",
   USER_MANAGEMENT_LIMITED: "user_management.limited",
   USER_MANAGEMENT_VIEW: "user_management.view",
   USER_MANAGEMENT_EDIT: "user_management.edit",
@@ -33,6 +36,8 @@ export const rolePermissions: Record<
 > = {
   [AdminRole.SUPER_ADMIN]: Object.values(AdminPermission),
   [AdminRole.MANAGER]: [
+    AdminPermission.COACHING_OPERATIONS_VIEW,
+    AdminPermission.NOTIFICATIONS_VIEW,
     AdminPermission.SUBSCRIPTIONS_VIEW,
     AdminPermission.SUBSCRIPTIONS_EDIT,
     AdminPermission.USER_MANAGEMENT_VIEW,

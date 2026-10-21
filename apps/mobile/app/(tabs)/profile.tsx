@@ -20,7 +20,6 @@ import {
   ChangePasswordModal,
   ConfirmationModal,
   EditProfileModal,
-  NotificationPreferencesModal,
   TimeZoneModal,
 } from "@/components/profile/ProfileModals";
 import { ProfileSection, SettingsRow } from "@/components/profile/ProfileUi";
@@ -32,13 +31,7 @@ import { useProfileActions } from "@/hooks/use-profile-actions";
 import { useSubscriptionPlans } from "@/hooks/use-subscriptions";
 
 type OpenModal =
-  | "edit-profile"
-  | "notifications"
-  | "timezone"
-  | "password"
-  | "logout-all"
-  | "deletion"
-  | null;
+  "edit-profile" | "timezone" | "password" | "logout-all" | "deletion" | null;
 
 export default function ProfileScreen() {
   const userQuery = useCurrentUser();
@@ -83,9 +76,6 @@ export default function ProfileScreen() {
   const membershipName = `${currentSubscription.planName}${currentSubscription.status === "active" ? "" : currentSubscription.status === "cancelled" ? " · Cancelled" : " · Payment overdue"}`;
   const fullName = `${user.firstName} ${user.lastName}`.trim();
   const displayName = user.displayName ?? fullName;
-  const enabledNotifications = Object.values(
-    user.notificationPreferences,
-  ).filter(Boolean).length;
 
   const closeModal = () => setOpenModal(null);
   const open = (modal: Exclude<OpenModal, null>) => {
@@ -182,9 +172,9 @@ export default function ProfileScreen() {
         <ProfileSection title="Preferences">
           <SettingsRow
             icon="notifications-outline"
-            label="Notification preferences"
-            onPress={() => open("notifications")}
-            supporting={`${enabledNotifications} of 4 turned on`}
+            label="Notification management"
+            onPress={() => router.push("/notification-management")}
+            supporting="Choose push and email by category"
           />
           <SettingsRow
             icon="globe-outline"
@@ -290,16 +280,6 @@ export default function ProfileScreen() {
         }}
         user={user}
         visible={openModal === "edit-profile"}
-      />
-      <NotificationPreferencesModal
-        current={user.notificationPreferences}
-        onClose={closeModal}
-        onSave={async (input) => {
-          const updated = await actions.updateNotifications.mutateAsync(input);
-          setNotice("Your notification preferences are saved.");
-          return updated;
-        }}
-        visible={openModal === "notifications"}
       />
       <TimeZoneModal
         current={user.timeZone}

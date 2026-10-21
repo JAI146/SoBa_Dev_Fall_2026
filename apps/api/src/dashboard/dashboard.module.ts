@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuditModule } from '../audit/audit.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HabitCompletion } from '../entities/habit-completion.entity';
 import { GoalTemplate } from '../entities/goal-template.entity';
@@ -23,6 +24,7 @@ import { CommunityChallengesModule } from '../community-challenges/community-cha
 
 @Module({
   imports: [
+    AuditModule,
     TypeOrmModule.forFeature([
       UserValue,
       GoalTemplate,

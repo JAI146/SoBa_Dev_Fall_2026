@@ -29,7 +29,8 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "seed:progress": "node scripts/seed-progress-examples.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1106.0",

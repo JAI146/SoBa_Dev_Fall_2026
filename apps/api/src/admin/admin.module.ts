@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditModule } from '../audit/audit.module';
+import { AuditEvent } from '../entities/audit-event.entity';
 import { AuthModule } from '../auth/auth.module';
 import { HabitCompletion } from '../entities/habit-completion.entity';
 import { PathwayApplication } from '../entities/pathway-application.entity';
@@ -25,6 +26,7 @@ import { AdminService } from './admin.service';
     AuditModule,
     AuthModule,
     TypeOrmModule.forFeature([
+      AuditEvent,
       User,
       CustomRole,
       AdminRolePermission,

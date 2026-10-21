@@ -1,4 +1,9 @@
 import {
+  calculateSavingsProgress,
+  consistencyPercent,
+  consistencyRating,
+} from './savings-progress';
+import {
   ConflictException,
   BadRequestException,
   ForbiddenException,
@@ -11,6 +16,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   AuditAction,
   AuditActorType,
+  AuditOutcome,
+  goalHistoryEntrySchema,
   AdminPermission,
   AdminRole,
   adminRoleValues,
@@ -60,6 +67,9 @@ import { In, MoreThanOrEqual, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { toUserGoalPublic } from '../common/mappers/onboarding.mapper';
 import { AuditService } from '../audit/audit.service';
+import { loadHabitLifecycle } from '../audit/audit.service';
+import { AuditEvent } from '../entities/audit-event.entity';
+import { calculateHabitProgress } from './habit-progress';
 import type { AuthPrincipal } from '../auth/auth-principal';
 import { SessionRevokedReason, SessionService } from '../auth/session.service';
 import type { Env } from '../config/env.validation';
@@ -96,6 +106,8 @@ export class AdminService {
   private readonly logger = new Logger(AdminService.name);
 
   constructor(
+    @InjectRepository(AuditEvent)
+    private readonly auditEvents: Repository<AuditEvent>,
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(CustomRole)
     private readonly customRoles: Repository<CustomRole>,
@@ -971,6 +983,134 @@ export class AdminService {
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map(toValuePublic);
 
+    const goalIds = goals.map((goal) => goal.id);
+    const [completions, lifecycle, goalEvents, savingsRecords] =
+      await Promise.all([
+        this.habitCompletions.find({ where: { userId: id } }),
+        loadHabitLifecycle(
+          this.habits.manager,
+          habits.map((habit) => habit.id),
+        ),
+        goalIds.length
+          ? this.auditEvents.find({
+              where: {
+                entityType: 'goal',
+                entityId: In(goalIds),
+                action: AuditAction.GOAL_CHANGED,
+                outcome: AuditOutcome.SUCCESS,
+              },
+              order: { createdAt: 'DESC', id: 'DESC' },
+              take: 101,
+            })
+          : Promise.resolve([]),
+        this.savingsEntries.find({ where: { userId: id } }),
+      ]);
+    const goalHistory = goalEvents.slice(0, 100).flatMap((event) => {
+      const parsed = goalHistoryEntrySchema.safeParse({
+        id: event.id,
+        goalId: event.entityId,
+        occurredAt: event.createdAt.toISOString(),
+        actorUserId: event.actorUserId,
+        ...event.metadata,
+      });
+      return parsed.success ? [parsed.data] : [];
+    });
+    const now = new Date();
+
+    const habitDetails = habits.flatMap((habit) =>
+      habit.sourceTemplate
+        ? [
+            {
+              id: habit.id,
+              title: habit.sourceTemplate.title,
+              frequency: habit.sourceTemplate.frequency,
+              category: habit.sourceTemplate.category,
+              isActive: habit.isActive,
+              createdAt: habit.createdAt.toISOString(),
+              progress: calculateHabitProgress({
+                frequency: habit.sourceTemplate.frequency,
+                isActive: habit.isActive,
+                createdAt: habit.createdAt,
+                timeZone: user.timeZone,
+                completionDates: completions
+                  .filter((item) => item.userHabitId === habit.id)
+                  .map((item) => item.completedOn),
+                events: lifecycle.filter(
+                  (event) => event.entityId === habit.id,
+                ),
+                now,
+              }),
+            },
+          ]
+        : [],
+    );
+    const savingsProgress = goals.map((goal) =>
+      calculateSavingsProgress({
+        goalId: goal.id,
+        createdAt: goal.createdAt,
+        savedAmount: goal.savedAmount,
+        timeZone: user.timeZone,
+        entries: savingsRecords.filter((entry) => entry.userGoalId === goal.id),
+        now,
+      }),
+    );
+    const activeGoals = goals.filter((goal) => goal.isActive);
+    const activeSavings = savingsProgress.filter((item) =>
+      activeGoals.some((goal) => goal.id === item.goalId),
+    );
+    const activeSavedAmount = activeGoals.reduce(
+      (sum, goal) => sum + Number(goal.savedAmount),
+      0,
+    );
+    const activeTargetAmount = activeGoals.reduce(
+      (sum, goal) => sum + Number(goal.targetAmount),
+      0,
+    );
+    const summarize = (frequency: 'weekly' | 'monthly') =>
+      consistencyPercent(
+        activeSavings.reduce(
+          (sum, item) => sum + item[frequency].contributedPeriods,
+          0,
+        ),
+        activeSavings.reduce(
+          (sum, item) => sum + item[frequency].eligiblePeriods,
+          0,
+        ),
+      );
+    const eligibleHabits = habitDetails.filter(
+      (habit) => habit.isActive && habit.progress.eligiblePeriods !== null,
+    );
+    const weeklySavingsPercent = summarize('weekly');
+    const monthlySavingsPercent = summarize('monthly');
+    const overallProgress = {
+      activeSavedAmount,
+      activeTargetAmount,
+      goalProgressPercent:
+        activeTargetAmount > 0
+          ? Math.min(
+              100,
+              Math.max(
+                0,
+                Math.round((activeSavedAmount / activeTargetAmount) * 100),
+              ),
+            )
+          : null,
+      weeklySavingsPercent,
+      weeklySavingsRating: consistencyRating(weeklySavingsPercent),
+      monthlySavingsRating: consistencyRating(monthlySavingsPercent),
+      monthlySavingsPercent,
+      habitConsistencyPercent: consistencyPercent(
+        eligibleHabits.reduce(
+          (sum, habit) => sum + habit.progress.completedPeriods,
+          0,
+        ),
+        eligibleHabits.reduce(
+          (sum, habit) => sum + (habit.progress.eligiblePeriods ?? 0),
+          0,
+        ),
+      ),
+    };
+
     await this.record(principal, context, AuditAction.ADMIN_USER_VIEWED, {
       entityType: 'user',
       entityId: id,
@@ -981,6 +1121,10 @@ export class AdminService {
       state: user.state,
       city: user.city,
       lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+      goalHistory,
+      goalHistoryTruncated: goalEvents.length > 100,
+      savingsProgress,
+      overallProgress,
       goals: goals.map((goal) => {
         const progress = toUserGoalPublic(goal);
         return {
@@ -996,20 +1140,7 @@ export class AdminService {
           createdAt: goal.createdAt.toISOString(),
         };
       }),
-      habits: habits.flatMap((habit) =>
-        habit.sourceTemplate
-          ? [
-              {
-                id: habit.id,
-                title: habit.sourceTemplate.title,
-                frequency: habit.sourceTemplate.frequency,
-                category: habit.sourceTemplate.category,
-                isActive: habit.isActive,
-                createdAt: habit.createdAt.toISOString(),
-              },
-            ]
-          : [],
-      ),
+      habits: habitDetails,
       pathwayApplications: pathwayApplications.map((application) =>
         this.toApplicationListItem(application),
       ),
