@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   UserType,
@@ -15,7 +15,9 @@ import {
   type DashboardNavItem,
 } from "@/components/dashboard/dashboard-shell";
 import { clearAuth, getToken } from "@/lib/auth";
-import { apiRequest } from "@/lib/api-client";
+import { ApiError, apiRequest } from "@/lib/api-client";
+import { SIGNED_OUT_EVENT } from "@/lib/session-activity";
+import { SessionMonitor } from "@/components/auth/session-monitor";
 import styles from "./dashboard.module.css";
 
 export default function DashboardLayout({
@@ -26,10 +28,22 @@ export default function DashboardLayout({
   // Keep the verified role for feature navigation; the API still enforces access.
   const [user, setUser] = useState<UserPublic | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [sessionError, setSessionError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    const signedOut = () => {
+      setUser(null);
+      router.replace("/login");
+    };
+    window.addEventListener(SIGNED_OUT_EVENT, signedOut);
+    return () => window.removeEventListener(SIGNED_OUT_EVENT, signedOut);
+  }, [router]);
   const [canViewSubscriptions, setCanViewSubscriptions] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    setSessionError(false);
     const token = getToken();
     if (!token) {
       clearAuth();
@@ -55,6 +69,7 @@ export default function DashboardLayout({
           return;
         }
         setUser(currentUser);
+      } catch (error) {
         try {
           await apiRequest(
             "/admin/subscription-management/permissions",
@@ -68,8 +83,13 @@ export default function DashboardLayout({
         }
       } catch {
         if (!cancelled) {
-          clearAuth();
-          router.replace("/login");
+          if (
+            error instanceof ApiError &&
+            (error.status === 401 || error.status === 403)
+          ) {
+            clearAuth();
+            router.replace("/login");
+          } else setSessionError(true);
         }
       } finally {
         if (!cancelled) setAuthChecked(true);
@@ -79,29 +99,51 @@ export default function DashboardLayout({
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, attempt]);
 
-  async function handleLogout() {
+  const handleLogout = useCallback(() => {
     const token = getToken();
-    try {
-      if (token) {
-        await apiRequest<MessageResponse>(
-          "/auth/logout",
-          { method: "POST" },
-          token,
-        );
+    setUser(null);
+    void (async () => {
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        if (token)
+          await Promise.race([
+            apiRequest<MessageResponse>(
+              "/auth/logout",
+              { method: "POST" },
+              token,
+            ),
+            new Promise<void>((resolve) => {
+              timeout = setTimeout(resolve, 5000);
+            }),
+          ]);
+      } catch {
+        // Local sign-out must still finish if the API is unavailable.
+      } finally {
+        if (timeout) clearTimeout(timeout);
+        clearAuth();
+        router.replace("/login");
       }
-    } finally {
-      clearAuth();
-      router.replace("/login");
-    }
-  }
+    })();
+  }, [router]);
 
   if (!authChecked || !user) {
     return (
       <main className={styles["dashboard-loading"]}>
         <span className={styles["loading-spinner"]} aria-hidden />
-        <p>{authChecked ? "Redirecting to sign in…" : "Loading dashboard…"}</p>
+        <p>
+          {sessionError
+            ? "Unable to connect. Your session has not been cleared."
+            : authChecked
+              ? "Redirecting to sign in…"
+              : "Loading dashboard…"}
+        </p>
+        {sessionError && (
+          <button onClick={() => setAttempt((value) => value + 1)}>
+            Try again
+          </button>
+        )}
       </main>
     );
   }
@@ -112,12 +154,6 @@ export default function DashboardLayout({
       label: "Dashboard",
       icon: "overview",
       active: pathname === "/dashboard",
-    },
-    {
-      href: "/dashboard/pathway-applications",
-      label: "Pathway applications",
-      icon: "pathways",
-      active: pathname.startsWith("/dashboard/pathway-applications"),
     },
     {
       href: "/dashboard/users",
@@ -140,7 +176,15 @@ export default function DashboardLayout({
       href: "/dashboard/progress",
       label: "Progress",
       icon: "progress",
-      active: pathname.startsWith("/dashboard/progress"),
+      active:
+        pathname.startsWith("/dashboard/progress") ||
+        pathname.startsWith("/dashboard/pathway-applications"),
+    },
+    {
+      href: "/dashboard/audit",
+      label: "Audit & compliance",
+      icon: "roles",
+      active: pathname.startsWith("/dashboard/audit"),
     },
     {
       href: "/dashboard/upgrade-intents",
@@ -185,12 +229,14 @@ export default function DashboardLayout({
   ];
 
   return (
-    <DashboardShell
-      navItems={navItems}
-      user={user}
-      onLogout={() => void handleLogout()}
-    >
-      {children}
-    </DashboardShell>
+    <SessionMonitor userId={user.id} onLogout={handleLogout}>
+      <DashboardShell
+        navItems={navItems}
+        user={user}
+        onLogout={() => void handleLogout()}
+      >
+        {children}
+      </DashboardShell>
+    </SessionMonitor>
   );
 }

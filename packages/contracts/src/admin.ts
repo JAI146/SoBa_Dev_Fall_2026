@@ -367,6 +367,10 @@ export const adminChecklistItemSchema = z.object({
 });
 
 export const adminPathwayApplicationDetailResponseSchema = z.object({
+  canManage: z.boolean(),
+  membershipEligible: z.boolean(),
+  savingsEligible: z.boolean(),
+  pathwayActive: z.boolean(),
   id: z.string().uuid(),
   applicant: adminApplicantSchema,
   pathway: adminPathwaySummarySchema,

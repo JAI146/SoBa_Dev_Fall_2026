@@ -190,6 +190,12 @@ export type AuditOutcomeValue =
 
 /** Actions written to `audit_events`. Kept as a closed set so queries stay honest. */
 export const AuditAction = {
+  BADGE_AWARDED: "badge.awarded",
+  ADMIN_BADGE_CREATED: "admin.badge_created",
+  ADMIN_BADGE_UPDATED: "admin.badge_updated",
+  ADMIN_BADGE_DELETED: "admin.badge_deleted",
+  ADMIN_BADGES_LISTED: "admin.badges_listed",
+  ADMIN_BADGE_AWARDS_LISTED: "admin.badge_awards_listed",
   NOTIFICATION_SMTP_UPDATED: "notification.smtp_updated",
   NOTIFICATION_SEND_REQUESTED: "notification.send_requested",
   NOTIFICATION_SEND_COMPLETED: "notification.send_completed",
@@ -235,6 +241,10 @@ export const AuditAction = {
   ADMIN_PATHWAY_APPLICATIONS_LISTED: "admin.pathway_applications_listed",
   ADMIN_PATHWAY_APPLICATION_VIEWED: "admin.pathway_application_viewed",
   ADMIN_PATHWAY_CHECKLIST_UPDATED: "admin.pathway_checklist_updated",
+  ADMIN_PATHWAY_CATALOG_VIEWED: "admin.pathway_catalog_viewed",
+  ADMIN_PATHWAY_CATALOG_UPDATED: "admin.pathway_catalog_updated",
+  ADMIN_PARTNER_CREATED: "admin.partner_created",
+  ADMIN_PARTNER_UPDATED: "admin.partner_updated",
   ADMIN_UPGRADE_INTENTS_LISTED: "admin.upgrade_intents_listed",
   ADMIN_PLAN_CREATED: "admin.plan_created",
   ADMIN_PLAN_UPDATED: "admin.plan_updated",

@@ -44,6 +44,7 @@ import { ReflectionsService } from '../reflections/reflections.service';
 import { Pathway } from '../entities/pathway.entity';
 import { PathwayApplication } from '../entities/pathway-application.entity';
 import { CommunityChallengesService } from '../community-challenges/community-challenges.service';
+import { BadgeEvaluationService } from '../badges/badge-evaluation.service';
 
 function isUniqueViolation(error: unknown): boolean {
   if (!(error instanceof QueryFailedError)) return false;
@@ -81,6 +82,7 @@ export class DashboardService {
     private readonly usersService: UsersService,
     private readonly reflectionsService: ReflectionsService,
     private readonly communityChallengesService: CommunityChallengesService,
+    private readonly badgeEvaluation: BadgeEvaluationService,
     private readonly audit: AuditService,
   ) {}
 
@@ -164,6 +166,7 @@ export class DashboardService {
       );
     }
 
+    await this.badgeEvaluation.evaluateUser(userId);
     const [
       userValues,
       goals,
@@ -351,6 +354,7 @@ export class DashboardService {
         });
         if (existing) {
           await manager.remove(existing);
+          await this.badgeEvaluation.evaluateUser(userId, manager);
           return { userHabitId, completedToday: false, completedOn: null };
         }
 
@@ -362,6 +366,7 @@ export class DashboardService {
             completedOn: today,
           }),
         );
+        await this.badgeEvaluation.evaluateUser(userId, manager);
         return { userHabitId, completedToday: true, completedOn: today };
       });
     } catch (error) {
@@ -413,6 +418,7 @@ export class DashboardService {
         const updatedGoal = await manager.findOneByOrFail(UserGoal, {
           id: goal.id,
         });
+        await this.badgeEvaluation.evaluateUser(userId, manager);
         await this.audit.recordGoalChange(
           manager,
           userId,

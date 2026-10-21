@@ -17,6 +17,7 @@ import { GoalTemplate } from '../entities/goal-template.entity';
 import { UserGoal } from '../entities/user-goal.entity';
 import { UserValue } from '../entities/user-value.entity';
 import { User } from '../entities/user.entity';
+import { BadgeEvaluationService } from '../badges/badge-evaluation.service';
 
 type CreateGoalOptions = {
   markOnboardingProgress: boolean;
@@ -32,6 +33,7 @@ export class GoalCreationService {
     private readonly userGoalsRepo: Repository<UserGoal>,
     @InjectRepository(UserValue)
     private readonly userValuesRepo: Repository<UserValue>,
+    private readonly badgeEvaluation: BadgeEvaluationService,
     private readonly audit: AuditService,
   ) {}
 
@@ -84,7 +86,7 @@ export class GoalCreationService {
     return this.userGoalsRepo.manager.transaction(async (manager) => {
       const user = await manager.findOne(User, {
         where: { id: userId },
-        lock: { mode: 'pessimistic_write' },
+        lock: { mode: 'for_no_key_update' },
       });
       if (!user) {
         throw new NotFoundException("We couldn't find that account.");
@@ -152,6 +154,7 @@ export class GoalCreationService {
         );
       }
 
+      await this.badgeEvaluation.evaluateUser(userId, manager);
       return toUserGoalPublic(goal);
     });
   }

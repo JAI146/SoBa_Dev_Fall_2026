@@ -16,9 +16,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   AuditAction,
   AuditActorType,
+  AdminPermission,
+  hasAdminPermission,
   AuditOutcome,
   goalHistoryEntrySchema,
-  AdminPermission,
   AdminRole,
   adminRoleValues,
   UserStatus,
@@ -1230,6 +1231,9 @@ export class AdminService {
     if (!application?.user || !application.pathway) {
       throw new NotFoundException('Pathway application not found.');
     }
+    const assignedRole = principal.customRoleId
+      ? await this.customRoles.findOneBy({ id: principal.customRoleId })
+      : null;
 
     await this.record(
       principal,
@@ -1246,6 +1250,16 @@ export class AdminService {
       applicant: this.toApplicant(application.user),
       pathway: this.toPathwaySummary(application.pathway),
       attestedAmount: application.attestedAmount,
+      canManage: hasAdminPermission(
+        assignedRole ? null : principal.adminRole,
+        AdminPermission.PATHWAY_APPLICATIONS_EDIT,
+        assignedRole?.permissions,
+      ),
+      membershipEligible: application.user.tier === Tier.ELEVATE,
+      savingsEligible:
+        application.attestedAmount !== null &&
+        application.attestedAmount >= application.pathway.minimumAmount,
+      pathwayActive: application.pathway.isActive,
       attestationAcceptedAt:
         application.attestationAcceptedAt?.toISOString() ?? null,
       verificationMethod: application.verificationMethod,

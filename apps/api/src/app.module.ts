@@ -27,6 +27,8 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { CommunityChallengesModule } from './community-challenges/community-challenges.module';
 import { AdminModule } from './admin/admin.module';
 import { IncentivesModule } from './incentives/incentives.module';
+import { BadgesModule } from './badges/badges.module';
+import { PathwayManagementModule } from './pathway-management/pathway-management.module';
 import { SubscriptionManagementModule } from './subscription-management/subscription-management.module';
 
 @Module({
@@ -69,6 +71,8 @@ import { SubscriptionManagementModule } from './subscription-management/subscrip
     AdminModule,
     // Mount incentive endpoints and seed the default program after database initialization.
     IncentivesModule,
+    BadgesModule,
+    PathwayManagementModule,
     SubscriptionManagementModule,
     HealthModule,
     SystemHealthModule,
