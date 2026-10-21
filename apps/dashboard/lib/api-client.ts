@@ -1,4 +1,9 @@
-import type { ApiErrorResponse } from "@purposemint/contracts";
+import {
+  userPublicSchema,
+  type AuthResponse,
+  type ApiErrorResponse,
+} from "@purposemint/contracts";
+import { clearAuth, getStoredUser, getToken, updateAuth } from "./auth";
 
 const API_ORIGIN = (
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
@@ -17,6 +22,61 @@ export class ApiError extends Error {
     super(message);
     this.name = "ApiError";
   }
+}
+
+let refreshing: Promise<string> | null = null;
+
+async function renewSession(previousToken: string): Promise<string> {
+  if (refreshing) return refreshing;
+  const renew = async () => {
+    const currentToken = getToken();
+    if (!currentToken) throw new ApiError("Please sign in again.", 401);
+    if (currentToken !== previousToken) return currentToken;
+    const userId = getStoredUser()?.id;
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientType: "dashboard" }),
+    });
+    if (res.status === 401) {
+      if (getToken() === currentToken) clearAuth();
+      throw new ApiError("Your session ended. Please sign in again.", 401);
+    }
+    const data = await parseResponse<AuthResponse>(res);
+    if (
+      !data ||
+      typeof data.accessToken !== "string" ||
+      !userPublicSchema.safeParse(data.user).success ||
+      data.user.id !== userId
+    ) {
+      throw new ApiError(
+        "Unable to renew this session. Please sign in again.",
+        401,
+      );
+    }
+    if (!updateAuth(data, currentToken)) {
+      throw new ApiError(
+        "The signed-in session changed. Please try again.",
+        401,
+      );
+    }
+    return data.accessToken;
+  };
+  // Serialise rotating-cookie refreshes across dashboard tabs as well as requests.
+  const coordinatedRenew = async (): Promise<string> => {
+    if (typeof navigator !== "undefined" && navigator.locks) {
+      return await navigator.locks.request(
+        "purposemint-session-refresh",
+        renew,
+      );
+    }
+    return await renew();
+  };
+  refreshing = coordinatedRenew().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
 }
 
 async function parseResponse<T>(
@@ -54,11 +114,27 @@ export async function apiRequest<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  let res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
     credentials: "include",
   });
+
+  if (
+    res.status === 401 &&
+    token &&
+    getToken() &&
+    (!path.startsWith("/auth/") || path === "/auth/logout")
+  ) {
+    const renewed = await renewSession(token);
+    headers.set("Authorization", `Bearer ${renewed}`);
+    res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+      credentials: "include",
+    });
+    if (res.status === 401 && getToken() === renewed) clearAuth();
+  }
 
   return parseResponse<T>(res, schema);
 }

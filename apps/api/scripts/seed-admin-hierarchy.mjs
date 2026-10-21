@@ -10,8 +10,8 @@ if (
 )
   throw new Error('Only the local development database may be seeded.');
 const staff = [
-  ['nesha', 'Nesha', '', 'super_admin', null],
-  ['syed', 'Syed', '', 'super_admin', null],
+  ['nesha', 'Nesha', 'Brown', 'super_admin', null],
+  ['syed', 'Syed', 'Talha', 'super_admin', null],
   ['maya', 'Maya', 'Chen', 'manager', 'nesha'],
   ['noah', 'Noah', 'Williams', 'manager', 'syed'],
   ['owen', 'Owen', 'Reed', 'editor', 'maya'],

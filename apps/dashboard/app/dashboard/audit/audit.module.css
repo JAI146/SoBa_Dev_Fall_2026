@@ -693,24 +693,41 @@
   border: 0;
 }
 .searchDrawer {
-  border-bottom: 1px solid #e3e9e6;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 .searchDrawer summary {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
-  padding: 10px 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: #5b7063;
+  padding: 12px 16px;
+  min-height: 48px;
+  border: 1px solid #9bcdb2;
+  border-radius: 8px;
+  background: linear-gradient(120deg, #edf9f2, #def2e7);
+  font-size: 14px;
+  font-weight: 650;
+  color: #1c6947;
+  transition: border-color 160ms ease, background 160ms ease;
 }
+.searchDrawer summary > svg { width: 18px; height: 18px; flex-shrink: 0; }
+.searchDrawer summary:hover {
+  border-color: #cf91b5;
+  background: linear-gradient(120deg, #fff3fa, #f5e2ee);
+}
+.searchDrawer summary:active { background: #f0d6e6; }
 .searchDrawer summary::after {
   content: "+";
   margin-left: auto;
   font-size: 18px;
   font-weight: 400;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #ffffffa8;
 }
 .searchDrawer[open] summary::after {
   content: "−";
@@ -722,7 +739,7 @@
 .searchDrawer .filters {
   margin: 0;
   border: 0;
-  padding: 8px 0 14px;
+  padding: 16px 0 8px;
 }
 .searchApplied {
   font-size: 10px;

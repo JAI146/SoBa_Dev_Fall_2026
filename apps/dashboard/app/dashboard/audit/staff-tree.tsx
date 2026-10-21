@@ -273,6 +273,7 @@ function TreeCanvas({ users, detected, ancestors, onSelect }: Props) {
         <p className={styles.empty}>No administrative staff found.</p>
       )}
       <ReactFlow<StaffNode>
+        proOptions={{ hideAttribution: true }}
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}

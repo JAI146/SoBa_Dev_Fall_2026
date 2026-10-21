@@ -7,7 +7,7 @@ import {
   type AuditStaffNode,
 } from "@purposemint/contracts";
 import { Dialog } from "@/components/common/dialog";
-import { RefreshIcon, SearchIcon } from "@/components/dashboard/action-icons";
+import { SearchIcon } from "@/components/dashboard/action-icons";
 import { apiRequest } from "@/lib/api-client";
 import { getToken } from "@/lib/auth";
 import AuditLogView, {
@@ -84,15 +84,6 @@ export default function AuditPage() {
           <div>
             <h1>Audit & compliance</h1>
           </div>
-          <button
-            className={styles.iconButton}
-            title="Refresh hierarchy"
-            aria-label="Refresh hierarchy"
-            disabled={loading}
-            onClick={() => setRevision(revision + 1)}
-          >
-            <RefreshIcon spinning={loading} />
-          </button>
         </header>
         <div
           className={styles.viewTabs}
