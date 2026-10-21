@@ -101,12 +101,6 @@ export default function DashboardLayout({
       active: pathname === "/dashboard",
     },
     {
-      href: "/dashboard/pathway-applications",
-      label: "Pathway applications",
-      icon: "pathways",
-      active: pathname.startsWith("/dashboard/pathway-applications"),
-    },
-    {
       href: "/dashboard/users",
       label: "Users",
       icon: "users",
@@ -127,7 +121,15 @@ export default function DashboardLayout({
       href: "/dashboard/progress",
       label: "Progress",
       icon: "progress",
-      active: pathname.startsWith("/dashboard/progress"),
+      active:
+        pathname.startsWith("/dashboard/progress") ||
+        pathname.startsWith("/dashboard/pathway-applications"),
+    },
+    {
+      href: "/dashboard/audit",
+      label: "Audit & compliance",
+      icon: "roles",
+      active: pathname.startsWith("/dashboard/audit"),
     },
     {
       href: "/dashboard/upgrade-intents",

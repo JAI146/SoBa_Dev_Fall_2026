@@ -225,6 +225,10 @@ export const AuditAction = {
   ADMIN_PATHWAY_APPLICATIONS_LISTED: "admin.pathway_applications_listed",
   ADMIN_PATHWAY_APPLICATION_VIEWED: "admin.pathway_application_viewed",
   ADMIN_PATHWAY_CHECKLIST_UPDATED: "admin.pathway_checklist_updated",
+  ADMIN_PATHWAY_CATALOG_VIEWED: "admin.pathway_catalog_viewed",
+  ADMIN_PATHWAY_CATALOG_UPDATED: "admin.pathway_catalog_updated",
+  ADMIN_PARTNER_CREATED: "admin.partner_created",
+  ADMIN_PARTNER_UPDATED: "admin.partner_updated",
   ADMIN_UPGRADE_INTENTS_LISTED: "admin.upgrade_intents_listed",
 } as const;
 

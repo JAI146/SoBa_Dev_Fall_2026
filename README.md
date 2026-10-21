@@ -79,6 +79,11 @@ NestJS API, deterministic mock dashboard data, and the Next.js dashboard:
 pnpm docker:up
 ```
 
+Startup automatically installs the API and dashboard dependencies from the
+lockfile into the shared Docker volumes before starting the applications.
+This also picks up newly added packages when reusing existing volumes; no
+manual installation or database reset is needed.
+
 Open <http://localhost:3000> and sign in with:
 
 - Email: `admin@purposemint.local`

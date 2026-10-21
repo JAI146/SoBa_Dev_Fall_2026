@@ -98,6 +98,9 @@ export class User {
   @Column({ name: 'custom_role_id', type: 'uuid', nullable: true })
   customRoleId!: string | null;
 
+  @Column({ name: 'reports_to_user_id', type: 'uuid', nullable: true })
+  reportsToUserId!: string | null;
+
   @Column({
     type: 'enum',
     enum: Object.values(UserStatus),

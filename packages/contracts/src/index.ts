@@ -11,6 +11,9 @@ export * from "./reflections";
 export * from "./membership";
 export * from "./admin";
 export * from "./permissions";
+export * from "./pathway-management";
 // Export the shared incentives schemas and types through the package’s public entry point.
 export * from "./incentives";
 export * from "./badges";
+export * from "./audit";
+export * from "./audit-hierarchy";

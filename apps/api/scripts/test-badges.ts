@@ -13,6 +13,7 @@ import {
   HabitCategory,
 } from '@purposemint/contracts';
 import { dataSourceOptions } from '../src/database/data-source';
+import { BadgeDefinitionsAndAwards1791200000000 } from '../src/database/migrations/1791200000000-BadgeDefinitionsAndAwards';
 import { AuditService } from '../src/audit/audit.service';
 import { AuditEvent } from '../src/entities/audit-event.entity';
 import { User } from '../src/entities/user.entity';
@@ -168,7 +169,14 @@ async function main() {
       ),
     );
     await assert.rejects(db.query(`TRUNCATE badge_awards`));
-    await assert.rejects(db.undoLastMigration());
+    const badgeMigrationRunner = db.createQueryRunner();
+    try {
+      await assert.rejects(
+        new BadgeDefinitionsAndAwards1791200000000().down(badgeMigrationRunner),
+      );
+    } finally {
+      await badgeMigrationRunner.release();
+    }
     await assert.rejects(
       db.query(`DELETE FROM users WHERE id = $1`, [user.id]),
     );
@@ -377,17 +385,15 @@ async function main() {
       1,
       'Activation backfills existing eligible users.',
     );
-    const activeCustomer = await db
-      .getRepository(User)
-      .save({
-        firstName: 'Activity',
-        lastName: 'Test',
-        email: 'activity@purposemint.local',
-        passwordHash: 'test-only',
-        status: 'active',
-        onboardingStatus: 'completed',
-        onboardingCompletedAt: new Date(),
-      });
+    const activeCustomer = await db.getRepository(User).save({
+      firstName: 'Activity',
+      lastName: 'Test',
+      email: 'activity@purposemint.local',
+      passwordHash: 'test-only',
+      status: 'active',
+      onboardingStatus: 'completed',
+      onboardingCompletedAt: new Date(),
+    });
     const usersService = {
       getByIdOrFail: (id: string) =>
         db!.getRepository(User).findOneByOrFail({ id }),
@@ -453,16 +459,14 @@ async function main() {
       1,
       'A savings write immediately awards a qualifying badge.',
     );
-    const habit = await db
-      .getRepository(HabitTemplate)
-      .save({
-        title: 'Save daily',
-        description: 'Habit test',
-        iconEmoji: '\u{1F3AF}',
-        frequency: Object.values(HabitFrequency)[0],
-        category: Object.values(HabitCategory)[0],
-        sortOrder: 0,
-      });
+    const habit = await db.getRepository(HabitTemplate).save({
+      title: 'Save daily',
+      description: 'Habit test',
+      iconEmoji: '\u{1F3AF}',
+      frequency: Object.values(HabitFrequency)[0],
+      category: Object.values(HabitCategory)[0],
+      sortOrder: 0,
+    });
     const userHabit = await db
       .getRepository(UserHabit)
       .save({ userId: activeCustomer.id, sourceTemplateId: habit.id });
@@ -525,13 +529,11 @@ async function main() {
       },
       user.id,
     );
-    await db
-      .getRepository(User)
-      .update(activeCustomer.id, {
-        currentLevel: 3,
-        currentLevelSource: 'manual',
-        currentLevelAssignedAt: new Date(),
-      });
+    await db.getRepository(User).update(activeCustomer.id, {
+      currentLevel: 3,
+      currentLevelSource: 'manual',
+      currentLevelAssignedAt: new Date(),
+    });
     await evaluation.reconcileAll();
     assert.equal(
       await db

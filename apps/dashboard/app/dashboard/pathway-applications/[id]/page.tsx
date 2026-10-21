@@ -47,6 +47,7 @@ export default function PathwayApplicationDetailPage() {
   const application = query.data;
 
   const updateChecklist = async (itemId: string, isComplete: boolean) => {
+    if (!application.canManage) return;
     setUpdatingId(itemId);
     setUpdateError(null);
     try {
@@ -110,6 +111,28 @@ export default function PathwayApplicationDetailPage() {
             <div>
               <dt>Pathway minimum</dt>
               <dd>{formatMoney(application.pathway.minimumAmount)}</dd>
+            </div>
+            <div>
+              <dt>Pathway status</dt>
+              <dd>{application.pathwayActive ? "Active" : "Inactive"}</dd>
+            </div>
+            <div>
+              <dt>Membership eligibility</dt>
+              <dd>
+                {application.membershipEligible
+                  ? "Elevation membership"
+                  : "Not Elevation"}
+              </dd>
+            </div>
+            <div>
+              <dt>Savings minimum</dt>
+              <dd>
+                {application.attestedAmount === null
+                  ? "Not provided"
+                  : application.savingsEligible
+                    ? "Met (self-attested)"
+                    : "Not met"}
+              </dd>
             </div>
             <div>
               <dt>Self-attested savings</dt>
@@ -185,6 +208,12 @@ export default function PathwayApplicationDetailPage() {
             <div>
               <h2>Readiness checklist</h2>
               <p>Shared progress for the applicant and coordinator</p>
+              <p>
+                {application.checklistItems.length > 0 &&
+                application.checklistItems.every((item) => item.isComplete)
+                  ? "Readiness checklist finished. Partner completion is not verified."
+                  : "Partner completion is not recorded."}
+              </p>
             </div>
             <span>
               {
@@ -210,6 +239,9 @@ export default function PathwayApplicationDetailPage() {
                 updatingId={updatingId}
                 onUpdate={updateChecklist}
                 timeZone={application.applicant.timeZone}
+                canManage={
+                  application.canManage && application.status === "submitted"
+                }
               />
             ))}
           </div>
@@ -230,12 +262,14 @@ function ChecklistGroup({
   updatingId,
   onUpdate,
   timeZone,
+  canManage,
 }: {
   category: ChecklistCategoryValue;
   items: AdminChecklistItem[];
   updatingId: string | null;
   onUpdate: (id: string, complete: boolean) => Promise<void>;
   timeZone: string | null;
+  canManage: boolean;
 }) {
   if (items.length === 0) return null;
   return (
@@ -247,7 +281,7 @@ function ChecklistGroup({
             <input
               type="checkbox"
               checked={item.isComplete}
-              disabled={updatingId !== null}
+              disabled={!canManage || updatingId !== null}
               onChange={(event) => void onUpdate(item.id, event.target.checked)}
             />
             <span>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SidebarNavIcon } from "@/components/dashboard/sidebar-nav-icons";
 import styles from "../dashboard.module.css";
 import { LevelProgressPanel } from "./level-progress-panel";
 import progressStyles from "./progress.module.css";
@@ -10,7 +11,7 @@ export default function ProgressPage() {
         <div>
           <p className={styles.eyebrow}>Customer journey</p>
           <h1>Progress</h1>
-          <p>Savings, five-level progression, and achievements in one place.</p>
+          <p>Savings, five-level progression, achievements, and pathways.</p>
         </div>
       </div>
 
@@ -18,6 +19,7 @@ export default function ProgressPage() {
         <a href="#levels">Five-level progress</a>
         <a href="#savings">Savings & goals</a>
         <a href="#badges">Badges & achievements</a>
+        <a href="#pathways">Pathways & partners</a>
       </nav>
 
       <div className={progressStyles.sections}>
@@ -38,6 +40,25 @@ export default function ProgressPage() {
         </section>
 
         <div className={progressStyles.featureGrid}>
+          <Link
+            id="pathways"
+            className={progressStyles.featureCard}
+            href="/dashboard/progress/pathways"
+            aria-labelledby="pathways-title"
+          >
+            <h2 id="pathways-title">Pathways & partners</h2>
+            <div className={progressStyles.featureVisual} aria-hidden="true">
+              <span style={{ color: "#059669" }}>
+                <SidebarNavIcon
+                  name="pathways"
+                  className={progressStyles.badgeVisual}
+                />
+              </span>
+            </div>
+            <span className={progressStyles.featureAction}>
+              View pathways & partners →
+            </span>
+          </Link>
           <Link
             id="savings"
             className={progressStyles.featureCard}

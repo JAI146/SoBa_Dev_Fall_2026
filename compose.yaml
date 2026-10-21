@@ -1,6 +1,21 @@
 name: purposemint-dev
 
 services:
+  dependencies:
+    build:
+      context: .
+      target: api-dev
+    environment:
+      CI: "true"
+    command: pnpm install --frozen-lockfile --filter @purposemint/api... --filter @purposemint/dashboard...
+    volumes:
+      - .:/workspace
+      - purposemint-node-modules:/workspace/node_modules
+      - purposemint-api-node-modules:/workspace/apps/api/node_modules
+      - purposemint-dashboard-node-modules:/workspace/apps/dashboard/node_modules
+      - purposemint-contracts-node-modules:/workspace/packages/contracts/node_modules
+    restart: "no"
+
   db-viewer:
     image: adminer:5
     profiles: [tools]
@@ -34,7 +49,7 @@ services:
       target: api-dev
     environment: &api-environment
       NODE_ENV: development
-      # Dependencies are installed in the image and refreshed explicitly in the shared volume.
+      # The dependencies service refreshes shared modules before applications start.
       PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: "false"
       DATABASE_URL: postgresql://purposemint:purposemint@db:5432/purposemint
       DATABASE_SSL: "false"
@@ -47,6 +62,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      dependencies:
+        condition: service_completed_successfully
     restart: "no"
 
   api:
@@ -65,6 +82,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      dependencies:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [
@@ -82,7 +101,7 @@ services:
       context: .
       target: api-dev
     environment: *api-environment
-    command: pnpm --filter @purposemint/api seed:mock
+    command: sh -c "pnpm --filter @purposemint/api seed:mock && pnpm --filter @purposemint/api seed:admin-hierarchy"
     volumes:
       - .:/workspace
       - purposemint-node-modules:/workspace/node_modules
@@ -112,6 +131,8 @@ services:
       - purposemint-next-cache:/workspace/apps/dashboard/.next
     depends_on:
       mock-data:
+        condition: service_completed_successfully
+      dependencies:
         condition: service_completed_successfully
 
 volumes:

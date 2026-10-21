@@ -11,8 +11,10 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^3.1.1",
     "@purposemint/contracts": "workspace:*",
     "@tanstack/react-table": "^8.21.3",
+    "@xyflow/react": "^12.12.0",
     "country-state-city": "^3.2.1",
     "emoji-picker-react": "^4.22.3",
     "next": "16.2.0",

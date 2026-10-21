@@ -23,6 +23,7 @@ import { CommunityChallengesModule } from './community-challenges/community-chal
 import { AdminModule } from './admin/admin.module';
 import { IncentivesModule } from './incentives/incentives.module';
 import { BadgesModule } from './badges/badges.module';
+import { PathwayManagementModule } from './pathway-management/pathway-management.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { BadgesModule } from './badges/badges.module';
     // Mount incentive endpoints and seed the default program after database initialization.
     IncentivesModule,
     BadgesModule,
+    PathwayManagementModule,
     HealthModule,
   ],
   providers: [

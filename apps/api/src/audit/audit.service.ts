@@ -85,18 +85,25 @@ export class AuditService {
     }
   }
 
-  private sanitize(
+  sanitize(
     metadata: Record<string, unknown> | null | undefined,
   ): Record<string, unknown> | null {
     if (!metadata) return null;
-    const safe: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(metadata)) {
-      if (FORBIDDEN_METADATA_KEY.test(key)) {
-        this.logger.warn(`Dropped audit metadata key "${key}" — looks secret.`);
-        continue;
+    const clean = (value: unknown, depth: number): unknown => {
+      if (depth > 12) return '[omitted]';
+      if (value instanceof Date) return value.toISOString();
+      if (Array.isArray(value))
+        return value.map((entry) => clean(entry, depth + 1));
+      if (value !== null && typeof value === 'object') {
+        return Object.fromEntries(
+          Object.entries(value)
+            .filter(([key]) => !FORBIDDEN_METADATA_KEY.test(key))
+            .map(([key, entry]) => [key, clean(entry, depth + 1)]),
+        );
       }
-      safe[key] = value;
-    }
+      return value;
+    };
+    const safe = clean(metadata, 0) as Record<string, unknown>;
     return Object.keys(safe).length > 0 ? safe : null;
   }
 }
