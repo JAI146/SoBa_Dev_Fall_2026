@@ -6,6 +6,7 @@ import {
   UserType,
   AdminRole,
   userPublicSchema,
+  subscriptionAdminAccessSchema,
   type MessageResponse,
   type UserPublic,
 } from "@purposemint/contracts";
@@ -38,6 +39,7 @@ export default function DashboardLayout({
     window.addEventListener(SIGNED_OUT_EVENT, signedOut);
     return () => window.removeEventListener(SIGNED_OUT_EVENT, signedOut);
   }, [router]);
+  const [canViewSubscriptions, setCanViewSubscriptions] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,6 +70,18 @@ export default function DashboardLayout({
         }
         setUser(currentUser);
       } catch (error) {
+        try {
+          await apiRequest(
+            "/admin/subscription-management/permissions",
+            {},
+            token,
+            subscriptionAdminAccessSchema,
+          );
+          if (!cancelled) setCanViewSubscriptions(true);
+        } catch {
+          if (!cancelled) setCanViewSubscriptions(false);
+        }
+      } catch {
         if (!cancelled) {
           if (
             error instanceof ApiError &&
@@ -183,6 +197,34 @@ export default function DashboardLayout({
       label: "Manage roles",
       icon: "roles",
       active: pathname.startsWith("/dashboard/manage-roles"),
+    },
+    {
+      href: "/dashboard/coaching",
+      label: "KiroMoney",
+      icon: "coaching",
+      active: pathname.startsWith("/dashboard/coaching"),
+    },
+    {
+      href: "/dashboard/system-health",
+      label: "System health",
+      icon: "health",
+      active: pathname.startsWith("/dashboard/system-health"),
+    },
+    ...(canViewSubscriptions
+      ? [
+          {
+            href: "/dashboard/subscriptions",
+            label: "Subscriptions & Plans",
+            icon: "upgrades" as const,
+            active: pathname.startsWith("/dashboard/subscriptions"),
+          },
+        ]
+      : []),
+    {
+      href: "/dashboard/settings",
+      label: "Settings",
+      icon: "settings",
+      active: pathname.startsWith("/dashboard/settings"),
     },
   ];
 

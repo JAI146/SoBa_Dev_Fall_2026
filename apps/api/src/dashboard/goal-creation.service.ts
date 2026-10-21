@@ -11,6 +11,7 @@ import {
   type UserGoalPublic,
 } from '@purposemint/contracts';
 import { Repository } from 'typeorm';
+import { AuditService, goalHistoryState } from '../audit/audit.service';
 import { toUserGoalPublic } from '../common/mappers/onboarding.mapper';
 import { GoalTemplate } from '../entities/goal-template.entity';
 import { UserGoal } from '../entities/user-goal.entity';
@@ -33,6 +34,7 @@ export class GoalCreationService {
     @InjectRepository(UserValue)
     private readonly userValuesRepo: Repository<UserValue>,
     private readonly badgeEvaluation: BadgeEvaluationService,
+    private readonly audit: AuditService,
   ) {}
 
   async create(
@@ -98,9 +100,10 @@ export class GoalCreationService {
         );
       }
 
-      const currentFocus = await manager.findOne(UserGoal, {
-        where: { userId, isFocus: true, isActive: true },
+      const focusedGoals = await manager.find(UserGoal, {
+        where: { userId, isFocus: true },
       });
+      const currentFocus = focusedGoals.find((goal) => goal.isActive);
       const shouldFocus = options.replaceFocus || !currentFocus;
       if (shouldFocus) {
         await manager.update(
@@ -108,6 +111,17 @@ export class GoalCreationService {
           { userId, isFocus: true },
           { isFocus: false },
         );
+        for (const previousFocus of focusedGoals) {
+          const changed = await manager.findOneByOrFail(UserGoal, {
+            id: previousFocus.id,
+          });
+          await this.audit.recordGoalChange(
+            manager,
+            userId,
+            changed,
+            goalHistoryState(previousFocus),
+          );
+        }
       }
 
       const goal = await manager.save(
@@ -124,6 +138,8 @@ export class GoalCreationService {
           iconEmoji,
         }),
       );
+
+      await this.audit.recordGoalChange(manager, userId, goal, null);
 
       if (options.markOnboardingProgress) {
         await manager.update(

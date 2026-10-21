@@ -4,9 +4,13 @@ import { SubscriptionPlan } from '../entities/subscription-plan.entity';
 import { UpgradeIntent } from '../entities/upgrade-intent.entity';
 import { SubscriptionsController } from './subscriptions.controller';
 import { SubscriptionsService } from './subscriptions.service';
+import { SubscriptionManagementModule } from '../subscription-management/subscription-management.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([SubscriptionPlan, UpgradeIntent])],
+  imports: [
+    SubscriptionManagementModule,
+    TypeOrmModule.forFeature([SubscriptionPlan, UpgradeIntent]),
+  ],
   controllers: [SubscriptionsController],
   providers: [SubscriptionsService],
   exports: [SubscriptionsService],

@@ -6,6 +6,9 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   OnboardingStatus,
+  AuditAction,
+  AuditActorType,
+  type HabitPauseInput,
   type CreateSavingsInput,
   type CreateSavingsResponse,
   type DashboardPayload,
@@ -16,6 +19,12 @@ import {
   type UpdateValuesInput,
 } from '@purposemint/contracts';
 import { In, IsNull, Not, QueryFailedError, Repository } from 'typeorm';
+import {
+  AuditService,
+  goalHistoryState,
+  loadHabitLifecycle,
+  habitIsPaused,
+} from '../audit/audit.service';
 import {
   toUserGoalPublic,
   toValuePublic,
@@ -74,6 +83,7 @@ export class DashboardService {
     private readonly reflectionsService: ReflectionsService,
     private readonly communityChallengesService: CommunityChallengesService,
     private readonly badgeEvaluation: BadgeEvaluationService,
+    private readonly audit: AuditService,
   ) {}
 
   async updateHabits(
@@ -97,7 +107,14 @@ export class DashboardService {
         existing.map((row) => [row.sourceTemplateId, row]),
       );
       for (const row of existing) {
+        const previousActive = row.isActive;
         row.isActive = selected.includes(row.sourceTemplateId);
+        await this.audit.recordHabitSelection(
+          manager,
+          userId,
+          row,
+          previousActive,
+        );
       }
       await manager.save(existing);
       const additions = selected
@@ -109,7 +126,11 @@ export class DashboardService {
             isActive: true,
           }),
         );
-      if (additions.length) await manager.save(additions);
+      if (additions.length) {
+        await manager.save(additions);
+        for (const habit of additions)
+          await this.audit.recordHabitSelection(manager, userId, habit, null);
+      }
     });
     return this.getDashboard(userId);
   }
@@ -183,6 +204,10 @@ export class DashboardService {
 
     const today = todayInTimeZone(user.timeZone);
     const habitIds = habits.map((habit) => habit.id);
+    const lifecycle = await loadHabitLifecycle(
+      this.userHabitsRepo.manager,
+      habitIds,
+    );
     const todaysCompletions =
       habitIds.length === 0
         ? []
@@ -230,6 +255,7 @@ export class DashboardService {
             iconEmoji: template.iconEmoji,
             isActive: habit.isActive,
             completedToday: completedIds.has(habit.id),
+            isPaused: habitIsPaused(lifecycle, habit.id),
           },
         ];
       }),
@@ -266,6 +292,11 @@ export class DashboardService {
       if (!goal) {
         throw new NotFoundException("We couldn't find that savings goal.");
       }
+      if (goal.isFocus) return toUserGoalPublic(goal);
+      const oldFocus = await manager.findOneBy(UserGoal, {
+        userId,
+        isFocus: true,
+      });
       await manager.update(
         UserGoal,
         { userId, isFocus: true },
@@ -273,6 +304,23 @@ export class DashboardService {
       );
       await manager.update(UserGoal, { id: goal.id }, { isFocus: true });
       const saved = await manager.findOneByOrFail(UserGoal, { id: goal.id });
+      if (oldFocus) {
+        const changed = await manager.findOneByOrFail(UserGoal, {
+          id: oldFocus.id,
+        });
+        await this.audit.recordGoalChange(
+          manager,
+          userId,
+          changed,
+          goalHistoryState(oldFocus),
+        );
+      }
+      await this.audit.recordGoalChange(
+        manager,
+        userId,
+        saved,
+        goalHistoryState(goal),
+      );
       return toUserGoalPublic(saved);
     });
   }
@@ -292,6 +340,13 @@ export class DashboardService {
         });
         if (!habit) {
           throw new NotFoundException("We couldn't find that habit.");
+        }
+        if (
+          habitIsPaused(await loadHabitLifecycle(manager, [habit.id]), habit.id)
+        ) {
+          throw new ForbiddenException(
+            'Resume this habit before recording a completion.',
+          );
         }
 
         const existing = await manager.findOne(HabitCompletion, {
@@ -364,6 +419,12 @@ export class DashboardService {
           id: goal.id,
         });
         await this.badgeEvaluation.evaluateUser(userId, manager);
+        await this.audit.recordGoalChange(
+          manager,
+          userId,
+          updatedGoal,
+          goalHistoryState(goal),
+        );
         return { entry, goal: updatedGoal };
       },
     );
@@ -378,6 +439,35 @@ export class DashboardService {
       },
       goal: toUserGoalPublic(saved.goal),
     };
+  }
+
+  async setHabitPause(userId: string, habitId: string, input: HabitPauseInput) {
+    await this.requireCompleted(userId);
+    return this.userHabitsRepo.manager.transaction(async (manager) => {
+      const habit = await manager.findOne(UserHabit, {
+        where: { id: habitId, userId, isActive: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!habit)
+        throw new NotFoundException("We couldn't find that selected habit.");
+      const paused = habitIsPaused(
+        await loadHabitLifecycle(manager, [habit.id]),
+        habit.id,
+      );
+      if (paused !== input.paused) {
+        await this.audit.recordTransactional(manager, {
+          action: input.paused
+            ? AuditAction.HABIT_PAUSED
+            : AuditAction.HABIT_RESUMED,
+          actorUserId: userId,
+          actorType: AuditActorType.USER,
+          entityType: 'habit',
+          entityId: habit.id,
+          metadata: { userId, paused: input.paused },
+        });
+      }
+      return { userHabitId: habit.id, isPaused: input.paused };
+    });
   }
 
   private async requireCompleted(userId: string): Promise<User> {

@@ -17,3 +17,12 @@ export * from "./incentives";
 export * from "./badges";
 export * from "./audit";
 export * from "./audit-hierarchy";
+export * from "./progress";
+// Export the shared incentives schemas and types through the package’s public entry point.
+export * from "./incentives";
+export * from "./system-health";
+
+export * from "./notifications";
+
+export * from "./coaching-operations";
+export * from "./subscription-management";

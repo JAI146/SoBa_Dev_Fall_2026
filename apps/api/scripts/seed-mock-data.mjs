@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import { createHash } from 'node:crypto';
 import { Client } from 'pg';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -23,6 +24,13 @@ function uuid(group, index) {
   return `00000000-0000-4000-${group}-${String(index).padStart(12, '0')}`;
 }
 
+// Catalog positions change when templates are added. Key habit fixture IDs to
+// their relationship instead, preserving existing rows through the natural key.
+function relationshipUuid(kind, ...parts) {
+  const hex = createHash('sha256').update(JSON.stringify(['purposemint-mock', kind, ...parts])).digest('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
 await client.connect();
 try {
   await client.query('BEGIN');
@@ -30,7 +38,7 @@ try {
   const pathways = (await client.query('SELECT key FROM pathways ORDER BY sort_order')).rows;
   const values = (await client.query('SELECT id, key FROM "values" ORDER BY sort_order')).rows;
   const goalTemplates = (await client.query('SELECT id, title, target_amount, is_pathway_eligible, icon_emoji FROM goal_templates ORDER BY sort_order')).rows;
-  const habitTemplates = (await client.query('SELECT id, frequency FROM habit_templates ORDER BY sort_order')).rows;
+  const habitTemplates = (await client.query('SELECT id, frequency FROM habit_templates ORDER BY sort_order, id')).rows;
   const challenges = (await client.query('SELECT id FROM community_challenges ORDER BY active_month')).rows;
   if (!pathways.length) throw new Error('Reference data is missing; start the API before running the mock seed.');
   if (values.length < 2 || goalTemplates.length < 2 || habitTemplates.length < 2 || !challenges.length) {
@@ -81,6 +89,33 @@ try {
         firstNames[index], lastNames[index], status, completed ? 'completed' : index % 2 ? 'in_progress' : 'not_started', tier, createdDaysAgo, mockLevel],
     );
     const userId = userResult.rows[0].id;
+
+    // Mock users are inserted after migrations run. Import their configured
+    // membership once; reruns must preserve any administrator changes/history.
+    await client.query(
+      `WITH inserted AS (
+         INSERT INTO user_subscriptions
+           (user_id, plan_key, status, billing, payment_status, started_at, renewal_at, failed_payments, version)
+         SELECT u.id, p.key, 'active',
+           jsonb_build_object('planKey', p.key, 'planName', p.name, 'planVersion', p.version,
+             'cycle', 'monthly', 'currency', 'USD', 'amountCents', round(p.price_monthly * 100)::int,
+             'regularAmountCents', round(p.price_monthly * 100)::int, 'promotionEndsAt', NULL),
+           CASE WHEN p.price_monthly = 0 THEN 'not_required' ELSE 'pending' END,
+           u.created_at, now() + interval '1 month', 0, 1
+         FROM users u JOIN subscription_plans p ON p.key = u.tier::text
+         WHERE u.id = $1 AND u.user_type = 'customer' AND u.deleted_at IS NULL
+         ON CONFLICT (user_id) DO NOTHING RETURNING *
+       ), history AS (
+         INSERT INTO subscription_history
+           (subscription_id, action, new_plan_key, new_billing, effective_at)
+         SELECT id, 'legacy_imported', plan_key, billing, started_at FROM inserted
+       )
+       INSERT INTO audit_events (actor_type, action, entity_type, entity_id, outcome, metadata)
+       SELECT 'system', 'admin.subscription_changed', 'subscription', id::text, 'success',
+         jsonb_build_object('action', 'legacy_imported', 'source', 'mock_seed', 'newBilling', billing)
+       FROM inserted`,
+      [userId],
+    );
 
     // The operational dashboard needs real relationships, not just catalog rows.
     // Keep a few incomplete accounts empty to exercise empty and onboarding states.
@@ -143,7 +178,7 @@ try {
 
       for (let habitIndex = 0; habitIndex < 3; habitIndex += 1) {
         const template = habitTemplates[(index + habitIndex) % habitTemplates.length];
-        const habitId = uuid(`85${habitIndex}0`, number);
+        const habitId = relationshipUuid('habit', userId, template.id);
         const active = habitIndex !== 2 || index % 3 !== 0;
         await client.query(
           `INSERT INTO user_habits (id, user_id, source_template_id, is_active,
@@ -167,7 +202,7 @@ try {
             `INSERT INTO habit_completions (id, user_id, user_habit_id, completed_on)
              VALUES ($1, $2, $3, (now() AT TIME ZONE 'America/Chicago')::date - $4::int)
              ON CONFLICT DO NOTHING`,
-            [uuid(`86${habitIndex}0`, number * 100 + completionIndex),
+            [relationshipUuid('completion', savedHabitId, completionIndex),
               userId, savedHabitId, daysAgo + index % 3],
           );
         }

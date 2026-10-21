@@ -1,9 +1,14 @@
+import { CoachingOperationsModule } from './coaching-operations/coaching-operations.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { SystemHealthModule } from './system-health/system-health.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CustomRole } from './entities/custom-role.entity';
+import { AdminRolePermission } from './entities/admin-role-permission.entity';
+import { AdminUserPermission } from './entities/admin-user-permission.entity';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
@@ -24,10 +29,15 @@ import { AdminModule } from './admin/admin.module';
 import { IncentivesModule } from './incentives/incentives.module';
 import { BadgesModule } from './badges/badges.module';
 import { PathwayManagementModule } from './pathway-management/pathway-management.module';
+import { SubscriptionManagementModule } from './subscription-management/subscription-management.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CustomRole]),
+    TypeOrmModule.forFeature([
+      CustomRole,
+      AdminRolePermission,
+      AdminUserPermission,
+    ]),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env'],
@@ -63,7 +73,11 @@ import { PathwayManagementModule } from './pathway-management/pathway-management
     IncentivesModule,
     BadgesModule,
     PathwayManagementModule,
+    SubscriptionManagementModule,
     HealthModule,
+    SystemHealthModule,
+    NotificationsModule,
+    CoachingOperationsModule,
   ],
   providers: [
     // Order matters: rate limit, then authenticate, then authorize.

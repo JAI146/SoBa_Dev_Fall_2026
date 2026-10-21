@@ -89,6 +89,18 @@ Open <http://localhost:3000> and sign in with:
 - Email: `admin@purposemint.local`
 - Password: `PurposeMint123!`
 
+The development stack also seeds a limited-permission Support account for
+dashboard access testing:
+
+- Email: `qa.support@purposemint.local`
+- Password: `PurposeMintSupport123!`
+- Role: `support`
+
+This account is created only in development and only when the configured email
+does not already exist. Its role and password are not reset on API restarts, so
+you can safely use it to test permission changes. The account is recreated when
+starting with a fresh database volume.
+
 Source files are bind-mounted, so API and dashboard changes reload without an
 image rebuild. Mock records use `@purposemint.local` addresses and the seed is
 safe to rerun. Database state is kept in a named volume.
@@ -175,7 +187,6 @@ application review, and upgrade-intent reporting.
   exists, and no code path changes a user's `tier`.
 - **Voice reflections.** The data model and UI account for them; recording,
   upload, and playback are not implemented — no AWS storage is configured yet.
-- **Push notifications.** Preferences are a stored shell; nothing dispatches.
 - **Partner content management.** Pathway partners are seeded, and several are
   invented placeholders pending real partner relationships. No admin CRUD exists
   for them yet.

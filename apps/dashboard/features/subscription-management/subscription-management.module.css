@@ -1,0 +1,278 @@
+.workspace {
+  display: grid;
+  gap: 20px;
+}
+.compact-table.compact-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: auto;
+}
+.compact-table.compact-table :is(th, td) {
+  padding: 10px 12px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.compact-table.compact-table td > span:not([class]) {
+  display: block;
+  margin-top: 3px;
+}
+.compact-table .customer-email {
+  display: block;
+  max-width: 220px;
+  overflow-wrap: anywhere;
+}
+.compact-table.compact-table td:first-child {
+  min-width: 0;
+}
+.compact-table .identifier-cell {
+  max-width: 140px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.plan-dialog.plan-dialog {
+  width: min(960px, 100%);
+}
+.plan-prices {
+  display: grid;
+  gap: 7px;
+  min-width: 140px;
+}
+.price-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.plan-prices .price-cycle {
+  font-size: 11px;
+  color: #6b7280;
+}
+.plan-prices .price-value {
+  font-weight: 600;
+  color: #111827;
+  white-space: nowrap;
+}
+.plan-prices .price-unavailable {
+  color: #9ca3af;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.searchable-select {
+  position: relative;
+  display: grid;
+  gap: 6px;
+}
+.select-input {
+  position: relative;
+}
+.select-input input {
+  padding-right: 32px;
+}
+.select-input > span {
+  position: absolute;
+  right: 12px;
+  top: 8px;
+  color: #6b7280;
+  pointer-events: none;
+}
+.select-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  margin-top: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  background: #fff;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(17, 24, 39, 0.12);
+}
+.select-options button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px;
+  background: #fff;
+  color: #374151;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.select-options button.option-active,
+.select-options button[aria-selected="true"] {
+  background: #ecfdf5;
+  color: #047857;
+}
+.select-options p {
+  padding: 10px;
+  font-size: 12px;
+  color: #6b7280;
+}
+.tabs,
+.toolbar,
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.tabs button {
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+  background: #fff;
+  padding: 10px 16px;
+  cursor: pointer;
+  color: #4b5563;
+}
+.tabs button[aria-current="page"] {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+.form {
+  display: grid;
+  gap: 16px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.form label,
+.toolbar label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: #4b5563;
+}
+.form input,
+.form select,
+.form textarea,
+.toolbar input,
+.toolbar select {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  background: #fff;
+  padding: 10px;
+  font: inherit;
+  color: #111827;
+  min-height: 38px;
+}
+.form textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+.form fieldset {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px;
+  min-width: 0;
+}
+.form legend {
+  font-size: 12px;
+  padding: 0 6px;
+  font-weight: 700;
+}
+.form .check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.form input[type="checkbox"] {
+  width: 16px;
+  min-height: 16px;
+  accent-color: #059669;
+}
+.editor {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 2px 5px;
+}
+.note {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.65;
+}
+.detail {
+  display: grid;
+  gap: 20px;
+}
+.details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.details dt {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #6b7280;
+  letter-spacing: 0.07em;
+}
+.details dd {
+  margin: 5px 0 0;
+  font-size: 13px;
+  color: #111827;
+  overflow-wrap: anywhere;
+}
+.actions button {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #047857;
+  border-radius: 9px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.actions .danger {
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+.toolbar {
+  padding: 18px 20px;
+}
+.toolbar label {
+  flex: 1;
+  min-width: 140px;
+}
+.workspace button:focus-visible,
+.form :is(input, select, textarea):focus-visible,
+.toolbar :is(input, select):focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+}
+.workspace button:disabled,
+.form :is(input, select, textarea):disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.notice {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 12px;
+  padding: 14px;
+  color: #047857;
+  font-size: 12px;
+}
+@media (max-width: 960px) {
+  .details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 720px) {
+  .grid,
+  .details {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

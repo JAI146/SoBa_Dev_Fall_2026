@@ -7,7 +7,6 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   PathwayApplicationStatus,
-  Tier,
   type CreatePathwayApplicationInput,
   type PartnerPublic,
   type PartnersListResponse,
@@ -19,6 +18,7 @@ import {
   type VerifyPathwayApplicationInput,
 } from '@purposemint/contracts';
 import { In, Repository } from 'typeorm';
+import { SubscriptionManagementService } from '../subscription-management/subscription-management.service';
 import { ChecklistTemplate } from '../entities/checklist-template.entity';
 import { Partner } from '../entities/partner.entity';
 import { PathwayApplicationPartner } from '../entities/pathway-application-partner.entity';
@@ -36,9 +36,10 @@ export class PathwaysService {
     private readonly applications: Repository<PathwayApplication>,
     @InjectRepository(PathwayChecklistItem)
     private readonly checklistItems: Repository<PathwayChecklistItem>,
+    private readonly subscriptions: SubscriptionManagementService,
   ) {}
   async list(userId: string): Promise<PathwaysListResponse> {
-    await this.requireElevation(userId);
+    await this.requirePathways(userId);
     return {
       pathways: (
         await this.pathways.find({
@@ -52,7 +53,7 @@ export class PathwaysService {
     userId: string,
     key: string,
   ): Promise<PartnersListResponse> {
-    await this.requireElevation(userId);
+    await this.requirePathways(userId);
     await this.requirePathway(key);
     return {
       partners: (
@@ -67,7 +68,7 @@ export class PathwaysService {
     userId: string,
     input: CreatePathwayApplicationInput,
   ): Promise<PathwayApplicationPublic> {
-    await this.requireElevation(userId);
+    await this.requirePathways(userId);
     await this.requirePathway(input.pathwayKey);
     try {
       const id = await this.applications.manager.transaction(async (m) => {
@@ -75,6 +76,9 @@ export class PathwaysService {
           where: { id: userId },
           lock: { mode: 'pessimistic_write' },
         });
+        const access = await this.subscriptions.access(userId, m);
+        if (!access.entitlements.pathways)
+          throw new ForbiddenException('Your subscription does not include Pathways.');
         await this.lockActivePathway(m, input.pathwayKey);
         const prior = await m.findOne(PathwayApplication, {
           where: {
@@ -84,6 +88,12 @@ export class PathwaysService {
           },
         });
         if (prior) return prior.id;
+        if (
+          access.limits.pathwayApplications !== null &&
+          (await m.count(PathwayApplication, { where: { userId } })) >=
+            access.limits.pathwayApplications
+        )
+          throw new ForbiddenException('Your pathway application limit has been reached.');
         return (
           await m.save(
             m.create(PathwayApplication, {
@@ -117,7 +127,7 @@ export class PathwaysService {
     id: string,
     input: VerifyPathwayApplicationInput,
   ) {
-    await this.requireElevation(userId);
+    await this.requirePathways(userId);
     await this.applications.manager.transaction(async (m) => {
       const app = await this.lockDraft(m, userId, id);
       const pathway = await this.lockActivePathway(m, app.pathwayKey);
@@ -140,7 +150,7 @@ export class PathwaysService {
     id: string,
     input: SelectPathwayPartnersInput,
   ) {
-    await this.requireElevation(userId);
+    await this.requirePathways(userId);
     await this.applications.manager.transaction(async (m) => {
       const app = await this.lockDraft(m, userId, id);
       await this.lockActivePathway(m, app.pathwayKey);
@@ -163,7 +173,7 @@ export class PathwaysService {
     return this.get(userId, id);
   }
   async submit(userId: string, id: string) {
-    await this.requireElevation(userId);
+    await this.requirePathways(userId);
     await this.applications.manager.transaction(async (m) => {
       const app = await this.lockDraft(m, userId, id);
       const pathway = await this.lockActivePathway(m, app.pathwayKey);
@@ -228,7 +238,7 @@ export class PathwaysService {
     return this.get(userId, id);
   }
   async get(userId: string, id: string): Promise<PathwayApplicationPublic> {
-    await this.requireElevation(userId);
+    await this.requirePathways(userId);
     const app = await this.applications.findOne({
       where: { id, userId },
       relations: {
@@ -276,8 +286,15 @@ export class PathwaysService {
     id: string,
     input: UpdateChecklistItemInput,
   ) {
-    await this.requireElevation(userId);
+    await this.requirePathways(userId);
     await this.checklistItems.manager.transaction(async (m) => {
+      await m.findOneOrFail(User, {
+        where: { id: userId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const access = await this.subscriptions.access(userId, m);
+      if (!access.entitlements.pathways)
+        throw new ForbiddenException('Your subscription does not include Pathways.');
       const item = await m
         .createQueryBuilder(PathwayChecklistItem, 'item')
         .innerJoinAndSelect('item.application', 'application')
@@ -310,16 +327,10 @@ export class PathwaysService {
       sortOrder: saved.checklistTemplate.sortOrder,
     };
   }
-  private async requireElevation(userId: string) {
-    const user = await this.applications.manager.findOne(User, {
-      where: { id: userId },
-      select: { id: true, tier: true },
-    });
-    if (!user) throw new NotFoundException('User not found.');
-    if (user.tier !== Tier.ELEVATE)
-      throw new ForbiddenException(
-        'Pathways requires an Elevation membership.',
-      );
+  private async requirePathways(userId: string) {
+    const access = await this.subscriptions.access(userId);
+    if (!access.entitlements.pathways)
+      throw new ForbiddenException('Your subscription does not include Pathways.');
   }
   private async requirePathway(key: string) {
     const row = await this.pathways.findOneBy({ key, isActive: true });
@@ -343,6 +354,13 @@ export class PathwaysService {
     userId: string,
     id: string,
   ) {
+    await m.findOneOrFail(User, {
+      where: { id: userId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    const access = await this.subscriptions.access(userId, m);
+    if (!access.entitlements.pathways)
+      throw new ForbiddenException('Your subscription does not include Pathways.');
     const app = await m.findOne(PathwayApplication, {
       where: { id, userId, status: PathwayApplicationStatus.DRAFT },
       lock: { mode: 'pessimistic_write' },
