@@ -1,6 +1,9 @@
 import { AdminRole, type AdminRoleValue } from "./enums";
 
 export const AdminPermission = {
+  COACHING_OPERATIONS_VIEW: "coaching_operations.view",
+  NOTIFICATIONS_VIEW: "notifications.view",
+  NOTIFICATIONS_EDIT: "notifications.edit",
   USER_MANAGEMENT_LIMITED: "user_management.limited",
   USER_MANAGEMENT_VIEW: "user_management.view",
   USER_MANAGEMENT_EDIT: "user_management.edit",
@@ -14,6 +17,9 @@ export const AdminPermission = {
   AUDIT_LOGS_FULL: "audit_logs.full",
   SETTINGS_LIMITED: "settings.limited",
   SETTINGS_FULL: "settings.full",
+  SUBSCRIPTIONS_VIEW: "subscriptions.view",
+  SUBSCRIPTIONS_EDIT: "subscriptions.edit",
+  SUBSCRIPTIONS_FULL: "subscriptions.full",
 } as const;
 
 export type AdminPermissionValue =
@@ -30,6 +36,10 @@ export const rolePermissions: Record<
 > = {
   [AdminRole.SUPER_ADMIN]: Object.values(AdminPermission),
   [AdminRole.MANAGER]: [
+    AdminPermission.COACHING_OPERATIONS_VIEW,
+    AdminPermission.NOTIFICATIONS_VIEW,
+    AdminPermission.SUBSCRIPTIONS_VIEW,
+    AdminPermission.SUBSCRIPTIONS_EDIT,
     AdminPermission.USER_MANAGEMENT_VIEW,
     AdminPermission.USER_MANAGEMENT_EDIT,
     AdminPermission.FINANCIAL_DATA_VIEW,
@@ -40,6 +50,7 @@ export const rolePermissions: Record<
     AdminPermission.SETTINGS_LIMITED,
   ],
   [AdminRole.AUDITOR]: [
+    AdminPermission.SUBSCRIPTIONS_VIEW,
     AdminPermission.USER_MANAGEMENT_VIEW,
     AdminPermission.FINANCIAL_DATA_VIEW,
     AdminPermission.REPORTS_VIEW,
@@ -53,6 +64,7 @@ export const rolePermissions: Record<
     AdminPermission.REPORTS_LIMITED,
   ],
   [AdminRole.SUPPORT]: [
+    AdminPermission.SUBSCRIPTIONS_VIEW,
     AdminPermission.USER_MANAGEMENT_VIEW,
     AdminPermission.FINANCIAL_DATA_LIMITED,
   ],

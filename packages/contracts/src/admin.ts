@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { planKeySchema } from "./subscription-management";
 import {
   checklistCategoryValues,
   adminRoleValues,
@@ -13,6 +14,12 @@ import {
 import { adminPermissionValues } from "./permissions";
 import { paginationQuerySchema } from "./api-error";
 import { valuePublicSchema } from "./onboarding";
+import {
+  goalHistoryEntrySchema,
+  habitProgressSchema,
+  goalSavingsProgressSchema,
+  overallUserProgressSchema,
+} from "./progress";
 
 const isoDate = z.string().datetime();
 
@@ -82,7 +89,7 @@ export const adminOverviewResponseSchema = z.object({
   submittedPathwayApplications: z.number().int().min(0),
   pathwayApplicationsByPathway: z.array(adminCountGroupSchema),
   upgradeIntentsByPlan: z.array(
-    adminCountGroupSchema.extend({ key: z.enum(tierValues) }),
+    adminCountGroupSchema.extend({ key: planKeySchema }),
   ),
   activeUsers: z.object({
     count: z.number().int().min(0),
@@ -273,6 +280,7 @@ export const adminUserHabitSchema = z.object({
   category: z.enum(habitCategoryValues),
   isActive: z.boolean(),
   createdAt: isoDate,
+  progress: habitProgressSchema,
 });
 
 export const adminApplicantSchema = z.object({
@@ -316,6 +324,10 @@ export const adminUserDetailResponseSchema = adminUserListItemSchema.extend({
   lastLoginAt: isoDate.nullable(),
   goals: z.array(adminUserGoalSchema),
   habits: z.array(adminUserHabitSchema),
+  goalHistory: z.array(goalHistoryEntrySchema),
+  goalHistoryTruncated: z.boolean(),
+  savingsProgress: z.array(goalSavingsProgressSchema),
+  overallProgress: overallUserProgressSchema,
   pathwayApplications: z.array(adminPathwayApplicationListItemSchema),
   values: z.array(valuePublicSchema),
   activityCounts: z.object({
@@ -355,6 +367,10 @@ export const adminChecklistItemSchema = z.object({
 });
 
 export const adminPathwayApplicationDetailResponseSchema = z.object({
+  canManage: z.boolean(),
+  membershipEligible: z.boolean(),
+  savingsEligible: z.boolean(),
+  pathwayActive: z.boolean(),
   id: z.string().uuid(),
   applicant: adminApplicantSchema,
   pathway: adminPathwaySummarySchema,
@@ -372,13 +388,13 @@ export const adminPathwayApplicationDetailResponseSchema = z.object({
 export const adminUpgradeIntentSchema = z.object({
   id: z.string().uuid(),
   user: adminApplicantSchema,
-  planKey: z.enum(tierValues),
+  planKey: planKeySchema,
   planName: z.string(),
   createdAt: isoDate,
 });
 
 export const adminUpgradeIntentsResponseSchema = z.object({
-  groups: z.array(adminCountGroupSchema.extend({ key: z.enum(tierValues) })),
+  groups: z.array(adminCountGroupSchema.extend({ key: planKeySchema })),
   items: z.array(adminUpgradeIntentSchema),
   ...paginationFields,
 });

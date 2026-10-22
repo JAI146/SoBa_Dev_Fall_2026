@@ -318,9 +318,9 @@ export function NotificationPreferencesModal({
               accessibilityRole="switch"
               accessibilityState={{
                 checked: values[option.key],
-                disabled: saving,
+                disabled: saving || option.key === "securityAlerts",
               }}
-              disabled={saving}
+              disabled={saving || option.key === "securityAlerts"}
               hitSlop={8}
               onValueChange={(value) =>
                 setValues((existing) => ({ ...existing, [option.key]: value }))

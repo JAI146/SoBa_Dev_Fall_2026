@@ -1,0 +1,7 @@
+# Optional overlay. Merely applying this file does not enable automatic email.
+# Keep it out of the default shared Compose stack.
+services:
+  api:
+    environment:
+      NOTIFICATION_AUTOMATION_ENABLED: ${NOTIFICATION_AUTOMATION_ENABLED:-false}
+      NOTIFICATION_CUSTOMER_APP_URL: ${NOTIFICATION_CUSTOMER_APP_URL:-}

@@ -36,6 +36,7 @@ export function toPublicUser(user: User): UserPublic {
     notificationPreferences: {
       ...DEFAULT_NOTIFICATION_PREFERENCES,
       ...user.notificationPreferences,
+      securityAlerts: true,
     },
     policyAgreements: user.policyAgreements ?? {},
     createdAt: user.createdAt.toISOString(),

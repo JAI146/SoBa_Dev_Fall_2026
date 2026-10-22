@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuditModule } from '../audit/audit.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DashboardModule } from '../dashboard/dashboard.module';
 import { GoalTemplate } from '../entities/goal-template.entity';
@@ -13,6 +14,7 @@ import { OnboardingService } from './onboarding.service';
 
 @Module({
   imports: [
+    AuditModule,
     TypeOrmModule.forFeature([
       Value,
       GoalTemplate,

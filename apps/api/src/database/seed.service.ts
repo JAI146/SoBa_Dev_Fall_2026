@@ -267,7 +267,8 @@ export class SeedService implements OnModuleInit {
   }
 
   private async seedPathways() {
-    await this.pathwaysRepo.upsert(SEEDED_PATHWAYS.map((row) => this.pathwaysRepo.create(row)), ['key']);
+    // Catalog edits belong to administrators; startup must not overwrite them.
+    await this.pathwaysRepo.createQueryBuilder().insert().values(SEEDED_PATHWAYS).orIgnore().execute();
     if ((await this.partnersRepo.count()) === 0) await this.partnersRepo.save(SEEDED_PARTNERS.map((row) => this.partnersRepo.create(row)));
     if ((await this.checklistTemplatesRepo.count()) === 0) await this.checklistTemplatesRepo.save(SEEDED_CHECKLIST_TEMPLATES.map((row) => this.checklistTemplatesRepo.create(row)));
   }
@@ -282,12 +283,13 @@ export class SeedService implements OnModuleInit {
   }
 
   private async seedMembership() {
-    await this.subscriptionPlansRepo.upsert(
-      SEEDED_SUBSCRIPTION_PLANS.map((plan) =>
-        this.subscriptionPlansRepo.create(plan),
-      ),
-      ['key'],
-    );
+    // Insert missing starter offers only: never overwrite administrator configuration.
+    await this.subscriptionPlansRepo
+      .createQueryBuilder()
+      .insert()
+      .values(SEEDED_SUBSCRIPTION_PLANS)
+      .orIgnore()
+      .execute();
     await this.communityChallengesRepo.upsert(
       SEEDED_COMMUNITY_CHALLENGES.map((challenge) =>
         this.communityChallengesRepo.create(challenge),

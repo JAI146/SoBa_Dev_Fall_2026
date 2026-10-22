@@ -1,3 +1,6 @@
+import { CoachingOperationsModule } from './coaching-operations/coaching-operations.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { SystemHealthModule } from './system-health/system-health.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
@@ -24,6 +27,9 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { CommunityChallengesModule } from './community-challenges/community-challenges.module';
 import { AdminModule } from './admin/admin.module';
 import { IncentivesModule } from './incentives/incentives.module';
+import { BadgesModule } from './badges/badges.module';
+import { PathwayManagementModule } from './pathway-management/pathway-management.module';
+import { SubscriptionManagementModule } from './subscription-management/subscription-management.module';
 
 @Module({
   imports: [
@@ -65,7 +71,13 @@ import { IncentivesModule } from './incentives/incentives.module';
     AdminModule,
     // Mount incentive endpoints and seed the default program after database initialization.
     IncentivesModule,
+    BadgesModule,
+    PathwayManagementModule,
+    SubscriptionManagementModule,
     HealthModule,
+    SystemHealthModule,
+    NotificationsModule,
+    CoachingOperationsModule,
   ],
   providers: [
     // Order matters: rate limit, then authenticate, then authorize.

@@ -1,7 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   OnboardingStatus,
@@ -11,6 +8,7 @@ import {
   type SaveOnboardingValuesInput,
 } from '@purposemint/contracts';
 import { In, Repository, type EntityManager } from 'typeorm';
+import { AuditService, goalHistoryState } from '../audit/audit.service';
 import {
   resolveOnboardingStep,
   toGoalTemplatePublic,
@@ -45,26 +43,34 @@ export class OnboardingService {
     private readonly usersService: UsersService,
     private readonly dashboardService: DashboardService,
     private readonly goalCreationService: GoalCreationService,
+    private readonly audit: AuditService,
   ) {}
 
   async getContent(userId: string): Promise<OnboardingContentResponse> {
-    const [user, values, goalTemplates, habitTemplates, userValues, focusGoal, userHabits] =
-      await Promise.all([
-        this.usersService.getByIdOrFail(userId),
-        this.valuesRepo.find({ order: { sortOrder: 'ASC' } }),
-        this.goalTemplatesRepo.find({ order: { sortOrder: 'ASC' } }),
-        this.habitTemplatesRepo.find({ order: { sortOrder: 'ASC' } }),
-        this.userValuesRepo.find({
-          where: { userId },
-          relations: { value: true },
-        }),
-        this.userGoalsRepo.findOne({
-          where: { userId, isFocus: true, isActive: true },
-        }),
-        this.userHabitsRepo.find({
-          where: { userId, isActive: true },
-        }),
-      ]);
+    const [
+      user,
+      values,
+      goalTemplates,
+      habitTemplates,
+      userValues,
+      focusGoal,
+      userHabits,
+    ] = await Promise.all([
+      this.usersService.getByIdOrFail(userId),
+      this.valuesRepo.find({ order: { sortOrder: 'ASC' } }),
+      this.goalTemplatesRepo.find({ order: { sortOrder: 'ASC' } }),
+      this.habitTemplatesRepo.find({ order: { sortOrder: 'ASC' } }),
+      this.userValuesRepo.find({
+        where: { userId },
+        relations: { value: true },
+      }),
+      this.userGoalsRepo.findOne({
+        where: { userId, isFocus: true, isActive: true },
+      }),
+      this.userHabitsRepo.find({
+        where: { userId, isActive: true },
+      }),
+    ]);
 
     const selectedValues = userValues
       .map((row) => row.value)
@@ -147,11 +153,25 @@ export class OnboardingService {
         if (!user) {
           throw new BadRequestException("We couldn't find that account.");
         }
+        const oldGoals = await manager.find(UserGoal, {
+          where: { userId, isFocus: true },
+        });
         await manager.update(
           UserGoal,
           { userId, isFocus: true },
           { isFocus: false, isActive: false },
         );
+        for (const oldGoal of oldGoals) {
+          const current = await manager.findOneByOrFail(UserGoal, {
+            id: oldGoal.id,
+          });
+          await this.audit.recordGoalChange(
+            manager,
+            userId,
+            current,
+            goalHistoryState(oldGoal),
+          );
+        }
         await manager.update(
           User,
           { id: userId },
@@ -187,6 +207,13 @@ export class OnboardingService {
     }
 
     await this.userHabitsRepo.manager.transaction(async (manager) => {
+      await manager.findOneOrFail(User, {
+        where: { id: userId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const previousHabits = await manager.find(UserHabit, {
+        where: { userId },
+      });
       await manager.update(
         UserHabit,
         { userId, isActive: true },
@@ -209,6 +236,18 @@ export class OnboardingService {
             }),
           );
         }
+      }
+      const currentHabits = await manager.find(UserHabit, {
+        where: { userId },
+      });
+      for (const habit of currentHabits) {
+        const previous = previousHabits.find((item) => item.id === habit.id);
+        await this.audit.recordHabitSelection(
+          manager,
+          userId,
+          habit,
+          previous?.isActive ?? null,
+        );
       }
       await this.markInProgress(manager, userId);
     });

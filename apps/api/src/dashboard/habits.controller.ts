@@ -1,6 +1,19 @@
-import { Body, Controller, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { HabitCompleteResponse } from '@purposemint/contracts';
+import {
+  habitPauseSchema,
+  type HabitPauseInput,
+  type HabitCompleteResponse,
+} from '@purposemint/contracts';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import type { AuthPrincipal } from '../auth/auth-principal';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { VerifiedEmailGuard } from '../auth/guards/verified-email.guard';
@@ -15,7 +28,10 @@ export class HabitsController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Patch()
-  update(@CurrentUser() principal: AuthPrincipal, @Body() body: UpdateHabitsDto) {
+  update(
+    @CurrentUser() principal: AuthPrincipal,
+    @Body() body: UpdateHabitsDto,
+  ) {
     return this.dashboardService.updateHabits(principal.userId, body);
   }
 
@@ -28,6 +44,20 @@ export class HabitsController {
     return this.dashboardService.toggleHabitCompletion(
       principal.userId,
       userHabitId,
+    );
+  }
+
+  @Patch(':userHabitId/pause')
+  @ApiOperation({ summary: 'Explicitly pause or resume a selected habit' })
+  pause(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param('userHabitId', ParseUUIDPipe) userHabitId: string,
+    @Body(new ZodValidationPipe(habitPauseSchema)) body: HabitPauseInput,
+  ) {
+    return this.dashboardService.setHabitPause(
+      principal.userId,
+      userHabitId,
+      body,
     );
   }
 }

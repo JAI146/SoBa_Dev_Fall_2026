@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
-  Tier,
   type CommunityChallengePublic,
   type JoinChallengeResponse,
 } from '@purposemint/contracts';
@@ -14,6 +13,7 @@ import { todayInTimeZone } from '../common/mappers/onboarding.mapper';
 import { ChallengeParticipation } from '../entities/challenge-participation.entity';
 import { CommunityChallenge } from '../entities/community-challenge.entity';
 import { User } from '../entities/user.entity';
+import { SubscriptionManagementService } from '../subscription-management/subscription-management.service';
 
 const JOIN_MESSAGE =
   "You're in. Take this challenge at the pace that works for you.";
@@ -25,6 +25,7 @@ export class CommunityChallengesService {
     private readonly challenges: Repository<CommunityChallenge>,
     @InjectRepository(ChallengeParticipation)
     private readonly participations: Repository<ChallengeParticipation>,
+    private readonly subscriptions: SubscriptionManagementService,
   ) {}
 
   async getCurrent(
@@ -52,7 +53,8 @@ export class CommunityChallengesService {
           where: { challengeId: challenge.id, userId },
         }),
       ]);
-    const eligible = user.tier === Tier.GROWTH || user.tier === Tier.ELEVATE;
+    const access = await this.subscriptions.access(userId);
+    const eligible = access.entitlements.communityChallenges;
 
     return {
       id: challenge.id,
@@ -87,9 +89,10 @@ export class CommunityChallengesService {
             lock: { mode: 'pessimistic_write' },
           });
           if (!user) throw new NotFoundException('User not found.');
-          if (user.tier !== Tier.GROWTH && user.tier !== Tier.ELEVATE) {
+          const access = await this.subscriptions.access(userId, manager);
+          if (!access.entitlements.communityChallenges) {
             throw new ForbiddenException(
-              'Momentum or Elevation is required to join community challenges.',
+              'Your subscription does not include community challenges.',
             );
           }
 
@@ -111,6 +114,16 @@ export class CommunityChallengesService {
             challengeId,
           });
           if (existing) return { participation: existing, alreadyJoined: true };
+          if (
+            access.limits.challengeParticipations !== null &&
+            (await manager.count(ChallengeParticipation, {
+              where: { userId },
+            })) >= access.limits.challengeParticipations
+          ) {
+            throw new ForbiddenException(
+              'Your community challenge participation limit has been reached.',
+            );
+          }
 
           const participation = await manager.save(
             manager.create(ChallengeParticipation, {

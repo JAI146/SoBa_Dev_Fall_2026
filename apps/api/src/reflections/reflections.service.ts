@@ -17,6 +17,7 @@ import { ReflectionThemeMatch } from '../entities/reflection-theme-match.entity'
 import { ReflectionTheme } from '../entities/reflection-theme.entity';
 import { Reflection } from '../entities/reflection.entity';
 import { User } from '../entities/user.entity';
+import { BadgeEvaluationService } from '../badges/badge-evaluation.service';
 
 const STABLE_BAND = 0.35;
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as const;
@@ -42,6 +43,7 @@ export class ReflectionsService {
     private readonly reflections: Repository<Reflection>,
     @InjectRepository(ReflectionTheme)
     private readonly themes: Repository<ReflectionTheme>,
+    private readonly badgeEvaluation: BadgeEvaluationService,
   ) {}
 
   async list(
@@ -79,6 +81,7 @@ export class ReflectionsService {
         }),
       );
       await this.recomputeThemes(manager, row.id, row.body);
+      await this.badgeEvaluation.evaluateUser(userId, manager);
       return row.id;
     });
     return this.getOwned(userId, id);
@@ -100,6 +103,7 @@ export class ReflectionsService {
       if (input.moodScore !== undefined) row.moodScore = input.moodScore;
       await manager.save(row);
       await this.recomputeThemes(manager, row.id, row.body);
+      await this.badgeEvaluation.evaluateUser(userId, manager);
     });
     return this.getOwned(userId, id);
   }
@@ -113,6 +117,7 @@ export class ReflectionsService {
       if (!row)
         throw new NotFoundException("We couldn't find that reflection.");
       await manager.remove(row);
+      await this.badgeEvaluation.evaluateUser(userId, manager);
     });
     return { message: 'Reflection deleted.' };
   }
@@ -314,7 +319,8 @@ export class ReflectionsService {
   ): Promise<User> {
     const user = await manager.findOne(User, {
       where: { id: userId },
-      lock: { mode: 'pessimistic_write' },
+      // Award inserts need a compatible foreign-key lock on the user.
+      lock: { mode: 'for_no_key_update' },
     });
     if (!user) throw new NotFoundException('User not found.');
     return user;

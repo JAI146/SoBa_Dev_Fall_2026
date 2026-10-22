@@ -32,35 +32,80 @@
 
 .featureGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  width: 100%;
 }
 .featureCard {
-  display: flex;
-  min-height: 290px;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  background: #fff;
-  padding: 22px;
-  color: #111827;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  min-height: 112px;
+  border: 1px solid #cce5d7;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fff, #f0faf4);
+  padding: 18px;
+  color: #235b42;
   text-decoration: none;
   box-shadow: 0 3px 14px rgba(17, 24, 39, 0.035);
   transition:
     box-shadow 220ms ease,
-    border-color 220ms ease;
+    border-color 220ms ease,
+    transform 220ms ease,
+    background 220ms ease;
 }
 .featureCard:hover,
 .featureCard:focus-visible {
-  border-color: #a7f3d0;
-  box-shadow:
-    inset 0 0 0 4px rgba(52, 211, 153, 0.12),
-    inset 0 0 26px rgba(16, 185, 129, 0.14),
-    0 3px 14px rgba(17, 24, 39, 0.035);
+  border-color: #66b58c;
+  background: linear-gradient(135deg, #f6fff9, #ddf4e7);
+  box-shadow: 0 5px 16px #16885d12;
+  transform: translateY(-2px);
 }
 .featureCard h2 {
-  font-size: 16px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.featureCard:focus-visible {
+  outline: 2px solid #13825c;
+  outline-offset: 3px;
+}
+.featureCard:active {
+  border-color: #cf83af;
+  background: linear-gradient(135deg, #fff6fb, #f5dcec);
+  transform: scale(0.985);
+}
+.featureIcon {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #dff3e8;
+  color: #168257;
+}
+.featureIcon svg {
+  width: 30px;
+  height: 30px;
+}
+.featureCard:nth-child(2) .featureIcon {
+  background: #f7e6ef;
+  color: #a44d7d;
+}
+.featureCard:nth-child(3) .featureIcon {
+  background: #e2f1f1;
+  color: #367a77;
+}
+.featureArrow {
+  color: #6c9b80;
+}
+.featureCard:active .featureIcon {
+  background: #f3d9e9;
+  color: #a44d7d;
 }
 .featureVisual {
   display: grid;
@@ -82,9 +127,18 @@
   font-size: 12px;
   font-weight: 700;
 }
-@media (max-width: 760px) {
+@media (max-width: 1100px) {
   .featureGrid {
     grid-template-columns: 1fr;
+  }
+  .featureCard {
+    min-height: 88px;
+    padding: 16px 18px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .featureCard {
+    transition: none;
   }
 }
 
@@ -112,6 +166,159 @@
 .levelChart {
   height: 350px;
   margin-top: 18px;
+}
+.levelOverview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
+  align-items: start;
+  gap: 28px;
+}
+.levelChartColumn {
+  min-width: 0;
+}
+.levelChartNames {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0 12px 22px 48px;
+  color: #374151;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.4;
+  text-align: center;
+}
+.levelChartNames span {
+  padding: 0 5px;
+  overflow-wrap: anywhere;
+}
+.levelList {
+  display: grid;
+  gap: 10px;
+  margin-top: 30px;
+}
+.levelRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 72px;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    transform 220ms ease;
+}
+.levelRow:hover,
+.levelRow:focus-visible {
+  border-color: var(--level-hover-color);
+  box-shadow:
+    inset 0 0 0 2px
+      color-mix(in srgb, var(--level-hover-color) 15%, transparent),
+    0 4px 14px rgba(17, 24, 39, 0.06);
+  transform: translateY(-2px);
+}
+.levelRow:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 3px;
+}
+.levelNumber {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--level-color);
+  color: #052e16;
+  font-size: 16px;
+  font-weight: 750;
+  transition:
+    background 280ms ease-in-out,
+    color 280ms ease-in-out;
+}
+.levelRow:hover .levelNumber,
+.levelRow:focus-visible .levelNumber {
+  background: var(--level-hover-color);
+  color: #fff;
+}
+.levelRowTitle {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  color: #6b7280;
+  font-size: 10px;
+}
+.levelRowTitle strong {
+  color: #111827;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.levelRowCount {
+  display: grid;
+  gap: 2px;
+  color: #6b7280;
+  font-size: 10px;
+  text-align: right;
+}
+.levelRowCount strong {
+  color: #111827;
+  font-size: 18px;
+}
+.levelRowArrow {
+  color: #047857;
+  transition: transform 220ms ease;
+}
+.levelRow:hover .levelRowArrow,
+.levelRow:focus-visible .levelRowArrow {
+  transform: translateX(3px);
+}
+@media (max-width: 1100px) {
+  .levelOverview {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .levelList {
+    margin-top: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .levelRow,
+  .levelNumber,
+  .levelRowArrow {
+    transition: none;
+  }
+}
+.levelDirection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 12px 16px 48px;
+  color: #047857;
+  font-size: 11px;
+  font-weight: 650;
+  pointer-events: none;
+}
+.levelDirectionArrow {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right, #a7f3d0, #047857);
+}
+.levelDirectionArrow::after {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  border-top: 5px solid #047857;
+  border-right: 5px solid #047857;
+  content: "";
+  transform: translateY(-50%) rotate(45deg);
 }
 .levelChart :global(.recharts-rectangle) {
   fill: var(--level-color);

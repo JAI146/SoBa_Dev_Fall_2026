@@ -59,6 +59,11 @@ export class PermissionsGuard implements CanActivate {
               where: { id: user.customRoleId },
             })
           : null;
+        if (user.customRoleId && !customRole) {
+          throw new ForbiddenException(
+            "This one isn't available on your account.",
+          );
+        }
         const roleOverride =
           !customRole && user.adminRole
             ? await this.rolePermissionOverrides.findOne({
