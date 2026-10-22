@@ -1281,6 +1281,42 @@
   color: #111827;
   font-weight: 650;
 }
+.kyc-message-button {
+  justify-self: start;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  padding: 5px 10px;
+  color: #374151;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+}
+.kyc-message-button:hover {
+  background: #f9fafb;
+}
+.kyc-message-popover {
+  position: fixed;
+  z-index: 40;
+  display: grid;
+  width: 320px;
+  max-width: calc(100vw - 16px);
+  gap: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  padding: 12px 14px;
+  box-shadow: 0 12px 32px rgba(17, 24, 39, 0.18);
+  color: #4b5563;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: normal;
+}
+.kyc-message-popover strong {
+  color: #111827;
+  font-weight: 650;
+}
 .kyc-actions {
   display: flex;
   justify-content: flex-end;

@@ -6,7 +6,14 @@ import {
   type AdminKycItem,
   type KycStatusValue,
 } from "@purposemint/contracts";
-import { type FormEvent, useMemo, useState } from "react";
+import {
+  type FormEvent,
+  type MouseEvent as ReactMouseEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Dialog } from "@/components/common/dialog";
 import { SearchIcon } from "@/components/dashboard/action-icons";
 import {
@@ -31,6 +38,19 @@ const BADGE_BY_STATUS: Record<KycStatusValue, string> = {
   under_review: "badge-warning",
 };
 
+const POPOVER_WIDTH = 320;
+
+function popoverPosition(anchor: HTMLElement) {
+  const rect = anchor.getBoundingClientRect();
+  return {
+    top: rect.bottom + 6,
+    left: Math.max(
+      8,
+      Math.min(rect.left, window.innerWidth - POPOVER_WIDTH - 8),
+    ),
+  };
+}
+
 export default function KycPage() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
@@ -45,6 +65,60 @@ export default function KycPage() {
   const [outcome, setOutcome] = useState("not_started");
   const [resolveNote, setResolveNote] = useState("");
   const [note, setNote] = useState("");
+  const [messageView, setMessageView] = useState<{
+    item: AdminKycItem;
+    top: number;
+    left: number;
+  } | null>(null);
+  const messagePopoverRef = useRef<HTMLDivElement>(null);
+  const messageAnchorRef = useRef<HTMLElement | null>(null);
+  const messageOpen = messageView !== null;
+
+  useEffect(() => {
+    if (!messageOpen) return;
+    function reposition() {
+      const anchor = messageAnchorRef.current;
+      if (!anchor?.isConnected) {
+        setMessageView(null);
+        return;
+      }
+      const { top, left } = popoverPosition(anchor);
+      setMessageView((current) =>
+        current ? { ...current, top, left } : current,
+      );
+    }
+    function onPointerDown(event: MouseEvent) {
+      const target = event.target as Node;
+      if (messagePopoverRef.current?.contains(target)) return;
+      if (messageAnchorRef.current?.contains(target)) return;
+      setMessageView(null);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setMessageView(null);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [messageOpen]);
+
+  function toggleMessage(
+    event: ReactMouseEvent<HTMLButtonElement>,
+    item: AdminKycItem,
+  ) {
+    if (messageView?.item.user.id === item.user.id) {
+      setMessageView(null);
+      return;
+    }
+    messageAnchorRef.current = event.currentTarget;
+    setMessageView({ item, ...popoverPosition(event.currentTarget) });
+  }
 
   const path = useMemo(() => {
     const params = new URLSearchParams({
@@ -264,15 +338,18 @@ export default function KycPage() {
                   </td>
                   <td>
                     <div className={styles["kyc-detail"]}>
-                      {item.failureReason ? (
-                        <span>
-                          <strong>{formatEnum(item.failureCode ?? "")}</strong>
-                          {" — "}
-                          {item.failureReason}
-                        </span>
-                      ) : null}
-                      {item.escalationNote ? (
-                        <span>Escalation: {item.escalationNote}</span>
+                      {item.failureReason || item.escalationNote ? (
+                        <button
+                          type="button"
+                          className={styles["kyc-message-button"]}
+                          aria-haspopup="dialog"
+                          aria-expanded={
+                            messageView?.item.user.id === item.user.id
+                          }
+                          onClick={(event) => toggleMessage(event, item)}
+                        >
+                          View message
+                        </button>
                       ) : null}
                       <span>
                         Attempts: {item.attemptCount} · Provider:{" "}
@@ -364,6 +441,26 @@ export default function KycPage() {
           </div>
         </div>
       </section>
+      {messageView ? (
+        <div
+          ref={messagePopoverRef}
+          className={styles["kyc-message-popover"]}
+          role="dialog"
+          aria-label="Verification message"
+          style={{ top: messageView.top, left: messageView.left }}
+        >
+          {messageView.item.failureReason ? (
+            <p>
+              <strong>{formatEnum(messageView.item.failureCode ?? "")}</strong>
+              {" — "}
+              {messageView.item.failureReason}
+            </p>
+          ) : null}
+          {messageView.item.escalationNote ? (
+            <p>Escalation: {messageView.item.escalationNote}</p>
+          ) : null}
+        </div>
+      ) : null}
       <Dialog
         open={!!escalating}
         title="Escalate verification case"
