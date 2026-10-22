@@ -18,6 +18,7 @@ import { CustomRole } from '../entities/custom-role.entity';
 import { AdminRolePermission } from '../entities/admin-role-permission.entity';
 import { AdminUserPermission } from '../entities/admin-user-permission.entity';
 import { KycVerification } from '../entities/kyc-verification.entity';
+import { AuditEvent } from '../entities/audit-event.entity';
 import { AdminController } from './admin.controller';
 import { AdminKycService } from './admin-kyc.service';
 import { AdminService } from './admin.service';
@@ -32,6 +33,7 @@ import { AdminService } from './admin.service';
       AdminRolePermission,
       AdminUserPermission,
       KycVerification,
+      AuditEvent,
       UserGoal,
       UserHabit,
       UserValue,

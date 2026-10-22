@@ -12,16 +12,19 @@ import {
   UserType,
   kycStatusValues,
   type AdminKycEscalateInput,
+  type AdminKycHistoryEntry,
+  type AdminKycHistoryResponse,
   type AdminKycResolveInput,
   type AdminKycItem,
   type AdminKycQuery,
   type AdminKycResponse,
   type KycStatusValue,
 } from '@purposemint/contracts';
-import { Brackets, Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth-principal';
 import type { RequestContext } from '../common/request-context';
+import { AuditEvent } from '../entities/audit-event.entity';
 import { KycVerification } from '../entities/kyc-verification.entity';
 import { User } from '../entities/user.entity';
 import { type KycProvider, ManualKycProvider } from './kyc-provider';
@@ -51,6 +54,12 @@ const RETRYABLE: readonly KycStatusValue[] = [
 
 type UserWithKyc = User & { kyc?: KycVerification | null };
 
+const HISTORY_ACTIONS: Record<string, AdminKycHistoryEntry['action']> = {
+  [AuditAction.ADMIN_KYC_RETRIED]: 'retried',
+  [AuditAction.ADMIN_KYC_ESCALATED]: 'escalated',
+  [AuditAction.ADMIN_KYC_RESOLVED]: 'resolved',
+};
+
 @Injectable()
 export class AdminKycService {
   private readonly provider: KycProvider = new ManualKycProvider();
@@ -59,6 +68,8 @@ export class AdminKycService {
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(KycVerification)
     private readonly verifications: Repository<KycVerification>,
+    @InjectRepository(AuditEvent)
+    private readonly auditEvents: Repository<AuditEvent>,
     private readonly audit: AuditService,
   ) {}
 
@@ -97,6 +108,9 @@ export class AdminKycService {
         eligible: STUCK_ELIGIBLE,
       }).andWhere('kyc.statusChangedAt < :stuckBefore', { stuckBefore });
     }
+    if (query.escalated) {
+      qb.andWhere('kyc.escalatedAt IS NOT NULL');
+    }
 
     const [rows, total] = await qb
       .orderBy('kyc.statusChangedAt', 'ASC', 'NULLS LAST')
@@ -112,6 +126,7 @@ export class AdminKycService {
         page: query.page,
         status: query.status ?? null,
         stuck: query.stuck ?? null,
+        escalated: query.escalated ?? null,
       },
     });
 
@@ -205,7 +220,7 @@ export class AdminKycService {
     await this.record(principal, context, AuditAction.ADMIN_KYC_ESCALATED, {
       entityType: 'kyc_verification',
       entityId: user.id,
-      metadata: { previousStatus: status },
+      metadata: { previousStatus: status, note: input.note },
     });
     return this.toItem(user, saved, this.stuckBefore());
   }
@@ -249,6 +264,63 @@ export class AdminKycService {
       },
     });
     return this.toItem(user, saved, this.stuckBefore());
+  }
+
+  async history(userId: string): Promise<AdminKycHistoryResponse> {
+    const { user } = await this.load(userId);
+    const events = await this.auditEvents.find({
+      where: {
+        entityType: 'kyc_verification',
+        entityId: userId,
+        action: In(Object.keys(HISTORY_ACTIONS)),
+      },
+      order: { createdAt: 'DESC' },
+      take: 100,
+    });
+
+    const actorIds = [
+      ...new Set(events.map((e) => e.actorUserId).filter((id) => !!id)),
+    ] as string[];
+    const actors = actorIds.length
+      ? await this.users.find({ where: { id: In(actorIds) } })
+      : [];
+    const actorNames = new Map(
+      actors.map((actor) => [
+        actor.id,
+        actor.displayName ?? `${actor.firstName} ${actor.lastName}`.trim(),
+      ]),
+    );
+    const text = (value: unknown) =>
+      typeof value === 'string' && value ? value : null;
+
+    const items: AdminKycHistoryEntry[] = events.map((event) => {
+      const metadata = event.metadata ?? {};
+      return {
+        id: event.id,
+        action: HISTORY_ACTIONS[event.action],
+        actorName: event.actorUserId
+          ? (actorNames.get(event.actorUserId) ?? 'Unknown staff member')
+          : 'System',
+        createdAt: event.createdAt.toISOString(),
+        previousStatus: text(metadata.previousStatus),
+        outcome: text(metadata.outcome),
+        note: text(metadata.note),
+        attemptCount:
+          typeof metadata.attemptCount === 'number'
+            ? metadata.attemptCount
+            : null,
+      };
+    });
+
+    return {
+      user: {
+        id: user.id,
+        name: user.displayName ?? `${user.firstName} ${user.lastName}`.trim(),
+        email: user.email,
+        timeZone: user.timeZone,
+      },
+      items,
+    };
   }
 
   private async load(userId: string) {

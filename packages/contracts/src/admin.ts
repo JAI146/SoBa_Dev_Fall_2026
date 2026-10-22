@@ -71,6 +71,10 @@ export const adminKycQuerySchema = paginationQuerySchema.extend({
     .enum(["true", "false"])
     .transform((value) => value === "true")
     .optional(),
+  escalated: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
 });
 
 export const adminKycEscalateSchema = z.object({
@@ -430,6 +434,26 @@ export const adminKycResponseSchema = z.object({
   ...paginationFields,
 });
 
+export const adminKycHistoryEntrySchema = z.object({
+  id: z.string(),
+  action: z.enum(["retried", "escalated", "resolved"]),
+  actorName: z.string().nullable(),
+  createdAt: isoDate,
+  previousStatus: z.string().nullable(),
+  outcome: z.string().nullable(),
+  note: z.string().nullable(),
+  attemptCount: z.number().int().nullable(),
+});
+
+export const adminKycHistoryResponseSchema = z.object({
+  user: adminApplicantSchema,
+  items: z.array(adminKycHistoryEntrySchema),
+});
+
+export type AdminKycHistoryEntry = z.infer<typeof adminKycHistoryEntrySchema>;
+export type AdminKycHistoryResponse = z.infer<
+  typeof adminKycHistoryResponseSchema
+>;
 export type AdminKycQuery = z.infer<typeof adminKycQuerySchema>;
 export type AdminKycEscalateInput = z.infer<typeof adminKycEscalateSchema>;
 export type AdminKycResolveInput = z.infer<typeof adminKycResolveSchema>;

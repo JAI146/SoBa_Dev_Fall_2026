@@ -1,8 +1,10 @@
 "use client";
 
 import {
+  adminKycHistoryResponseSchema,
   adminKycResponseSchema,
   kycStatusValues,
+  type AdminKycHistoryResponse,
   type AdminKycItem,
   type KycStatusValue,
 } from "@purposemint/contracts";
@@ -56,7 +58,7 @@ export default function KycPage() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
-  const [stuckOnly, setStuckOnly] = useState(false);
+  const [show, setShow] = useState<"all" | "stuck" | "escalated">("all");
   const [message, setMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
@@ -71,6 +73,9 @@ export default function KycPage() {
     left: number;
   } | null>(null);
   const messagePopoverRef = useRef<HTMLDivElement>(null);
+  const [historyFor, setHistoryFor] = useState<AdminKycItem | null>(null);
+  const [history, setHistory] = useState<AdminKycHistoryResponse | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const messageAnchorRef = useRef<HTMLElement | null>(null);
   const messageOpen = messageView !== null;
 
@@ -127,10 +132,31 @@ export default function KycPage() {
     });
     if (search) params.set("search", search);
     if (status) params.set("status", status);
-    if (stuckOnly) params.set("stuck", "true");
+    if (show === "stuck") params.set("stuck", "true");
+    if (show === "escalated") params.set("escalated", "true");
     return `/admin/kyc?${params.toString()}`;
-  }, [page, search, status, stuckOnly]);
+  }, [page, search, status, show]);
   const query = useAdminQuery(path, adminKycResponseSchema);
+
+  async function openHistory(item: AdminKycItem) {
+    setHistoryFor(item);
+    setHistory(null);
+    setHistoryError(null);
+    try {
+      setHistory(
+        await apiRequest(
+          `/admin/kyc/${encodeURIComponent(item.user.id)}/history`,
+          {},
+          getToken(),
+          adminKycHistoryResponseSchema,
+        ),
+      );
+    } catch (cause) {
+      setHistoryError(
+        cause instanceof Error ? cause.message : "Could not load the history.",
+      );
+    }
+  }
 
   function submitSearch(event: FormEvent) {
     event.preventDefault();
@@ -247,6 +273,11 @@ export default function KycPage() {
           icon="accounts"
           accent
         />
+        <DashboardStatCard
+          label="Escalated"
+          value={data.summary.escalated.toLocaleString()}
+          icon="accounts"
+        />
       </section>
       <section className={`${styles["crud-card"]} ${styles["section-spaced"]}`}>
         <form className={styles["kyc-filters"]} onSubmit={submitSearch}>
@@ -279,14 +310,15 @@ export default function KycPage() {
           <label className={styles["filter-field"]}>
             Show
             <select
-              value={stuckOnly ? "stuck" : "all"}
+              value={show}
               onChange={(event) => {
                 setPage(1);
-                setStuckOnly(event.target.value === "stuck");
+                setShow(event.target.value as typeof show);
               }}
             >
               <option value="all">All customers</option>
               <option value="stuck">Stuck only</option>
+              <option value="escalated">Escalated only</option>
             </select>
           </label>
           <button type="submit" className={styles["btn-toolbar-primary"]}>
@@ -367,6 +399,13 @@ export default function KycPage() {
                   </td>
                   <td>
                     <div className={styles["kyc-actions"]}>
+                      <button
+                        type="button"
+                        className={styles["btn-toolbar-primary"]}
+                        onClick={() => void openHistory(item)}
+                      >
+                        History
+                      </button>
                       <button
                         type="button"
                         className={styles["btn-toolbar-primary"]}
@@ -461,6 +500,45 @@ export default function KycPage() {
           ) : null}
         </div>
       ) : null}
+      <Dialog
+        open={!!historyFor}
+        title={`Case history${historyFor ? ` — ${historyFor.user.name}` : ""}`}
+        onClose={() => setHistoryFor(null)}
+      >
+        {historyError ? <p role="alert">{historyError}</p> : null}
+        {!history && !historyError ? <p>Loading history…</p> : null}
+        {history && history.items.length === 0 ? (
+          <p className={styles["kyc-history-empty"]}>
+            No staff actions have been recorded for this customer yet.
+          </p>
+        ) : null}
+        {history && history.items.length > 0 ? (
+          <ol className={styles["kyc-history"]}>
+            {history.items.map((entry) => (
+              <li key={entry.id}>
+                <strong>
+                  {entry.action === "retried"
+                    ? "Retry started"
+                    : entry.action === "escalated"
+                      ? "Escalated"
+                      : `Resolved${entry.outcome ? ` — ${formatEnum(entry.outcome)}` : ""}`}
+                </strong>
+                <span>
+                  {entry.actorName ?? "Unknown"} ·{" "}
+                  {formatAdminDateTime(entry.createdAt, history.user.timeZone)}
+                </span>
+                {entry.previousStatus ? (
+                  <span>From: {formatEnum(entry.previousStatus)}</span>
+                ) : null}
+                {entry.attemptCount !== null ? (
+                  <span>Attempt {entry.attemptCount}</span>
+                ) : null}
+                {entry.note ? <span>Note: {entry.note}</span> : null}
+              </li>
+            ))}
+          </ol>
+        ) : null}
+      </Dialog>
       <Dialog
         open={!!escalating}
         title="Escalate verification case"
