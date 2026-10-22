@@ -77,6 +77,14 @@ export const adminKycQuerySchema = paginationQuerySchema.extend({
     .optional(),
 });
 
+export const adminKycRetrySchema = z.object({
+  force: z.boolean().optional(),
+});
+
+export const adminKycSettingsUpdateSchema = z.object({
+  maxAttempts: z.number().int().min(1).max(10),
+});
+
 export const adminKycEscalateSchema = z.object({
   note: z.string().trim().min(1).max(1000),
 });
@@ -417,6 +425,7 @@ export const adminKycItemSchema = z.object({
   lastRetryAt: isoDate.nullable(),
   isStuck: z.boolean(),
   canRetry: z.boolean(),
+  retryLimitReached: z.boolean().default(false),
   escalatedAt: isoDate.nullable(),
   escalationNote: z.string().nullable(),
   detailsRestricted: z.boolean().default(false),
@@ -430,6 +439,7 @@ export const adminKycResponseSchema = z.object({
     stuck: z.number().int(),
     escalated: z.number().int(),
     stuckAfterDays: z.number().int(),
+    maxAttempts: z.number().int().default(3),
   }),
   items: z.array(adminKycItemSchema),
   ...paginationFields,
@@ -458,6 +468,10 @@ export type AdminKycHistoryResponse = z.infer<
 >;
 export type AdminKycQuery = z.infer<typeof adminKycQuerySchema>;
 export type AdminKycEscalateInput = z.infer<typeof adminKycEscalateSchema>;
+export type AdminKycRetryInput = z.infer<typeof adminKycRetrySchema>;
+export type AdminKycSettingsUpdateInput = z.infer<
+  typeof adminKycSettingsUpdateSchema
+>;
 export type AdminKycResolveInput = z.infer<typeof adminKycResolveSchema>;
 export type AdminKycItem = z.infer<typeof adminKycItemSchema>;
 export type AdminKycResponse = z.infer<typeof adminKycResponseSchema>;

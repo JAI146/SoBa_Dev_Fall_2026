@@ -67,6 +67,7 @@ export default function KycPage() {
   const [outcome, setOutcome] = useState("not_started");
   const [resolveNote, setResolveNote] = useState("");
   const [note, setNote] = useState("");
+  const [limitInput, setLimitInput] = useState<string | null>(null);
   const [messageView, setMessageView] = useState<{
     item: AdminKycItem;
     top: number;
@@ -200,6 +201,33 @@ export default function KycPage() {
     }
   }
 
+  async function saveRetryLimit(event: FormEvent) {
+    event.preventDefault();
+    const maxAttempts = Number(limitInput);
+    if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 10) {
+      setActionError("The retry limit must be a whole number from 1 to 10.");
+      return;
+    }
+    setActionError(null);
+    setMessage(null);
+    try {
+      await apiRequest(
+        "/admin/kyc/settings",
+        { method: "PATCH", body: JSON.stringify({ maxAttempts }) },
+        getToken(),
+      );
+      setMessage(`Retry limit set to ${maxAttempts}.`);
+      setLimitInput(null);
+      await query.reload();
+    } catch (cause) {
+      setActionError(
+        cause instanceof Error
+          ? cause.message
+          : "The limit could not be saved.",
+      );
+    }
+  }
+
   async function submitEscalation(event: FormEvent) {
     event.preventDefault();
     if (!escalating) return;
@@ -325,6 +353,31 @@ export default function KycPage() {
             Search
           </button>
         </form>
+        <form
+          className={styles["kyc-filters"]}
+          onSubmit={(event) => void saveRetryLimit(event)}
+        >
+          <label className={styles["filter-field"]}>
+            Retry limit per customer
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={limitInput ?? String(data.summary.maxAttempts)}
+              onChange={(event) => setLimitInput(event.target.value)}
+            />
+          </label>
+          <button
+            type="submit"
+            className={styles["btn-toolbar-primary"]}
+            disabled={
+              limitInput === null ||
+              Number(limitInput) === data.summary.maxAttempts
+            }
+          >
+            Save limit
+          </button>
+        </form>
         <div className={styles["table-wrap"]}>
           <table className={styles["data-table"]}>
             <thead>
@@ -391,9 +444,12 @@ export default function KycPage() {
                         </span>
                       ) : null}
                       <span>
-                        Attempts: {item.attemptCount} · Provider:{" "}
-                        {item.provider}
+                        Attempts: {item.attemptCount}/{data.summary.maxAttempts}{" "}
+                        · Provider: {item.provider}
                       </span>
+                      {item.retryLimitReached ? (
+                        <span>Retry limit reached</span>
+                      ) : null}
                     </div>
                   </td>
                   <td>
@@ -416,10 +472,30 @@ export default function KycPage() {
                       <button
                         type="button"
                         className={styles["btn-toolbar-primary"]}
-                        disabled={!item.canRetry || busyUserId === item.user.id}
-                        onClick={() => void runAction(item.user.id, "retry")}
+                        disabled={
+                          !(item.canRetry || item.retryLimitReached) ||
+                          busyUserId === item.user.id
+                        }
+                        title={
+                          item.retryLimitReached
+                            ? `Retry limit of ${data.summary.maxAttempts} reached. Forcing allows one more attempt.`
+                            : undefined
+                        }
+                        onClick={() => {
+                          if (!item.retryLimitReached) {
+                            void runAction(item.user.id, "retry", {});
+                          } else if (
+                            window.confirm(
+                              `${item.user.name} has used ${item.attemptCount} of ${data.summary.maxAttempts} attempts. Force one more attempt?`,
+                            )
+                          ) {
+                            void runAction(item.user.id, "retry", {
+                              force: true,
+                            });
+                          }
+                        }}
                       >
-                        Retry
+                        {item.retryLimitReached ? "Force retry" : "Retry"}
                       </button>
                       {item.escalatedAt ? (
                         <button

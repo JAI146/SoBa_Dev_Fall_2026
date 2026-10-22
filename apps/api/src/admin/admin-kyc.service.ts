@@ -17,6 +17,8 @@ import {
   type AdminKycHistoryEntry,
   type AdminKycHistoryResponse,
   type AdminKycResolveInput,
+  type AdminKycRetryInput,
+  type AdminKycSettingsUpdateInput,
   type AdminKycItem,
   type AdminKycQuery,
   type AdminKycResponse,
@@ -31,10 +33,12 @@ import { AdminRolePermission } from '../entities/admin-role-permission.entity';
 import { AdminUserPermission } from '../entities/admin-user-permission.entity';
 import { CustomRole } from '../entities/custom-role.entity';
 import { KycVerification } from '../entities/kyc-verification.entity';
+import { KycSettings } from '../entities/kyc-settings.entity';
 import { User } from '../entities/user.entity';
 import { type KycProvider, ManualKycProvider } from './kyc-provider';
 
 export const KYC_STUCK_AFTER_DAYS = 3;
+export const KYC_DEFAULT_MAX_ATTEMPTS = 3;
 
 const KYC_LABELS: Record<KycStatusValue, string> = {
   [KycStatus.NOT_STARTED]: 'Not started',
@@ -73,6 +77,8 @@ export class AdminKycService {
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(KycVerification)
     private readonly verifications: Repository<KycVerification>,
+    @InjectRepository(KycSettings)
+    private readonly settings: Repository<KycSettings>,
     @InjectRepository(AuditEvent)
     private readonly auditEvents: Repository<AuditEvent>,
     @InjectRepository(CustomRole)
@@ -158,7 +164,8 @@ export class AdminKycService {
       .take(query.pageSize)
       .getManyAndCount();
 
-    const summary = await this.summary(stuckBefore);
+    const maxAttempts = await this.getMaxAttempts();
+    const summary = await this.summary(stuckBefore, maxAttempts);
     const showDetails = await this.canViewDetails(principal);
     await this.record(principal, context, AuditAction.ADMIN_KYC_LISTED, {
       entityType: 'kyc_verifications',
@@ -173,7 +180,13 @@ export class AdminKycService {
     return {
       summary,
       items: (rows as UserWithKyc[]).map((user) =>
-        this.toItem(user, user.kyc ?? null, stuckBefore, showDetails),
+        this.toItem(
+          user,
+          user.kyc ?? null,
+          stuckBefore,
+          showDetails,
+          maxAttempts,
+        ),
       ),
       page: query.page,
       pageSize: query.pageSize,
@@ -185,13 +198,27 @@ export class AdminKycService {
   async retry(
     principal: AuthPrincipal,
     userId: string,
+    input: AdminKycRetryInput,
     context: RequestContext,
   ): Promise<AdminKycItem> {
     const { user, record } = await this.load(userId);
     const stuckBefore = this.stuckBefore();
     const showDetails = await this.canViewDetails(principal);
-    const item = this.toItem(user, record, stuckBefore, showDetails);
-    if (!item.canRetry) {
+    const maxAttempts = await this.getMaxAttempts();
+    const item = this.toItem(
+      user,
+      record,
+      stuckBefore,
+      showDetails,
+      maxAttempts,
+    );
+    const forced = item.retryLimitReached && input?.force === true;
+    if (item.retryLimitReached && !forced) {
+      throw new BadRequestException(
+        `Retry limit of ${maxAttempts} reached. Escalate this case, or force one more attempt.`,
+      );
+    }
+    if (!item.canRetry && !forced) {
       throw new BadRequestException(
         'This verification cannot be retried in its current state.',
       );
@@ -219,9 +246,10 @@ export class AdminKycService {
         previousStatus: record?.status ?? KycStatus.NOT_STARTED,
         attemptCount: saved.attemptCount,
         provider: saved.provider,
+        forced,
       },
     });
-    return this.toItem(user, saved, stuckBefore, showDetails);
+    return this.toItem(user, saved, stuckBefore, showDetails, maxAttempts);
   }
 
   async escalate(
@@ -268,6 +296,7 @@ export class AdminKycService {
       saved,
       this.stuckBefore(),
       await this.canViewDetails(principal),
+      await this.getMaxAttempts(),
     );
   }
 
@@ -314,6 +343,7 @@ export class AdminKycService {
       saved,
       this.stuckBefore(),
       await this.canViewDetails(principal),
+      await this.getMaxAttempts(),
     );
   }
 
@@ -390,6 +420,7 @@ export class AdminKycService {
 
   private async summary(
     stuckBefore: Date,
+    maxAttempts: number,
   ): Promise<AdminKycResponse['summary']> {
     const customerCount = await this.users.count({
       where: { userType: UserType.CUSTOMER },
@@ -432,7 +463,41 @@ export class AdminKycService {
       stuck,
       escalated,
       stuckAfterDays: KYC_STUCK_AFTER_DAYS,
+      maxAttempts,
     };
+  }
+
+  private async getMaxAttempts(): Promise<number> {
+    const row = await this.settings.findOne({ where: { id: 1 } });
+    return row?.maxAttempts ?? KYC_DEFAULT_MAX_ATTEMPTS;
+  }
+
+  async updateSettings(
+    principal: AuthPrincipal,
+    input: AdminKycSettingsUpdateInput,
+    context: RequestContext,
+  ): Promise<{ maxAttempts: number }> {
+    const previous = await this.getMaxAttempts();
+    await this.settings.save(
+      this.settings.create({
+        id: 1,
+        maxAttempts: input.maxAttempts,
+        updatedBy: principal.userId,
+      }),
+    );
+    await this.record(
+      principal,
+      context,
+      AuditAction.ADMIN_KYC_SETTINGS_UPDATED,
+      {
+        entityType: 'kyc_settings',
+        metadata: {
+          previousMaxAttempts: previous,
+          maxAttempts: input.maxAttempts,
+        },
+      },
+    );
+    return { maxAttempts: input.maxAttempts };
   }
 
   private stuckBefore(): Date {
@@ -444,12 +509,15 @@ export class AdminKycService {
     record: KycVerification | null,
     stuckBefore: Date,
     showDetails: boolean,
+    maxAttempts: number,
   ): AdminKycItem {
     const status = record?.status ?? KycStatus.NOT_STARTED;
     const isStuck =
       !!record &&
       STUCK_ELIGIBLE.includes(status) &&
       record.statusChangedAt < stuckBefore;
+    const eligible = RETRYABLE.includes(status) || isStuck;
+    const retryLimitReached = (record?.attemptCount ?? 0) >= maxAttempts;
     return {
       user: {
         id: user.id,
@@ -465,7 +533,8 @@ export class AdminKycService {
       statusChangedAt: record?.statusChangedAt.toISOString() ?? null,
       lastRetryAt: record?.lastRetryAt?.toISOString() ?? null,
       isStuck,
-      canRetry: RETRYABLE.includes(status) || isStuck,
+      canRetry: eligible && !retryLimitReached,
+      retryLimitReached: eligible && retryLimitReached,
       escalatedAt: record?.escalatedAt?.toISOString() ?? null,
       escalationNote: showDetails ? (record?.escalationNote ?? null) : null,
       detailsRestricted: !showDetails,

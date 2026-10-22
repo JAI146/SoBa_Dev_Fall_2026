@@ -26,6 +26,8 @@ import {
   AdminKycEscalateDto,
   AdminKycQueryDto,
   AdminKycResolveDto,
+  AdminKycRetryDto,
+  AdminKycSettingsUpdateDto,
   AdminChecklistUpdateDto,
   AdminCustomRoleCreateDto,
   AdminCustomRoleUpdateDto,
@@ -73,6 +75,18 @@ export class AdminController {
     return this.kyc.history(principal, userId);
   }
 
+  @Patch('kyc/settings')
+  @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.USER_MANAGEMENT_EDIT)
+  @ApiOperation({ summary: 'Change the KYC retry limit' })
+  updateKycSettings(
+    @CurrentUser() principal: AuthPrincipal,
+    @Body() body: AdminKycSettingsUpdateDto,
+    @Req() request: Request,
+  ) {
+    return this.kyc.updateSettings(principal, body, requestContext(request));
+  }
+
   @Post('kyc/:userId/retry')
   @Roles(UserType.ADMIN)
   @RequirePermission(AdminPermission.USER_MANAGEMENT_EDIT)
@@ -80,9 +94,10 @@ export class AdminController {
   retryKyc(
     @CurrentUser() principal: AuthPrincipal,
     @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() body: AdminKycRetryDto,
     @Req() request: Request,
   ) {
-    return this.kyc.retry(principal, userId, requestContext(request));
+    return this.kyc.retry(principal, userId, body, requestContext(request));
   }
 
   @Post('kyc/:userId/escalate')
