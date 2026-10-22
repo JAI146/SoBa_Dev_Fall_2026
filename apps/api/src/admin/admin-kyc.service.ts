@@ -10,7 +10,9 @@ import {
   AuditActorType,
   KycStatus,
   UserType,
+  hasAdminPermission,
   kycStatusValues,
+  AdminPermission,
   type AdminKycEscalateInput,
   type AdminKycHistoryEntry,
   type AdminKycHistoryResponse,
@@ -25,6 +27,9 @@ import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth-principal';
 import type { RequestContext } from '../common/request-context';
 import { AuditEvent } from '../entities/audit-event.entity';
+import { AdminRolePermission } from '../entities/admin-role-permission.entity';
+import { AdminUserPermission } from '../entities/admin-user-permission.entity';
+import { CustomRole } from '../entities/custom-role.entity';
 import { KycVerification } from '../entities/kyc-verification.entity';
 import { User } from '../entities/user.entity';
 import { type KycProvider, ManualKycProvider } from './kyc-provider';
@@ -70,8 +75,42 @@ export class AdminKycService {
     private readonly verifications: Repository<KycVerification>,
     @InjectRepository(AuditEvent)
     private readonly auditEvents: Repository<AuditEvent>,
+    @InjectRepository(CustomRole)
+    private readonly customRoles: Repository<CustomRole>,
+    @InjectRepository(AdminRolePermission)
+    private readonly rolePermissionOverrides: Repository<AdminRolePermission>,
+    @InjectRepository(AdminUserPermission)
+    private readonly userPermissionOverrides: Repository<AdminUserPermission>,
     private readonly audit: AuditService,
   ) {}
+
+  // Mirrors PermissionsGuard precedence: user override > custom role > role override > defaults.
+  private async canViewDetails(principal: AuthPrincipal): Promise<boolean> {
+    const required = AdminPermission.KYC_FAILURE_DETAILS_VIEW;
+    const userOverride = await this.userPermissionOverrides.findOne({
+      where: { userId: principal.userId },
+    });
+    if (userOverride) {
+      return hasAdminPermission(null, required, userOverride.permissions);
+    }
+    if (principal.customRoleId) {
+      const customRole = await this.customRoles.findOne({
+        where: { id: principal.customRoleId },
+      });
+      if (customRole) {
+        return hasAdminPermission(null, required, customRole.permissions);
+      }
+    }
+    if (principal.adminRole) {
+      const roleOverride = await this.rolePermissionOverrides.findOne({
+        where: { roleKey: principal.adminRole },
+      });
+      if (roleOverride) {
+        return hasAdminPermission(null, required, roleOverride.permissions);
+      }
+    }
+    return hasAdminPermission(principal.adminRole, required);
+  }
 
   async list(
     principal: AuthPrincipal,
@@ -120,6 +159,7 @@ export class AdminKycService {
       .getManyAndCount();
 
     const summary = await this.summary(stuckBefore);
+    const showDetails = await this.canViewDetails(principal);
     await this.record(principal, context, AuditAction.ADMIN_KYC_LISTED, {
       entityType: 'kyc_verifications',
       metadata: {
@@ -133,7 +173,7 @@ export class AdminKycService {
     return {
       summary,
       items: (rows as UserWithKyc[]).map((user) =>
-        this.toItem(user, user.kyc ?? null, stuckBefore),
+        this.toItem(user, user.kyc ?? null, stuckBefore, showDetails),
       ),
       page: query.page,
       pageSize: query.pageSize,
@@ -149,7 +189,8 @@ export class AdminKycService {
   ): Promise<AdminKycItem> {
     const { user, record } = await this.load(userId);
     const stuckBefore = this.stuckBefore();
-    const item = this.toItem(user, record, stuckBefore);
+    const showDetails = await this.canViewDetails(principal);
+    const item = this.toItem(user, record, stuckBefore, showDetails);
     if (!item.canRetry) {
       throw new BadRequestException(
         'This verification cannot be retried in its current state.',
@@ -180,7 +221,7 @@ export class AdminKycService {
         provider: saved.provider,
       },
     });
-    return this.toItem(user, saved, stuckBefore);
+    return this.toItem(user, saved, stuckBefore, showDetails);
   }
 
   async escalate(
@@ -222,7 +263,12 @@ export class AdminKycService {
       entityId: user.id,
       metadata: { previousStatus: status, note: input.note },
     });
-    return this.toItem(user, saved, this.stuckBefore());
+    return this.toItem(
+      user,
+      saved,
+      this.stuckBefore(),
+      await this.canViewDetails(principal),
+    );
   }
 
   async resolve(
@@ -263,11 +309,20 @@ export class AdminKycService {
         escalationNote: record.escalationNote,
       },
     });
-    return this.toItem(user, saved, this.stuckBefore());
+    return this.toItem(
+      user,
+      saved,
+      this.stuckBefore(),
+      await this.canViewDetails(principal),
+    );
   }
 
-  async history(userId: string): Promise<AdminKycHistoryResponse> {
+  async history(
+    principal: AuthPrincipal,
+    userId: string,
+  ): Promise<AdminKycHistoryResponse> {
     const { user } = await this.load(userId);
+    const showDetails = await this.canViewDetails(principal);
     const events = await this.auditEvents.find({
       where: {
         entityType: 'kyc_verification',
@@ -304,7 +359,7 @@ export class AdminKycService {
         createdAt: event.createdAt.toISOString(),
         previousStatus: text(metadata.previousStatus),
         outcome: text(metadata.outcome),
-        note: text(metadata.note),
+        note: showDetails ? text(metadata.note) : null,
         attemptCount:
           typeof metadata.attemptCount === 'number'
             ? metadata.attemptCount
@@ -320,6 +375,7 @@ export class AdminKycService {
         timeZone: user.timeZone,
       },
       items,
+      detailsRestricted: !showDetails,
     };
   }
 
@@ -387,6 +443,7 @@ export class AdminKycService {
     user: User,
     record: KycVerification | null,
     stuckBefore: Date,
+    showDetails: boolean,
   ): AdminKycItem {
     const status = record?.status ?? KycStatus.NOT_STARTED;
     const isStuck =
@@ -402,15 +459,16 @@ export class AdminKycService {
       },
       status,
       provider: record?.provider ?? this.provider.name,
-      failureCode: record?.failureCode ?? null,
-      failureReason: record?.failureReason ?? null,
+      failureCode: showDetails ? (record?.failureCode ?? null) : null,
+      failureReason: showDetails ? (record?.failureReason ?? null) : null,
       attemptCount: record?.attemptCount ?? 0,
       statusChangedAt: record?.statusChangedAt.toISOString() ?? null,
       lastRetryAt: record?.lastRetryAt?.toISOString() ?? null,
       isStuck,
       canRetry: RETRYABLE.includes(status) || isStuck,
       escalatedAt: record?.escalatedAt?.toISOString() ?? null,
-      escalationNote: record?.escalationNote ?? null,
+      escalationNote: showDetails ? (record?.escalationNote ?? null) : null,
+      detailsRestricted: !showDetails,
     };
   }
 

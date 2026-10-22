@@ -4,6 +4,7 @@ export const AdminPermission = {
   USER_MANAGEMENT_LIMITED: "user_management.limited",
   USER_MANAGEMENT_VIEW: "user_management.view",
   USER_MANAGEMENT_EDIT: "user_management.edit",
+  KYC_FAILURE_DETAILS_VIEW: "kyc_failure_details.view",
   FINANCIAL_DATA_LIMITED: "financial_data.limited",
   FINANCIAL_DATA_VIEW: "financial_data.view",
   PATHWAY_APPLICATIONS_EDIT: "pathway_applications.edit",
@@ -32,6 +33,7 @@ export const rolePermissions: Record<
   [AdminRole.MANAGER]: [
     AdminPermission.USER_MANAGEMENT_VIEW,
     AdminPermission.USER_MANAGEMENT_EDIT,
+    AdminPermission.KYC_FAILURE_DETAILS_VIEW,
     AdminPermission.FINANCIAL_DATA_VIEW,
     AdminPermission.REPORTS_LIMITED,
     AdminPermission.REPORTS_VIEW,

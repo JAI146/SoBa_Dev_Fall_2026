@@ -66,8 +66,11 @@ export class AdminController {
   @Roles(UserType.ADMIN)
   @RequirePermission(AdminPermission.USER_MANAGEMENT_VIEW)
   @ApiOperation({ summary: 'View the action history of a verification case' })
-  kycHistory(@Param('userId', ParseUUIDPipe) userId: string) {
-    return this.kyc.history(userId);
+  kycHistory(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ) {
+    return this.kyc.history(principal, userId);
   }
 
   @Post('kyc/:userId/retry')

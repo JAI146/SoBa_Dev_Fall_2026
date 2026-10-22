@@ -382,6 +382,13 @@ export default function KycPage() {
                         >
                           View message
                         </button>
+                      ) : item.detailsRestricted &&
+                        (item.escalatedAt ||
+                          item.status === "failed" ||
+                          item.status === "requires_action") ? (
+                        <span title="You don't have permission to view failure details.">
+                          Details restricted
+                        </span>
                       ) : null}
                       <span>
                         Attempts: {item.attemptCount} · Provider:{" "}
@@ -510,6 +517,12 @@ export default function KycPage() {
         {history && history.items.length === 0 ? (
           <p className={styles["kyc-history-empty"]}>
             No staff actions have been recorded for this customer yet.
+          </p>
+        ) : null}
+        {history?.detailsRestricted ? (
+          <p className={styles["kyc-history-empty"]}>
+            Notes are hidden because you don&apos;t have permission to view
+            failure details.
           </p>
         ) : null}
         {history && history.items.length > 0 ? (

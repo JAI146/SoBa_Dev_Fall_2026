@@ -419,6 +419,7 @@ export const adminKycItemSchema = z.object({
   canRetry: z.boolean(),
   escalatedAt: isoDate.nullable(),
   escalationNote: z.string().nullable(),
+  detailsRestricted: z.boolean().default(false),
 });
 
 export const adminKycResponseSchema = z.object({
@@ -448,6 +449,7 @@ export const adminKycHistoryEntrySchema = z.object({
 export const adminKycHistoryResponseSchema = z.object({
   user: adminApplicantSchema,
   items: z.array(adminKycHistoryEntrySchema),
+  detailsRestricted: z.boolean().default(false),
 });
 
 export type AdminKycHistoryEntry = z.infer<typeof adminKycHistoryEntrySchema>;
