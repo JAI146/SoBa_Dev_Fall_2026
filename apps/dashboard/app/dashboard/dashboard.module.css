@@ -248,24 +248,15 @@
   align-items: flex-end;
   padding: 0 36px 0 18px;
 }
+.role-profile-heading h2 {
+  margin-top: 0;
+  font-size: 16px;
+}
 .role-create-button {
   display: flex;
-  min-height: 38px;
   align-items: center;
   gap: 7px;
-  border: 1px solid #047857;
-  border-radius: 8px;
-  background: #047857;
-  padding: 8px 12px;
-  color: #fff;
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 650;
-  white-space: nowrap;
-}
-.role-create-button:hover {
-  background: #065f46;
+  transform: translateY(8px);
 }
 .role-profile-row {
   display: flex;
@@ -340,6 +331,9 @@
 }
 .role-user-list {
   margin-top: 20px;
+}
+.role-user-actions {
+  text-align: left;
 }
 .role-user-status > span {
   display: block;

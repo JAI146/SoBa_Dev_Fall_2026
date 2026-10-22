@@ -375,12 +375,11 @@ export default function ManageRolesPage() {
           className={`${styles["card-heading"]} ${styles["role-profile-heading"]}`}
         >
           <div>
-            <p className={styles.eyebrow}>Access control</p>
             <h2>Existing roles</h2>
           </div>
           <button
             type="button"
-            className={styles["role-create-button"]}
+            className={`${styles["secondary-button"]} ${styles["role-create-button"]}`}
             onClick={() => {
               setRoleMessage(null);
               setCreateRoleOpen(true);
@@ -505,7 +504,7 @@ export default function ManageRolesPage() {
                 <th>User</th>
                 <th>Current status</th>
                 <th>Role</th>
-                <th>Individual permissions</th>
+                <th aria-label="Manage user permissions"></th>
               </tr>
             </thead>
             <tbody>
@@ -526,7 +525,7 @@ export default function ManageRolesPage() {
                       <span>{formatAdminDate(user.createdAt, null)}</span>
                     </td>
                     <td>{roleLabelFor(roleKey)}</td>
-                    <td>
+                    <td className={styles["role-user-actions"]}>
                       <button
                         type="button"
                         className={styles["secondary-button"]}
@@ -678,7 +677,7 @@ export default function ManageRolesPage() {
                   }
                 >
                   {editingUser.kind === "customer" ? (
-                    <option value="customer">Customer (no role)</option>
+                    <option value="customer">Customer</option>
                   ) : null}
                   {roleOrder.map((role) => (
                     <option value={role} key={role}>
