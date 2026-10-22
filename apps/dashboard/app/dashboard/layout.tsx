@@ -69,7 +69,6 @@ export default function DashboardLayout({
           return;
         }
         setUser(currentUser);
-      } catch (error) {
         try {
           await apiRequest(
             "/admin/subscription-management/permissions",
@@ -81,7 +80,7 @@ export default function DashboardLayout({
         } catch {
           if (!cancelled) setCanViewSubscriptions(false);
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
           if (
             error instanceof ApiError &&
