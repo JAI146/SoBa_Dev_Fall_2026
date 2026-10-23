@@ -6,6 +6,8 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ROLES_KEY } from '../auth/decorators/roles.decorator';
 import { PERMISSIONS_KEY } from '../auth/decorators/permissions.decorator';
+import { AdminRolePermission } from '../entities/admin-role-permission.entity';
+import { AdminUserPermission } from '../entities/admin-user-permission.entity';
 import { CustomRole } from '../entities/custom-role.entity';
 import { SubscriptionManagementController } from './subscription-management.controller';
 
@@ -38,12 +40,33 @@ describe('subscription administration permissions', () => {
       }),
     } as unknown as ExecutionContext;
   }
-  function guard(permissions: string[] | null = null) {
-    return new PermissionsGuard(reflector, {
-      findOne: jest
-        .fn()
-        .mockResolvedValue(permissions === null ? null : { permissions }),
-    } as unknown as Repository<CustomRole>);
+  function guard(
+    permissions: string[] | null = null,
+    roleOverride: string[] | null = null,
+    userOverride: string[] | null = null,
+  ) {
+    return new PermissionsGuard(
+      reflector,
+      {
+        findOne: jest
+          .fn()
+          .mockResolvedValue(permissions === null ? null : { permissions }),
+      } as unknown as Repository<CustomRole>,
+      {
+        findOne: jest
+          .fn()
+          .mockResolvedValue(
+            roleOverride === null ? null : { permissions: roleOverride },
+          ),
+      } as unknown as Repository<AdminRolePermission>,
+      {
+        findOne: jest
+          .fn()
+          .mockResolvedValue(
+            userOverride === null ? null : { permissions: userOverride },
+          ),
+      } as unknown as Repository<AdminUserPermission>,
+    );
   }
   it.each(methods)('requires the correct permission on %s', (method) => {
     const required = reflector.getAllAndOverride<unknown>(PERMISSIONS_KEY, [
@@ -60,6 +83,23 @@ describe('subscription administration permissions', () => {
     expect(
       Reflect.getMetadata(ROLES_KEY, SubscriptionManagementController),
     ).toEqual([UserType.ADMIN]);
+  });
+  it('respects a role override that removes default access', async () => {
+    await expect(
+      guard(null, []).canActivate(context('detail', AdminRole.SUPER_ADMIN)),
+    ).rejects.toThrow();
+  });
+  it('respects an individual override above a custom role', async () => {
+    await expect(
+      guard([AdminPermission.SUBSCRIPTIONS_FULL], null, []).canActivate(
+        context('detail', AdminRole.SUPER_ADMIN, 'custom-role'),
+      ),
+    ).rejects.toThrow();
+    await expect(
+      guard([], null, [AdminPermission.SUBSCRIPTIONS_VIEW]).canActivate(
+        context('detail', AdminRole.EDITOR, 'custom-role'),
+      ),
+    ).resolves.toBe(true);
   });
   it('requires an administrator even when permission grants are present', () => {
     expect(() =>

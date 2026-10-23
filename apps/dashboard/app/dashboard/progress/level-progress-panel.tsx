@@ -73,7 +73,7 @@ export function LevelProgressPanel() {
   const closeLevel = useCallback(() => setSelectedLevel(null), []);
   const chartData = useMemo(
     () =>
-      [...levels].reverse().map((level) => ({
+      levels.map((level) => ({
         ...level,
         label: `Level ${level.level}`,
         count:
@@ -102,118 +102,175 @@ export function LevelProgressPanel() {
         </p>
       ) : (
         <>
-          <div
-            className={progressStyles.levelChart}
-            aria-label="Demo customer counts by PurposeMint level, from Level 5 at top to Level 1 at bottom"
-            onMouseLeave={() => setHoveredLevel(null)}
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartData}
-                layout="vertical"
-                margin={{ top: 12, right: 40, bottom: 10, left: 8 }}
-                barSize={42}
+          <div className={progressStyles.levelOverview}>
+            <div className={progressStyles.levelChartColumn}>
+              <div
+                className={progressStyles.levelChart}
+                aria-label="Demo customer counts by PurposeMint level, from Level 1 on the left to Level 5 on the right"
+                onMouseLeave={() => setHoveredLevel(null)}
               >
-                <CartesianGrid
-                  horizontal={false}
-                  stroke="#eef1f2"
-                  strokeDasharray="3 4"
-                />
-                <XAxis
-                  type="number"
-                  allowDecimals={false}
-                  domain={[0, (max: number) => Math.max(2, max + 2)]}
-                  tick={{ fontSize: 11, fill: "#6b7280" }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="label"
-                  width={74}
-                  tick={{ fontSize: 12, fill: "#374151", fontWeight: 650 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  cursor={false}
-                  offset={28}
-                  formatter={(value) => [`${value} users`, "Customers"]}
-                  labelFormatter={(label) =>
-                    `${label} — ${chartData.find((item) => item.label === label)?.title ?? ""}`
-                  }
-                  contentStyle={{
-                    borderRadius: 10,
-                    borderColor: "#d1d5db",
-                    fontSize: 12,
-                  }}
-                />
-                <Bar
-                  dataKey="count"
-                  radius={[0, 9, 9, 0]}
-                  cursor="pointer"
-                  isAnimationActive={false}
-                  onMouseEnter={(_, index) =>
-                    setHoveredLevel(chartData[index]?.level ?? null)
-                  }
-                  onClick={(_, index) => {
-                    const chosen = chartData[index];
-                    if (chosen) setSelectedLevel(chosen.level);
-                  }}
-                >
-                  {chartData.map((item) => (
-                    <Cell
-                      key={item.level}
-                      fill={item.color}
-                      style={
-                        {
-                          "--level-color": item.color,
-                          "--level-hover-color": item.hoverColor,
-                        } as CSSProperties
-                      }
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={chartData}
+                    layout="horizontal"
+                    margin={{ top: 12, right: 12, bottom: 10, left: 8 }}
+                    barCategoryGap="4%"
+                    barGap={0}
+                  >
+                    <CartesianGrid
+                      vertical={false}
+                      stroke="#eef1f2"
+                      strokeDasharray="3 4"
                     />
-                  ))}
-                  <LabelList
-                    dataKey="count"
-                    content={(props) => {
-                      const index = (props as typeof props & { index?: number })
-                        .index;
-                      const item =
-                        index === undefined ? undefined : chartData[index];
-                      const box = props.viewBox;
-                      if (
-                        !item ||
-                        !box ||
-                        !("x" in box) ||
-                        !("width" in box) ||
-                        box.width < 65
-                      )
-                        return <g />;
-                      return (
-                        <text
-                          x={box.x + box.width / 2}
-                          y={box.y + box.height / 2}
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                          fill={item.level <= 2 ? "#4a044e" : "#fff"}
-                          fontSize={12}
-                          fontWeight={700}
-                          pointerEvents="none"
-                          opacity={item.level === hoveredLevel ? 1 : 0}
-                        >
-                          Click me
-                        </text>
-                      );
-                    }}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+                    <XAxis
+                      type="category"
+                      dataKey="title"
+                      interval={0}
+                      tick={false}
+                      height={8}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      type="number"
+                      allowDecimals={false}
+                      domain={[0, (max: number) => Math.max(2, max + 2)]}
+                      width={40}
+                      tick={{ fontSize: 11, fill: "#6b7280" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      cursor={false}
+                      offset={28}
+                      formatter={(value) => [`${value} users`, "Customers"]}
+                      labelFormatter={(label) =>
+                        `Level ${chartData.find((item) => item.title === label)?.level ?? ""} — ${label}`
+                      }
+                      contentStyle={{
+                        borderRadius: 10,
+                        borderColor: "#d1d5db",
+                        fontSize: 12,
+                      }}
+                    />
+                    <Bar
+                      dataKey="count"
+                      radius={[9, 9, 0, 0]}
+                      cursor="pointer"
+                      isAnimationActive={false}
+                      onMouseEnter={(_, index) =>
+                        setHoveredLevel(chartData[index]?.level ?? null)
+                      }
+                      onClick={(_, index) => {
+                        const chosen = chartData[index];
+                        if (chosen) setSelectedLevel(chosen.level);
+                      }}
+                    >
+                      {chartData.map((item) => (
+                        <Cell
+                          key={item.level}
+                          fill={item.color}
+                          style={
+                            {
+                              "--level-color": item.color,
+                              "--level-hover-color": item.hoverColor,
+                            } as CSSProperties
+                          }
+                        />
+                      ))}
+                      <LabelList
+                        dataKey="count"
+                        content={(props) => {
+                          const index = (
+                            props as typeof props & { index?: number }
+                          ).index;
+                          const item =
+                            index === undefined ? undefined : chartData[index];
+                          const box = props.viewBox;
+                          if (
+                            !item ||
+                            !box ||
+                            !("x" in box) ||
+                            !("width" in box) ||
+                            box.width < 65 ||
+                            box.height < 24
+                          )
+                            return <g />;
+                          return (
+                            <text
+                              x={box.x + box.width / 2}
+                              y={box.y + box.height / 2}
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                              fill={item.level <= 2 ? "#4a044e" : "#fff"}
+                              fontSize={12}
+                              fontWeight={700}
+                              pointerEvents="none"
+                              opacity={item.level === hoveredLevel ? 1 : 0}
+                            >
+                              Click me
+                            </text>
+                          );
+                        }}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className={progressStyles.levelChartNames}>
+                {chartData.map((item) => (
+                  <span key={item.level}>{item.title}</span>
+                ))}
+              </div>
+              <div className={progressStyles.levelDirection} aria-hidden="true">
+                <span>Level 1</span>
+                <span className={progressStyles.levelDirectionArrow} />
+                <span>Level 5</span>
+              </div>
+              <p className={progressStyles.chartHint}>
+                Select a bar or level to view its customers.{" "}
+                {query.data.unassignedCount} customers have no demo level.
+              </p>
+            </div>
+            <div
+              className={progressStyles.levelList}
+              aria-label="Customers by level"
+            >
+              {chartData.map((item) => (
+                <button
+                  key={item.level}
+                  type="button"
+                  className={progressStyles.levelRow}
+                  style={
+                    {
+                      "--level-color": item.color,
+                      "--level-hover-color": item.hoverColor,
+                    } as CSSProperties
+                  }
+                  onClick={() => setSelectedLevel(item.level)}
+                  aria-label={`Level ${item.level}, ${item.title}, ${item.count} ${item.count === 1 ? "user" : "users"}. View customers`}
+                >
+                  <span className={progressStyles.levelNumber}>
+                    {item.level}
+                  </span>
+                  <span className={progressStyles.levelRowTitle}>
+                    <span>Level {item.level}</span>
+                    <strong>{item.title}</strong>
+                  </span>
+                  <span className={progressStyles.levelRowCount}>
+                    <strong>{item.count.toLocaleString()}</strong>
+                    <span>{item.count === 1 ? "user" : "users"}</span>
+                  </span>
+                  <span
+                    className={progressStyles.levelRowArrow}
+                    aria-hidden="true"
+                  >
+                    →
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-          <p className={progressStyles.chartHint}>
-            Select a bar to view its customers. {query.data.unassignedCount}{" "}
-            customers have no demo level.
-          </p>
           {selectedLevel !== null && (
             <LevelUsersTable
               key={selectedLevel}

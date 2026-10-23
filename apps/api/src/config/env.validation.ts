@@ -62,6 +62,8 @@ export const envSchema = z.object({
 
   INITIAL_ADMIN_EMAIL: z.string().email().optional().or(z.literal('')),
   INITIAL_ADMIN_PASSWORD: z.string().optional(),
+  INITIAL_SUPPORT_ADMIN_EMAIL: z.string().email().optional().or(z.literal('')),
+  INITIAL_SUPPORT_ADMIN_PASSWORD: z.string().min(8).optional(),
 
   INITIAL_AWS_ACCESS_KEY_ID: z.string().optional(),
   INITIAL_AWS_SECRET_ACCESS_KEY: z.string().optional(),

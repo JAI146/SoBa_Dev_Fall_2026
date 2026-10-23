@@ -1,0 +1,57 @@
+.page {
+  min-width: 0;
+  max-width: 100%;
+}
+.page > section,
+.page article {
+  min-width: 0;
+}
+.page h2 {
+  font-size: 18px;
+  line-height: 1.4;
+}
+.page table th {
+  font-size: 12px;
+}
+.page table td {
+  font-size: 14px;
+}
+.page dl > div {
+  min-width: 0;
+}
+.page dl dt {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.page dl dd {
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.activity dl dd {
+  font-size: 24px;
+  font-weight: 700;
+}
+.page table td:first-child {
+  white-space: normal;
+  max-width: 300px;
+  overflow-wrap: anywhere;
+}
+
+.page h2 {
+  font-weight: 600;
+}
+.accountGrid {
+  align-items: start;
+}
+.purposeValues > span {
+  font-size: 13px;
+  padding: 5px 9px;
+  background: var(--background);
+}
+.secondary {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}

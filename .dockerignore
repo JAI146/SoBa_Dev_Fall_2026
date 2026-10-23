@@ -1,6 +1,7 @@
 .git
 .github
 .turbo
+.pnpm-store
 .vscode
 **/.next
 **/dist

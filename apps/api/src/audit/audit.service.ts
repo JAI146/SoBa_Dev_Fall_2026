@@ -2,13 +2,54 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   AuditActorType,
+  AuditAction,
   AuditOutcome,
+  type GoalHistoryState,
   type AuditActionValue,
   type AuditActorTypeValue,
   type AuditOutcomeValue,
 } from '@purposemint/contracts';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, In, Repository } from 'typeorm';
 import { AuditEvent } from '../entities/audit-event.entity';
+import type { UserGoal } from '../entities/user-goal.entity';
+import type { UserHabit } from '../entities/user-habit.entity';
+
+export function goalHistoryState(goal: UserGoal): GoalHistoryState {
+  return {
+    title: goal.title,
+    targetAmount: Number(goal.targetAmount),
+    savedAmount: Number(goal.savedAmount),
+    isActive: goal.isActive,
+    isFocus: goal.isFocus,
+  };
+}
+
+export const HABIT_LIFECYCLE_ACTIONS = [
+  AuditAction.HABIT_SELECTION_CHANGED,
+  AuditAction.HABIT_PAUSED,
+  AuditAction.HABIT_RESUMED,
+];
+
+export async function loadHabitLifecycle(
+  manager: EntityManager,
+  habitIds: string[],
+) {
+  if (!habitIds.length) return [];
+  return manager.find(AuditEvent, {
+    where: {
+      entityType: 'habit',
+      entityId: In(habitIds),
+      action: In(HABIT_LIFECYCLE_ACTIONS),
+      outcome: AuditOutcome.SUCCESS,
+    },
+    order: { createdAt: 'ASC', id: 'ASC' },
+  });
+}
+
+export function habitIsPaused(events: AuditEvent[], habitId: string): boolean {
+  const last = events.filter((event) => event.entityId === habitId).at(-1);
+  return last?.action === AuditAction.HABIT_PAUSED;
+}
 
 export interface AuditInput {
   action: AuditActionValue;
@@ -37,6 +78,41 @@ export class AuditService {
     @InjectRepository(AuditEvent)
     private readonly auditRepo: Repository<AuditEvent>,
   ) {}
+
+  async recordGoalChange(
+    manager: EntityManager,
+    actorUserId: string,
+    goal: UserGoal,
+    previous: GoalHistoryState | null,
+  ): Promise<void> {
+    const current = goalHistoryState(goal);
+    if (JSON.stringify(previous) === JSON.stringify(current)) return;
+    await this.recordTransactional(manager, {
+      action: AuditAction.GOAL_CHANGED,
+      actorUserId,
+      actorType: AuditActorType.USER,
+      entityType: 'goal',
+      entityId: goal.id,
+      metadata: { userId: goal.userId, previous, current, source: 'customer' },
+    });
+  }
+
+  async recordHabitSelection(
+    manager: EntityManager,
+    userId: string,
+    habit: UserHabit,
+    previousActive: boolean | null,
+  ): Promise<void> {
+    if (previousActive === habit.isActive) return;
+    await this.recordTransactional(manager, {
+      action: AuditAction.HABIT_SELECTION_CHANGED,
+      actorUserId: userId,
+      actorType: AuditActorType.USER,
+      entityType: 'habit',
+      entityId: habit.id,
+      metadata: { userId, previousActive, active: habit.isActive },
+    });
+  }
 
   // Uses the caller’s transaction and lets failures roll back the mutation; record() stays best-effort.
   /** Financial/admin mutations must commit their audit record atomically. */
@@ -85,18 +161,25 @@ export class AuditService {
     }
   }
 
-  private sanitize(
+  sanitize(
     metadata: Record<string, unknown> | null | undefined,
   ): Record<string, unknown> | null {
     if (!metadata) return null;
-    const safe: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(metadata)) {
-      if (FORBIDDEN_METADATA_KEY.test(key)) {
-        this.logger.warn(`Dropped audit metadata key "${key}" — looks secret.`);
-        continue;
+    const clean = (value: unknown, depth: number): unknown => {
+      if (depth > 12) return '[omitted]';
+      if (value instanceof Date) return value.toISOString();
+      if (Array.isArray(value))
+        return value.map((entry) => clean(entry, depth + 1));
+      if (value !== null && typeof value === 'object') {
+        return Object.fromEntries(
+          Object.entries(value)
+            .filter(([key]) => !FORBIDDEN_METADATA_KEY.test(key))
+            .map(([key, entry]) => [key, clean(entry, depth + 1)]),
+        );
       }
-      safe[key] = value;
-    }
+      return value;
+    };
+    const safe = clean(metadata, 0) as Record<string, unknown>;
     return Object.keys(safe).length > 0 ? safe : null;
   }
 }

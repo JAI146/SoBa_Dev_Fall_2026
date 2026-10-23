@@ -1,0 +1,253 @@
+.counts {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+.counts > div {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.counts span,
+.caption {
+  color: var(--muted);
+  font-size: 14px;
+}
+.counts strong {
+  color: var(--foreground);
+  font-size: 24px;
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0;
+}
+.toolbar label {
+  font-size: 14px;
+  font-weight: 600;
+}
+.toolbar select {
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: var(--card);
+  color: var(--foreground);
+}
+.toolbar select:focus-visible,
+.rules summary:focus-visible {
+  outline: 2px solid var(--success-text);
+  outline-offset: 3px;
+}
+.badge {
+  display: inline-flex;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.active,
+.completed {
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+.recovering {
+  background: var(--brand-light-gold);
+  color: var(--foreground);
+}
+.missed {
+  background: var(--error-bg);
+  color: var(--error-text);
+}
+.paused,
+.inactive {
+  background: var(--background);
+  color: var(--muted);
+}
+.caption {
+  display: block;
+  margin-top: 5px;
+}
+.consistency {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+.consistency progress {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--success-text);
+}
+.rules {
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.rules summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.rules p {
+  margin-top: 8px;
+}
+.history {
+  list-style: none;
+  display: grid;
+  gap: 16px;
+}
+.history li {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.historyHeading {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 14px;
+}
+.historyHeading time {
+  color: var(--muted);
+  font-size: 14px;
+}
+.changes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.changes dt {
+  color: var(--muted);
+  font-size: 14px;
+}
+.changes dd {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.note {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-top: 12px;
+}
+@media (max-width: 960px) {
+  .counts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .changes {
+    grid-template-columns: 1fr;
+  }
+}
+
+.history li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.toolbar select {
+  font: inherit;
+  font-size: 14px;
+}
+.consistency progress {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--border);
+}
+.consistency progress::-webkit-progress-bar {
+  background: var(--border);
+  border-radius: 999px;
+}
+.consistency progress::-webkit-progress-value {
+  background: var(--success-text);
+  border-radius: 999px;
+}
+.consistency progress::-moz-progress-bar {
+  background: var(--success-text);
+  border-radius: 999px;
+}
+.habitTable {
+  table-layout: fixed;
+}
+.habitTable th:nth-child(1) {
+  width: 25%;
+}
+.habitTable th:nth-child(2) {
+  width: 13%;
+}
+.habitTable th:nth-child(3) {
+  width: 16%;
+}
+.habitTable th:nth-child(4) {
+  width: 12%;
+}
+.habitTable th:nth-child(5) {
+  width: 20%;
+}
+.habitTable th:nth-child(6) {
+  width: 14%;
+}
+.habitTable td,
+.habitTable th {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding: 12px;
+}
+.habitTable td:first-child {
+  min-width: 0;
+}
+.habitTable .caption {
+  font-size: 13px;
+}
+@media (max-width: 1000px) {
+  .habitTable,
+  .habitTable tbody {
+    display: block;
+  }
+  .habitTable thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .habitTable tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .habitTable td {
+    display: block;
+    min-width: 0;
+    border: 0;
+  }
+  .habitTable td:first-child,
+  .habitTable td[colspan] {
+    grid-column: 1 / -1;
+    max-width: none;
+  }
+  .habitTable td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+}

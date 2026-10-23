@@ -1,0 +1,58 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #153d2d55;
+}
+.dialog {
+  width: min(420px, 100%);
+  padding: 28px;
+  border-radius: 8px;
+  background: #fff;
+  color: #42594c;
+  box-shadow: 0 12px 48px #153d2d30;
+}
+.dialog h2 {
+  margin: 0 0 12px;
+  font-size: 22px;
+}
+.dialog p {
+  line-height: 1.6;
+}
+.countdown {
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  color: #11774e;
+}
+.actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.actions button {
+  padding: 10px 16px;
+  border: 1px solid #a9c9b6;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #fff;
+  color: #286040;
+}
+.actions .continue {
+  background: linear-gradient(145deg, #e5f8ec, #c4ebd5);
+}
+.actions button:hover {
+  border-color: #b7789e;
+  background: #fae8f3;
+}
+.actions button:focus-visible {
+  outline: 2px solid #11774e;
+  outline-offset: 3px;
+}
+.signingOut {
+  padding: 40px;
+  color: #42594c;
+}
