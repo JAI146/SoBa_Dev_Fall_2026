@@ -1,0 +1,616 @@
+/* Chart colors live here so every chart on the page reads from one palette. */
+.analytics {
+  --chart-bar: #059669;
+  --chart-bar-hover: #047857;
+  --chart-funnel: var(--brand-teal);
+  --chart-grid: #eef1f2;
+  --chart-axis: #6b7280;
+  --chart-label: #374151;
+  --chart-cursor: color-mix(in srgb, var(--muted) 12%, transparent);
+  --chart-tooltip-bg: var(--card);
+  --chart-tooltip-border: var(--border);
+  --chart-tooltip-text: var(--foreground);
+  --chart-cursor-line: color-mix(in srgb, var(--muted) 45%, transparent);
+  --chart-area: color-mix(in srgb, var(--chart-bar) 16%, transparent);
+  --chart-series-recent: var(--chart-funnel);
+  --chart-series-month: var(--chart-bar);
+  --chart-retention: var(--chart-bar);
+  --chart-retention-empty: var(--chart-grid);
+}
+
+/* Loading and error states sit under the shared header, so they must not
+   claim the whole viewport or add a second page padding. */
+.pageState > main {
+  min-height: 40vh;
+  padding: 0;
+}
+
+/* Report, window and export sit on one row (wrapping on small screens);
+   an export error takes the line below. */
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 6px 10px;
+}
+
+/* Header dropdowns: the list opens directly below the button at its width. */
+.headerSelect {
+  position: relative;
+  /* Fit the button so the list matches it even when its cell is wider. */
+  width: fit-content;
+}
+
+.headerSelectButton {
+  display: flex;
+  min-width: 150px;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--card);
+  padding: 8px 10px 8px 12px;
+  color: var(--foreground);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.headerSelectButton:hover {
+  background: var(--background);
+}
+
+.headerSelectButton:focus-visible,
+.headerSelectList:focus-visible {
+  outline: 2px solid var(--chart-bar);
+  outline-offset: 2px;
+}
+
+.headerSelectChevron {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+.headerSelectButton[aria-expanded="true"] .headerSelectChevron {
+  transform: rotate(180deg);
+}
+
+.headerSelectList {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  display: grid;
+  width: 100%;
+  gap: 2px;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 4px;
+  box-shadow: var(--shadow);
+  list-style: none;
+}
+
+.headerSelectList[hidden] {
+  display: none;
+}
+
+.headerSelectList li {
+  border-radius: 7px;
+  padding: 8px 10px;
+  color: var(--foreground);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.headerSelectList li[data-active] {
+  background: var(--background);
+}
+
+.headerSelectList li[aria-selected="true"] {
+  background: var(--success-bg);
+  color: var(--success-text);
+  font-weight: 700;
+}
+
+/* Native date inputs, styled like the header dropdown buttons. */
+.dateInput {
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--card);
+  padding: 8px 10px;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  color-scheme: light;
+}
+
+.dateInput:hover {
+  background: var(--background);
+}
+
+.dateInput:focus-visible {
+  outline: 2px solid var(--chart-bar);
+  outline-offset: 2px;
+}
+
+.exportAction {
+  display: contents;
+}
+
+.exportError {
+  flex-basis: 100%;
+  /* Wrap within the controls' width instead of widening the row. */
+  contain: inline-size;
+  color: var(--error-text);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: right;
+}
+
+/* The header's primary action: filled with the brand color. */
+.exportButton {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--primary);
+  border-radius: 9px;
+  background: var(--primary);
+  padding: 8px 14px;
+  color: var(--brand-white);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.exportButton:hover:not(:disabled) {
+  border-color: var(--primary-hover);
+  background: var(--primary-hover);
+}
+
+.exportButton:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.exportButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.exportIcon {
+  width: 15px;
+  height: 15px;
+}
+
+.buttonSpinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid color-mix(in srgb, var(--brand-white) 40%, transparent);
+  border-top-color: var(--brand-white);
+  border-radius: 999px;
+  animation: buttonSpin 0.8s linear infinite;
+}
+
+@keyframes buttonSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sectionTitle {
+  margin: 32px 0 12px;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.sectionTitle span {
+  display: block;
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.statHint {
+  display: block;
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.refreshing {
+  opacity: 0.6;
+  transition: opacity 160ms ease;
+}
+
+.chart {
+  height: 260px;
+  margin-top: 18px;
+}
+
+.funnelChart {
+  height: 360px;
+  margin-top: 18px;
+}
+
+.chart :global(.recharts-cartesian-grid line),
+.funnelChart :global(.recharts-cartesian-grid line) {
+  stroke: var(--chart-grid);
+}
+
+.chart :global(.recharts-cartesian-axis-tick-value),
+.funnelChart :global(.recharts-cartesian-axis-tick-value) {
+  fill: var(--chart-axis);
+  font-size: 11px;
+}
+
+.funnelChart :global(.recharts-yAxis .recharts-cartesian-axis-tick-value) {
+  fill: var(--chart-label);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.chart :global(.recharts-tooltip-cursor),
+.funnelChart :global(.recharts-tooltip-cursor) {
+  fill: var(--chart-cursor);
+}
+
+/* Scoped to bars: the tooltip cursor is also a .recharts-rectangle. */
+.chart :global(.recharts-bar-rectangle .recharts-rectangle) {
+  fill: var(--chart-bar);
+  transition: fill 200ms ease;
+}
+
+.chart :global(.recharts-bar-rectangle .recharts-rectangle:hover) {
+  fill: var(--chart-bar-hover);
+}
+
+.funnelChart :global(.recharts-bar-rectangle .recharts-rectangle) {
+  fill: var(--chart-funnel);
+}
+
+.funnelChart :global(.recharts-label-list text),
+.chart :global(.recharts-label-list text) {
+  fill: var(--chart-label);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.goalChart :global(.recharts-yAxis .recharts-cartesian-axis-tick-value) {
+  fill: var(--chart-label);
+  font-size: 12px;
+}
+
+.chart :global(.recharts-area-area) {
+  fill: var(--chart-area);
+  fill-opacity: 1;
+}
+
+.chart :global(.recharts-area-curve) {
+  stroke: var(--chart-bar);
+  stroke-width: 2;
+}
+
+.chart :global(.recharts-active-dot circle) {
+  fill: var(--chart-bar);
+  stroke: var(--chart-tooltip-bg);
+}
+
+.habitChart {
+  height: 260px;
+  margin-top: 18px;
+}
+
+.partnerChart {
+  height: 440px;
+}
+
+/* Retention cohorts: a CSS grid whose cells mix the retention color into the
+   card by each cell's rate, so the scale needs no chart library. */
+.cohortGrid {
+  display: grid;
+  gap: 4px;
+  margin-top: 18px;
+}
+
+.cohortRow {
+  display: grid;
+  grid-template-columns: minmax(82px, 1.3fr) repeat(4, minmax(52px, 1fr));
+  gap: 4px;
+}
+
+.cohortHead {
+  padding: 4px 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  text-align: center;
+}
+
+.cohortHead:first-child {
+  text-align: left;
+}
+
+.cohortLabel {
+  display: grid;
+  align-content: center;
+  padding: 6px;
+  color: var(--chart-label);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.cohortLabel small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.cohortCell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 42px;
+  border-radius: 8px;
+  background: color-mix(
+    in srgb,
+    var(--chart-retention) var(--cell-strength),
+    var(--chart-retention-empty)
+  );
+  color: var(--chart-tooltip-text);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: default;
+}
+
+.cohortCellStrong {
+  color: var(--card);
+}
+
+.cohortCellPending {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--chart-retention-empty),
+    var(--chart-retention-empty) 5px,
+    var(--card) 5px,
+    var(--card) 10px
+  );
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.cohortCell:focus-visible {
+  outline: 2px solid var(--chart-bar);
+  outline-offset: 2px;
+}
+
+/* Same look as the chart tooltips. */
+.cellTip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  z-index: 5;
+  display: none;
+  width: max-content;
+  max-width: 220px;
+  border: 1px solid var(--chart-tooltip-border);
+  border-radius: 10px;
+  background: var(--chart-tooltip-bg);
+  padding: 8px 10px;
+  box-shadow: var(--shadow);
+  color: var(--chart-tooltip-text);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  pointer-events: none;
+}
+
+.cellTip[data-align="start"] {
+  left: 0;
+}
+
+.cellTip[data-align="end"] {
+  right: 0;
+}
+
+.cellTip strong {
+  display: block;
+  font-weight: 700;
+}
+
+.cohortCell:hover .cellTip,
+.cohortCell:focus-visible .cellTip {
+  display: block;
+}
+
+.scaleLegend {
+  display: flex;
+  flex-basis: 100%;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.scaleBar {
+  width: 64px;
+  height: 10px;
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--chart-retention-empty),
+    var(--chart-retention)
+  );
+}
+
+.scalePending {
+  width: 14px;
+  height: 10px;
+  margin-left: 6px;
+  border-radius: 3px;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--chart-retention-empty),
+    var(--chart-retention-empty) 3px,
+    var(--card) 3px,
+    var(--card) 6px
+  );
+}
+
+/* Lets the legend drop below the title instead of squeezing it. */
+.wrapHeading {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 960px) {
+  /* The header stacks here, so controls start at the left edge. */
+  .headerActions {
+    justify-content: flex-start;
+  }
+
+  .exportError {
+    text-align: left;
+  }
+}
+
+@media (max-width: 720px) {
+  .scaleLegend {
+    flex-wrap: wrap;
+  }
+
+  .cohortHead {
+    padding: 4px 2px;
+    white-space: nowrap;
+  }
+}
+
+/* Keeps header pills on one line in narrow panels. */
+.badge {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.habitChart :global(.recharts-cartesian-grid line) {
+  stroke: var(--chart-grid);
+}
+
+.habitChart :global(.recharts-cartesian-axis-tick-value) {
+  fill: var(--chart-axis);
+  font-size: 11px;
+}
+
+.habitChart :global(.recharts-xAxis .recharts-cartesian-axis-tick-value) {
+  fill: var(--chart-label);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.habitChart :global(.recharts-tooltip-cursor) {
+  fill: var(--chart-cursor);
+}
+
+.habitChart .seriesRecent :global(.recharts-rectangle) {
+  fill: var(--chart-series-recent);
+}
+
+.habitChart .seriesMonth :global(.recharts-rectangle) {
+  fill: var(--chart-series-month);
+}
+
+/* Legends sit on their own line under the panel title, aligned left. */
+div:has(> .legend),
+div:has(> .scaleLegend) {
+  flex-wrap: wrap;
+}
+
+.legend {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 12px;
+  list-style: none;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatchRecent,
+.swatchMonth {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.swatchRecent {
+  background: var(--chart-series-recent);
+}
+
+.swatchMonth {
+  background: var(--chart-series-month);
+}
+
+.factList {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.factList div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #f0f2f3;
+  padding-bottom: 12px;
+  font-size: 13px;
+}
+
+.factList div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.factList dt {
+  color: #4b5563;
+}
+
+.factList dd {
+  font-weight: 700;
+}
+
+.note {
+  margin-top: 16px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.customRange {
+  display: flex;
+  gap: 10px;
+}

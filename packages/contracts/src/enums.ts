@@ -246,6 +246,8 @@ export const AuditAction = {
   ADMIN_PARTNER_CREATED: "admin.partner_created",
   ADMIN_PARTNER_UPDATED: "admin.partner_updated",
   ADMIN_UPGRADE_INTENTS_LISTED: "admin.upgrade_intents_listed",
+  ADMIN_ANALYTICS_VIEWED: "admin.analytics_viewed",
+  ADMIN_REPORT_EXPORTED: "admin.report_exported",
   ADMIN_PLAN_CREATED: "admin.plan_created",
   ADMIN_PLAN_UPDATED: "admin.plan_updated",
   ADMIN_SUBSCRIPTION_CHANGED: "admin.subscription_changed",

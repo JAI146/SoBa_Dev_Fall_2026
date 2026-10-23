@@ -26,3 +26,4 @@ export * from "./notifications";
 
 export * from "./coaching-operations";
 export * from "./subscription-management";
+export * from "./analytics";

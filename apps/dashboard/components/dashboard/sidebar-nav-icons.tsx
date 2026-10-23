@@ -36,6 +36,15 @@ function Svg({
   );
 }
 
+/** Rotated by CSS when its group is open. */
+export function SidebarChevron({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path d="m6 9 6 6 6-6" />
+    </Svg>
+  );
+}
+
 export function SidebarNavIcon({
   name,
   className,

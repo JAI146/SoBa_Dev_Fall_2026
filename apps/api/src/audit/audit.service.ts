@@ -119,8 +119,8 @@ export class AuditService {
   async recordTransactional(
     manager: EntityManager,
     input: AuditInput,
-  ): Promise<void> {
-    await manager.save(
+  ): Promise<AuditEvent> {
+    return manager.save(
       AuditEvent,
       manager.create(AuditEvent, {
         action: input.action,
