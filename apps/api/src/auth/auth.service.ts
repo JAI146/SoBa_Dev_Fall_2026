@@ -51,6 +51,9 @@ const GENERIC_LOGIN_FAILURE =
 const GENERIC_SESSION_FAILURE =
   'That session has run out. Signing in again will get you straight back to where you were.';
 
+const ACCOUNT_ON_HOLD =
+  "This account is on hold at the moment. Email support@purposemint.app and we'll help you sort it out.";
+
 /**
  * What every session-creating call hands back.
  *
@@ -173,6 +176,11 @@ export class AuthService {
       OtpType.EMAIL_VERIFICATION,
       input.otp,
     );
+    // Checked after the code is consumed so suspension is never an existence
+    // hint, and before markEmailVerified, which would flip status to active.
+    if (user.status === UserStatus.SUSPENDED) {
+      throw new ForbiddenException(ACCOUNT_ON_HOLD);
+    }
     const verified = await this.usersService.markEmailVerified(user.id);
 
     await this.audit.record({
@@ -195,7 +203,9 @@ export class AuthService {
     };
 
     const user = await this.usersService.findByEmail(input.email);
-    if (!user || user.emailVerifiedAt) return confirmation;
+    if (!user || user.emailVerifiedAt || user.status === UserStatus.SUSPENDED) {
+      return confirmation;
+    }
 
     await this.otpService.assertNotOnCooldown(
       user.id,
@@ -235,9 +245,7 @@ export class AuthService {
     // Only mentioned once the password is known to be right, so suspension
     // cannot be used to probe for registered addresses.
     if (user.status === UserStatus.SUSPENDED) {
-      throw new ForbiddenException(
-        "This account is on hold at the moment. Email support@purposemint.app and we'll help you sort it out.",
-      );
+      throw new ForbiddenException(ACCOUNT_ON_HOLD);
     }
 
     // Same ordering as suspension: status is only consulted after the

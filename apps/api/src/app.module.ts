@@ -28,6 +28,7 @@ import { CommunityChallengesModule } from './community-challenges/community-chal
 import { AdminModule } from './admin/admin.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { IncentivesModule } from './incentives/incentives.module';
+import { SupportCasesModule } from './support-cases/support-cases.module';
 import { BadgesModule } from './badges/badges.module';
 import { PathwayManagementModule } from './pathway-management/pathway-management.module';
 import { SubscriptionManagementModule } from './subscription-management/subscription-management.module';
@@ -73,6 +74,7 @@ import { SubscriptionManagementModule } from './subscription-management/subscrip
     AnalyticsModule,
     // Mount incentive endpoints and seed the default program after database initialization.
     IncentivesModule,
+    SupportCasesModule,
     BadgesModule,
     PathwayManagementModule,
     SubscriptionManagementModule,

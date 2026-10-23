@@ -1,8 +1,9 @@
-import { OnboardingStep, type OnboardingStepValue, type UserGoalPublic, type ValuePublic } from '@purposemint/contracts';
+import { OnboardingStep, type OnboardingProgress, type OnboardingStepValue, type UserGoalPublic, type ValuePublic } from '@purposemint/contracts';
 import { VALUE_HEADLINE_WORDS } from '../../database/onboarding-seed-data';
 import type { GoalTemplate } from '../../entities/goal-template.entity';
 import type { User } from '../../entities/user.entity';
 import type { UserGoal } from '../../entities/user-goal.entity';
+import type { UserHabit } from '../../entities/user-habit.entity';
 import type { Value } from '../../entities/value.entity';
 
 export function todayInTimeZone(
@@ -84,6 +85,38 @@ export function toUserGoalPublic(goal: UserGoal): UserGoalPublic {
     iconEmoji: goal.iconEmoji,
     createdAt: goal.createdAt.toISOString(),
     updatedAt: goal.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * Onboarding progress for one user. `selectedValues` must already be sorted;
+ * shared by the customer onboarding endpoint and the admin user detail.
+ */
+export function toOnboardingProgress(
+  user: User,
+  selectedValues: Value[],
+  focusGoal: UserGoal | null,
+  activeHabits: UserHabit[],
+): OnboardingProgress {
+  return {
+    displayName: user.displayName,
+    valueKeys: selectedValues.map((value) => value.key),
+    goal: focusGoal
+      ? {
+          templateId: focusGoal.sourceTemplateId,
+          title: focusGoal.title,
+          targetAmount: Number(focusGoal.targetAmount),
+          iconEmoji: focusGoal.iconEmoji,
+        }
+      : null,
+    goalSkipped: user.onboardingGoalSkipped,
+    habitTemplateIds: activeHabits.map((habit) => habit.sourceTemplateId),
+    currentStep: resolveOnboardingStep(
+      user,
+      selectedValues.length,
+      Boolean(focusGoal),
+    ),
+    onboardingStatus: user.onboardingStatus,
   };
 }
 

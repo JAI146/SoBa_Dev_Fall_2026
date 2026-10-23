@@ -1,10 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { SmtpConfigService } from './smtp-config.service';
+import { buildCaseMessageEmailHtml } from './templates/case-message-email.template';
 import {
   buildPasswordResetEmailHtml,
   buildVerificationEmailHtml,
 } from './templates/auth-code-email.template';
+
+export interface CaseMessageParams {
+  to: string;
+  firstName: string;
+  caseNumber: number;
+  subject: string;
+  body: string;
+}
 
 interface CodeEmailParams {
   to: string;
@@ -34,6 +43,17 @@ export class MailService {
       subject: `${params.otp} is your PurposeMint password reset code`,
       text: `Hi ${params.firstName}, your PurposeMint password reset code is ${params.otp}. It works for the next ${params.expiresMinutes} minutes.`,
       html: buildPasswordResetEmailHtml(params),
+    });
+  }
+
+  /** Staff-written message about a support case. Sent as-is; never carries a code. */
+  async sendCaseMessage(params: CaseMessageParams): Promise<void> {
+    const subject = `[Case #${params.caseNumber}] ${params.subject}`;
+    await this.send({
+      to: params.to,
+      subject,
+      text: `Hi ${params.firstName},\n\n${params.body}\n\nReference: case #${params.caseNumber}.\n\nThe PurposeMint team`,
+      html: buildCaseMessageEmailHtml(params),
     });
   }
 

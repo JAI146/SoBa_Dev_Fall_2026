@@ -2,14 +2,25 @@
 import detail from "@/components/dashboard/user-detail.module.css";
 import { UserSavingsProgress } from "@/components/dashboard/user-savings-progress";
 
-import { adminUserDetailResponseSchema } from "@purposemint/contracts";
+import {
+  AdminPermission,
+  OnboardingStatus,
+  UserStatus,
+  adminMyPermissionsResponseSchema,
+  adminUserDetailResponseSchema,
+  adminUserListItemSchema,
+  hasAdminPermission,
+  type AdminUserStatusUpdateInput,
+} from "@purposemint/contracts";
 import Link from "next/link";
+import { useState } from "react";
 import {
   GoalProgress,
   GoalStatusBadge,
   UserGoalSummary,
 } from "@/components/dashboard/user-goal-summary";
 import { useParams } from "next/navigation";
+import { ConfirmModal } from "@/components/common/confirm-modal";
 import {
   DashboardError,
   DashboardLoading,
@@ -20,14 +31,17 @@ import {
   formatAdminDateTime,
   formatEnum,
   formatMoney,
+  formatOnboardingStep,
   formatTier,
+  statusBadgeClass,
 } from "@/lib/admin-format";
+import { apiRequest } from "@/lib/api-client";
 import { useAdminQuery } from "@/lib/use-admin-query";
 import styles from "../../dashboard.module.css";
 import { UserBehaviorProgress } from "@/components/dashboard/user-behavior-progress";
 import { UserGoalHistory } from "@/components/dashboard/user-goal-history";
 import { UserIncentives } from "@/features/incentives/user-incentives";
-import { getStoredUser } from "@/lib/auth";
+import { getStoredUser, getToken } from "@/lib/auth";
 import { AdminRole } from "@purposemint/contracts";
 
 export default function UserDetailPage() {
@@ -36,6 +50,13 @@ export default function UserDetailPage() {
     `/admin/users/${id}`,
     adminUserDetailResponseSchema,
   );
+  const permissionsQuery = useAdminQuery(
+    "/admin/me/permissions",
+    adminMyPermissionsResponseSchema,
+  );
+  const [confirmingSuspend, setConfirmingSuspend] = useState(false);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
   if (query.error)
     return (
       <DashboardError
@@ -46,6 +67,45 @@ export default function UserDetailPage() {
   if (query.loading || !query.data)
     return <DashboardLoading label="Loading user details…" />;
   const user = query.data;
+  // UX only; the API enforces user_management.edit on the status endpoint.
+  // Effective permissions come from the API so custom roles are respected.
+  const canEditStatus = permissionsQuery.data
+    ? hasAdminPermission(
+        null,
+        AdminPermission.USER_MANAGEMENT_EDIT,
+        permissionsQuery.data.permissions,
+      )
+    : false;
+  const isSuspended = user.status === UserStatus.SUSPENDED;
+  const onboarding = user.onboardingProgress;
+  const savingsEntries = user.goals
+    .flatMap((goal) =>
+      goal.entries.map((entry) => ({ ...entry, goalTitle: goal.title })),
+    )
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+
+  const updateStatus = async (status: AdminUserStatusUpdateInput["status"]) => {
+    setConfirmingSuspend(false);
+    setStatusSaving(true);
+    setStatusError(null);
+    try {
+      await apiRequest(
+        `/admin/users/${id}/status`,
+        { method: "PATCH", body: JSON.stringify({ status }) },
+        getToken(),
+        adminUserListItemSchema,
+      );
+      await query.reload();
+    } catch (cause) {
+      setStatusError(
+        cause instanceof Error
+          ? cause.message
+          : "The account status could not be updated.",
+      );
+    } finally {
+      setStatusSaving(false);
+    }
+  };
 
   return (
     <main className={`${styles["dashboard-page"]} ${detail.page}`}>
@@ -98,6 +158,24 @@ export default function UserDetailPage() {
               <h2>Account details</h2>
               <p>Identity and account status</p>
             </div>
+            {canEditStatus ? (
+              <button
+                type="button"
+                className={styles["btn-toolbar-primary"]}
+                disabled={statusSaving}
+                onClick={() =>
+                  isSuspended
+                    ? void updateStatus(UserStatus.ACTIVE)
+                    : setConfirmingSuspend(true)
+                }
+              >
+                {statusSaving
+                  ? "Saving…"
+                  : isSuspended
+                    ? "Reactivate account"
+                    : "Suspend account"}
+              </button>
+            ) : null}
           </div>
           <dl className={styles["record-grid"]}>
             <div>
@@ -116,11 +194,43 @@ export default function UserDetailPage() {
             </div>
             <div>
               <dt>Account status</dt>
-              <dd>{formatEnum(user.status)}</dd>
+              <dd>
+                <span
+                  className={`${styles.badge} ${styles[statusBadgeClass(user.status)]}`}
+                >
+                  {formatEnum(user.status)}
+                </span>
+              </dd>
             </div>
             <div>
               <dt>Onboarding status</dt>
               <dd>{formatEnum(user.onboardingStatus)}</dd>
+            </div>
+            <div>
+              <dt>Current onboarding step</dt>
+              <dd>
+                {onboarding.onboardingStatus === OnboardingStatus.COMPLETED
+                  ? "All steps finished"
+                  : formatOnboardingStep(onboarding.currentStep)}
+              </dd>
+            </div>
+            <div>
+              <dt>Onboarding goal</dt>
+              <dd>
+                {onboarding.goal
+                  ? `${onboarding.goal.title} · ${formatMoney(onboarding.goal.targetAmount)}`
+                  : onboarding.goalSkipped
+                    ? "Skipped"
+                    : "Not chosen"}
+              </dd>
+            </div>
+            <div>
+              <dt>Onboarding habits</dt>
+              <dd>
+                {onboarding.habitTemplateIds.length
+                  ? `${onboarding.habitTemplateIds.length.toLocaleString()} selected`
+                  : "None selected"}
+              </dd>
             </div>
             <div>
               <dt>Purpose</dt>
@@ -168,7 +278,16 @@ export default function UserDetailPage() {
               <dt>Last login</dt>
               <dd>{formatAdminDateTime(user.lastLoginAt, user.timeZone)}</dd>
             </div>
+            <div>
+              <dt>Last seen in app</dt>
+              <dd>{formatAdminDateTime(user.lastSeenAt, user.timeZone)}</dd>
+            </div>
           </dl>
+          {statusError ? (
+            <div className={styles["inline-error"]} role="alert">
+              {statusError}
+            </div>
+          ) : null}
         </article>
         <article className={`${styles.panel} ${detail.activity}`}>
           <div className={styles["panel-heading"]}>
@@ -261,6 +380,49 @@ export default function UserDetailPage() {
             </table>
           </div>
         </article>
+        <article className={styles.panel}>
+          <div className={styles["panel-heading"]}>
+            <div>
+              <h2>Savings entries</h2>
+              <p>
+                {user.activityCounts.savingsEntries > savingsEntries.length
+                  ? `Latest ${savingsEntries.length.toLocaleString()} of ${user.activityCounts.savingsEntries.toLocaleString()} entries, newest first`
+                  : "Dated savings across all goals, newest first"}
+              </p>
+            </div>
+          </div>
+          <div className={styles["table-wrap"]}>
+            <table className={styles["data-table"]}>
+              <thead>
+                <tr>
+                  <th>Goal</th>
+                  <th>Amount</th>
+                  <th>Recorded</th>
+                </tr>
+              </thead>
+              <tbody>
+                {savingsEntries.map((entry) => (
+                  <tr key={entry.id}>
+                    <td>
+                      <strong>{entry.goalTitle}</strong>
+                    </td>
+                    <td>{formatMoney(entry.amount)}</td>
+                    <td>
+                      {formatAdminDateTime(entry.createdAt, user.timeZone)}
+                    </td>
+                  </tr>
+                ))}
+                {savingsEntries.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className={styles.empty}>
+                      No savings entries recorded.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </article>
         <UserGoalHistory user={user} />
         <UserBehaviorProgress habits={user.habits} timeZone={user.timeZone} />
         <article className={styles.panel}>
@@ -322,6 +484,14 @@ export default function UserDetailPage() {
           </div>
         </article>
       </section>
+      <ConfirmModal
+        open={confirmingSuspend}
+        title="Suspend this account?"
+        message="They will be signed out on every device and cannot sign in until the account is reactivated."
+        confirmLabel="Suspend account"
+        onConfirm={() => void updateStatus(UserStatus.SUSPENDED)}
+        onCancel={() => setConfirmingSuspend(false)}
+      />
     </main>
   );
 }

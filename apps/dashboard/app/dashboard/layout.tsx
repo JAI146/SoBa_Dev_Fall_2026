@@ -229,6 +229,12 @@ export default function DashboardLayout({
       active: pathname.startsWith("/dashboard/manage-roles"),
     },
     {
+      href: "/dashboard/support-cases",
+      label: "Support cases",
+      icon: "support",
+      active: pathname.startsWith("/dashboard/support-cases"),
+    },
+    {
       href: "/dashboard/coaching",
       label: "KiroMoney",
       icon: "coaching",

@@ -9,11 +9,12 @@ import {
   pathwayApplicationStatusValues,
   pathwayVerificationMethodValues,
   tierValues,
+  UserStatus,
   userStatusValues,
 } from "./enums";
 import { adminPermissionValues } from "./permissions";
 import { paginationQuerySchema } from "./api-error";
-import { valuePublicSchema } from "./onboarding";
+import { onboardingProgressSchema, valuePublicSchema } from "./onboarding";
 import {
   goalHistoryEntrySchema,
   habitProgressSchema,
@@ -25,6 +26,11 @@ const isoDate = z.string().datetime();
 
 export const adminUsersQuerySchema = paginationQuerySchema.extend({
   search: z.string().trim().max(255).optional(),
+  status: z.enum(userStatusValues).optional(),
+  tier: z.enum(tierValues).optional(),
+  onboardingStatus: z.enum(onboardingStatusValues).optional(),
+  /** Only customers not seen in at least this many days. */
+  inactiveDays: z.coerce.number().int().min(1).max(365).optional(),
 });
 
 const staffNameField = z.string().trim().min(1).max(100);
@@ -48,6 +54,15 @@ export const adminStaffUpdateSchema = z.object({
   lastName: staffNameField.optional(),
   adminRole: z.enum(adminRoleValues).optional(),
   status: z.enum(["active", "suspended"] as const).optional(),
+});
+
+/**
+ * Admin-settable customer statuses. `pending_email` is owned by the
+ * registration/verification flow; reactivating an unverified customer
+ * restores it on the API side.
+ */
+export const adminUserStatusUpdateSchema = z.object({
+  status: z.enum([UserStatus.ACTIVE, UserStatus.SUSPENDED] as const),
 });
 
 export const adminStaffRoleUpdateSchema = z.object({
@@ -115,6 +130,11 @@ export const adminUserListItemSchema = z.object({
   emailVerifiedAt: isoDate.nullable(),
   createdAt: isoDate,
   timeZone: z.string().nullable(),
+  /**
+   * Latest of password login and newest refresh session. Refreshes do not
+   * touch lastLoginAt, so this is the better "still using the app" signal.
+   */
+  lastSeenAt: isoDate.nullable(),
 });
 
 const paginationFields = {
@@ -173,6 +193,11 @@ export const adminCustomRolesResponseSchema = z.object({
   items: z.array(adminCustomRoleSchema),
 });
 
+/** The signed-in admin's effective permissions (custom role or built-in). */
+export const adminMyPermissionsResponseSchema = z.object({
+  permissions: z.array(z.enum(adminPermissionValues)),
+});
+
 export const adminRolePermissionProfileSchema = z.object({
   key: z.string(),
   name: z.string(),
@@ -212,6 +237,12 @@ export const adminSavingsCustomersResponseSchema = z.object({
   items: z.array(adminSavingsCustomerSchema),
 });
 
+export const adminSavingsEntrySchema = z.object({
+  id: z.string().uuid(),
+  amount: z.number(),
+  createdAt: isoDate,
+});
+
 export const adminSavingsCustomerDetailSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
@@ -225,13 +256,7 @@ export const adminSavingsCustomerDetailSchema = z.object({
       isPathwayEligible: z.boolean(),
       isFocus: z.boolean(),
       isActive: z.boolean(),
-      entries: z.array(
-        z.object({
-          id: z.string().uuid(),
-          amount: z.number(),
-          createdAt: isoDate,
-        }),
-      ),
+      entries: z.array(adminSavingsEntrySchema),
     }),
   ),
 });
@@ -271,6 +296,7 @@ export const adminUserGoalSchema = z.object({
   isFocus: z.boolean(),
   isPathwayEligible: z.boolean(),
   createdAt: isoDate,
+  entries: z.array(adminSavingsEntrySchema),
 });
 
 export const adminUserHabitSchema = z.object({
@@ -322,6 +348,8 @@ export const adminUserDetailResponseSchema = adminUserListItemSchema.extend({
   state: z.string().nullable(),
   city: z.string().nullable(),
   lastLoginAt: isoDate.nullable(),
+  /** Milestone level, null until one is assigned. */
+  currentLevel: z.number().int().nullable(),
   goals: z.array(adminUserGoalSchema),
   habits: z.array(adminUserHabitSchema),
   goalHistory: z.array(goalHistoryEntrySchema),
@@ -330,6 +358,7 @@ export const adminUserDetailResponseSchema = adminUserListItemSchema.extend({
   overallProgress: overallUserProgressSchema,
   pathwayApplications: z.array(adminPathwayApplicationListItemSchema),
   values: z.array(valuePublicSchema),
+  onboardingProgress: onboardingProgressSchema,
   activityCounts: z.object({
     goals: z.number().int().min(0),
     activeGoals: z.number().int().min(0),
@@ -403,6 +432,9 @@ export type AdminUsersQuery = z.infer<typeof adminUsersQuerySchema>;
 export type AdminStaffQuery = z.infer<typeof adminStaffQuerySchema>;
 export type AdminStaffCreateInput = z.infer<typeof adminStaffCreateSchema>;
 export type AdminStaffUpdateInput = z.infer<typeof adminStaffUpdateSchema>;
+export type AdminUserStatusUpdateInput = z.infer<
+  typeof adminUserStatusUpdateSchema
+>;
 export type AdminStaffRoleUpdateInput = z.infer<
   typeof adminStaffRoleUpdateSchema
 >;
@@ -430,6 +462,9 @@ export type AdminRolePermissionProfilesResponse = z.infer<
 export type AdminRolePermissionsUpdateInput = z.infer<
   typeof adminRolePermissionsUpdateSchema
 >;
+export type AdminMyPermissionsResponse = z.infer<
+  typeof adminMyPermissionsResponseSchema
+>;
 export type AdminPathwayApplicationsQuery = z.infer<
   typeof adminPathwayApplicationsQuerySchema
 >;
@@ -446,6 +481,7 @@ export type AdminSavingsCustomer = z.infer<typeof adminSavingsCustomerSchema>;
 export type AdminSavingsCustomersResponse = z.infer<
   typeof adminSavingsCustomersResponseSchema
 >;
+export type AdminSavingsEntry = z.infer<typeof adminSavingsEntrySchema>;
 export type AdminSavingsCustomerDetail = z.infer<
   typeof adminSavingsCustomerDetailSchema
 >;

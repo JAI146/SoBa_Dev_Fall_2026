@@ -1,0 +1,16 @@
+/* Users list filter bar: search (field + button) on the left, filter selects
+   on the right. When both do not fit on one line the selects wrap below. */
+.filters-wrap {
+  flex-wrap: wrap;
+}
+.search-group {
+  flex: 1 1 520px;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  /* .filters becomes a column here; a 520px basis would become a height. */
+  .search-group {
+    flex-basis: auto;
+  }
+}
