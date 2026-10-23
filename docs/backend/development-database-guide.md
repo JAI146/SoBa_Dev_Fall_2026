@@ -148,6 +148,7 @@ paused, missed, and recovering states.
 | `reflection_theme_matches` | Reflection/theme relationships: `reflection_id`, `theme_key` | 6 progress-theme matches |
 | `subscription_plans` | Offering catalog: `key`, `name`, `price_monthly`, `features`, `badge`, `description`, `cta_label`, `sort_order` | 3 plans |
 | `upgrade_intents` | Recorded upgrade interest: `user_id`, `plan_key`, `created_at` | 8: four growth + four elevate; not payments or active subscriptions |
+| `kyc_verifications` | Current onboarding/KYC state per customer: `user_id`, `status`, `provider`, `failure_code`, `failure_reason`, `attempt_count`, `status_changed_at`, `escalated_at`, `escalation_note`; customers without a row count as `not_started` | 21 mock rows covering all six statuses, including stuck cases |
 | `community_challenges` | Challenges: `key`, `title`, `description`, `active_month`, `is_active`, `sort_order` | 4, dated August–November 2026 |
 | `challenge_participations` | User participation: `user_id`, `challenge_id`, `joined_at`, `completed_at` | 4, mixed completion status |
 
@@ -408,11 +409,13 @@ Administrative access uses built-in or custom roles. Per-staff permission
 overrides are stored separately and take precedence over the assigned role;
 resetting an override restores inheritance from that role.
 
-There are currently no dedicated tables for banking accounts, KYC/provider
+There are currently no dedicated tables for banking accounts, KYC provider
 events, payments, reconciliation, badges/awards, level transition history,
 support cases, notification delivery history, or full subscription/billing
 history. They should not be inferred from similarly named fields or plan
-descriptions. The current savings model records manual progress.
+descriptions. `kyc_verifications` stores only the current verification state
+per customer (see above); no provider is connected, so it is driven by the
+mock seed and staff actions. The current savings model records manual progress.
 
 When adding a feature, update migrations/entities for schema changes, extend
 appropriate seed fixtures, and revise this inventory. Keep future goal totals

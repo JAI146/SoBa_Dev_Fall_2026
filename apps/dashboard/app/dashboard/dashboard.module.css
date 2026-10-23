@@ -155,6 +155,15 @@
   color: #1d4ed8;
   font-size: 13px;
 }
+.warning-banner {
+  margin-bottom: 20px;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  background: #fffbeb;
+  padding: 12px 14px;
+  color: #92400e;
+  font-size: 13px;
+}
 .eyebrow {
   color: #059669;
   font-size: 11px;
@@ -1295,4 +1304,102 @@
   background: #fff;
   padding: 10px 11px;
   color: #111827;
+}
+.badge-warning {
+  background: #fffbeb;
+  color: #b45309;
+}
+.badge-danger {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+.kyc-filters {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 18px 20px;
+}
+.kyc-filters .search-field {
+  flex: 1 1 260px;
+}
+.kyc-detail {
+  display: grid;
+  gap: 4px;
+  color: #6b7280;
+  font-size: 12px;
+}
+.kyc-detail strong {
+  color: #111827;
+  font-weight: 650;
+}
+.kyc-message-button {
+  justify-self: start;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  padding: 5px 10px;
+  color: #374151;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+}
+.kyc-message-button:hover {
+  background: #f9fafb;
+}
+.kyc-message-popover {
+  position: fixed;
+  z-index: 40;
+  display: grid;
+  width: 320px;
+  max-width: calc(100vw - 16px);
+  gap: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  padding: 12px 14px;
+  box-shadow: 0 12px 32px rgba(17, 24, 39, 0.18);
+  color: #4b5563;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: normal;
+}
+.kyc-message-popover strong {
+  color: #111827;
+  font-weight: 650;
+}
+.kyc-history {
+  display: grid;
+  max-height: 60vh;
+  gap: 0;
+  margin: 0;
+  overflow-y: auto;
+  padding: 0;
+  list-style: none;
+}
+.kyc-history li {
+  display: grid;
+  gap: 3px;
+  border-top: 1px solid #f0f1f3;
+  padding: 12px 0;
+  color: #6b7280;
+  font-size: 12px;
+}
+.kyc-history li:first-child {
+  border-top: 0;
+}
+.kyc-history strong {
+  color: #111827;
+  font-size: 13px;
+}
+.kyc-history-empty {
+  color: #6b7280;
+  font-size: 13px;
+}
+.kyc-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
