@@ -263,6 +263,11 @@ export default function KycPage() {
 
   return (
     <main className={styles["dashboard-page"]}>
+      <p className={styles["warning-banner"]} role="alert">
+        <strong>Synctera is not connected.</strong> Verification statuses and
+        results on this page are simulated and are not coming from a live KYC
+        provider.
+      </p>
       <div className={styles["page-header"]}>
         <div>
           <p className={styles.eyebrow}>Customer operations</p>
