@@ -24,7 +24,7 @@ import { formatAdminDate, formatEnum } from "@/lib/admin-format";
 import { useAdminQuery } from "@/lib/use-admin-query";
 import { apiRequest } from "@/lib/api-client";
 import { getToken } from "@/lib/auth";
-import { PlusIcon } from "@/components/dashboard/action-icons";
+import { PlusIcon, SearchIcon } from "@/components/dashboard/action-icons";
 import styles from "../dashboard.module.css";
 
 const roleLabels: Record<AdminRoleValue, string> = {
@@ -107,6 +107,11 @@ export default function ManageRolesPage() {
   const [customerPreviews, setCustomerPreviews] = useState<
     Record<string, { roleKey: string; permissions: AdminPermissionValue[] }>
   >({});
+  const [userSearch, setUserSearch] = useState("");
+  const [userTypeFilter, setUserTypeFilter] = useState<
+    "all" | "staff" | "customer"
+  >("all");
+  const [userRoleFilter, setUserRoleFilter] = useState("");
 
   async function createCustomRole(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -321,7 +326,7 @@ export default function ManageRolesPage() {
   const customersData = customersQuery.data;
   const roleProfiles = roleProfilesQuery.data.items;
   function roleLabelFor(roleKey: string) {
-    if (roleKey === "customer") return "Customer (no role)";
+    if (roleKey === "customer") return "Customer";
     return (
       roleProfiles.find((role) => role.key === roleKey)?.name ??
       roleLabels[roleKey as AdminRoleValue] ??
@@ -352,6 +357,20 @@ export default function ManageRolesPage() {
     }),
   ];
 
+  const searchTerm = userSearch.trim().toLowerCase();
+  const filteredUsers = allUsers.filter((entry) => {
+    if (userTypeFilter !== "all" && entry.kind !== userTypeFilter) return false;
+    const roleKey = entry.kind === "staff" ? entry.user.roleKey : entry.roleKey;
+    if (userRoleFilter && roleKey !== userRoleFilter) return false;
+    if (!searchTerm) return true;
+    const { firstName, lastName, email } = entry.user;
+    return `${firstName} ${lastName} ${email} ${roleLabelFor(roleKey)}`
+      .toLowerCase()
+      .includes(searchTerm);
+  });
+  const filtersActive =
+    !!searchTerm || userTypeFilter !== "all" || !!userRoleFilter;
+
   return (
     <main className={styles["dashboard-page"]}>
       <div className={styles["page-header"]}>
@@ -363,11 +382,6 @@ export default function ManageRolesPage() {
             customer accounts.
           </p>
         </div>
-      </div>
-
-      <div className={styles["notice-banner"]} role="status">
-        Staff role and permission changes are saved and affect access. Customer
-        role and permission changes are previews only and are not saved.
       </div>
 
       <section className={styles["crud-card"]}>
@@ -497,6 +511,61 @@ export default function ManageRolesPage() {
       </Dialog>
 
       <section className={`${styles["crud-card"]} ${styles["role-user-list"]}`}>
+        <form
+          className={`${styles.filters} ${styles["role-user-filters"]}`}
+          onSubmit={(event) => event.preventDefault()}
+          role="search"
+        >
+          <label className={styles["search-field"]}>
+            <span className="sr-only">Search users</span>
+            <SearchIcon />
+            <input
+              value={userSearch}
+              onChange={(event) => setUserSearch(event.target.value)}
+              placeholder="Search name, email or role"
+            />
+          </label>
+          <label className={styles["filter-field"]}>
+            Account type
+            <select
+              value={userTypeFilter}
+              onChange={(event) =>
+                setUserTypeFilter(event.target.value as typeof userTypeFilter)
+              }
+            >
+              <option value="all">Staff and customers</option>
+              <option value="staff">Staff only</option>
+              <option value="customer">Customers only</option>
+            </select>
+          </label>
+          <label className={styles["filter-field"]}>
+            Role
+            <select
+              value={userRoleFilter}
+              onChange={(event) => setUserRoleFilter(event.target.value)}
+            >
+              <option value="">All roles</option>
+              {roleProfiles.map((role) => (
+                <option key={role.key} value={role.key}>
+                  {role.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {filtersActive ? (
+            <button
+              type="button"
+              className={styles["secondary-button"]}
+              onClick={() => {
+                setUserSearch("");
+                setUserTypeFilter("all");
+                setUserRoleFilter("");
+              }}
+            >
+              Clear
+            </button>
+          ) : null}
+        </form>
         <div className={styles["table-wrap"]}>
           <table className={styles["data-table"]}>
             <thead>
@@ -508,7 +577,7 @@ export default function ManageRolesPage() {
               </tr>
             </thead>
             <tbody>
-              {allUsers.map((entry) => {
+              {filteredUsers.map((entry) => {
                 const user = entry.user;
                 const roleKey =
                   entry.kind === "staff" ? entry.user.roleKey : entry.roleKey;
@@ -537,13 +606,20 @@ export default function ManageRolesPage() {
                   </tr>
                 );
               })}
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={4}>No users match your search.</td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
         <div className={styles.pagination}>
           <span>
-            {allUsers.length.toLocaleString()} accounts shown (
-            {data.total.toLocaleString()} staff,{" "}
+            {filtersActive
+              ? `${filteredUsers.length.toLocaleString()} of ${allUsers.length.toLocaleString()} accounts shown`
+              : `${allUsers.length.toLocaleString()} accounts shown`}{" "}
+            ({data.total.toLocaleString()} staff,{" "}
             {customersData.total.toLocaleString()} customers)
           </span>
         </div>
