@@ -567,13 +567,15 @@ export default function ManageRolesPage() {
           ) : null}
         </form>
         <div className={styles["table-wrap"]}>
-          <table className={styles["data-table"]}>
+          <table
+            className={`${styles["data-table"]} ${styles["role-user-table"]}`}
+          >
             <thead>
               <tr>
-                <th>User</th>
-                <th>Current status</th>
-                <th>Role</th>
-                <th aria-label="Manage user permissions"></th>
+                <th style={{ width: "40%" }}>User</th>
+                <th style={{ width: "20%" }}>Current status</th>
+                <th style={{ width: "20%" }}>Role</th>
+                <th style={{ width: "20%" }} aria-label="Manage user permissions"></th>
               </tr>
             </thead>
             <tbody>

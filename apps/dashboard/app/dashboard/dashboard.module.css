@@ -332,14 +332,37 @@
 .role-user-list {
   margin-top: 20px;
 }
-.role-user-filters {
-  flex-wrap: wrap;
-  justify-content: flex-start;
+.filters.role-user-filters {
+  display: grid;
+  grid-template-columns: 40% 20% 20% 20%;
+  align-items: end;
+  gap: 0;
+  padding: 18px 0;
+}
+.filters.role-user-filters > * {
+  margin: 0 18px;
+  min-width: 0;
+}
+.filters.role-user-filters > :nth-child(3) {
+  grid-column: 4;
+}
+.filters.role-user-filters > :nth-child(4) {
+  grid-column: 3;
+  grid-row: 1;
 }
 .role-user-filters .search-field {
-  flex: 1 1 auto;
-  min-width: min(180px, 100%);
-  max-width: 320px;
+  width: auto;
+}
+.role-user-filters .secondary-button {
+  justify-self: start;
+}
+.role-user-table {
+  min-width: 720px;
+  table-layout: fixed;
+}
+.role-user-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .role-user-actions {
   text-align: left;
@@ -1224,9 +1247,13 @@
     align-items: stretch;
   }
   .filters.role-user-filters {
-    width: auto;
-    align-items: flex-end;
-    flex-direction: row;
+    grid-template-columns: 1fr;
+    row-gap: 12px;
+  }
+  .filters.role-user-filters > :nth-child(3),
+  .filters.role-user-filters > :nth-child(4) {
+    grid-column: auto;
+    grid-row: auto;
   }
   .pagination {
     align-items: flex-start;
