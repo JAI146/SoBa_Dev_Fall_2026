@@ -18,6 +18,8 @@ export const AdminPermission = {
   AUDIT_LOGS_FULL: "audit_logs.full",
   SETTINGS_LIMITED: "settings.limited",
   SETTINGS_FULL: "settings.full",
+  SUPPORT_CASES_VIEW: "support_cases.view",
+  SUPPORT_CASES_EDIT: "support_cases.edit",
   SUBSCRIPTIONS_VIEW: "subscriptions.view",
   SUBSCRIPTIONS_EDIT: "subscriptions.edit",
   SUBSCRIPTIONS_FULL: "subscriptions.full",
@@ -50,6 +52,8 @@ export const rolePermissions: Record<
     AdminPermission.REPORTS_FULL,
     AdminPermission.AUDIT_LOGS_VIEW,
     AdminPermission.SETTINGS_LIMITED,
+    AdminPermission.SUPPORT_CASES_VIEW,
+    AdminPermission.SUPPORT_CASES_EDIT,
   ],
   [AdminRole.AUDITOR]: [
     AdminPermission.SUBSCRIPTIONS_VIEW,
@@ -69,6 +73,8 @@ export const rolePermissions: Record<
     AdminPermission.SUBSCRIPTIONS_VIEW,
     AdminPermission.USER_MANAGEMENT_VIEW,
     AdminPermission.FINANCIAL_DATA_LIMITED,
+    AdminPermission.SUPPORT_CASES_VIEW,
+    AdminPermission.SUPPORT_CASES_EDIT,
   ],
 };
 

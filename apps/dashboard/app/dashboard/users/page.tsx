@@ -1,6 +1,14 @@
 "use client";
 
-import { adminUsersResponseSchema } from "@purposemint/contracts";
+import {
+  adminUsersResponseSchema,
+  onboardingStatusValues,
+  tierValues,
+  userStatusValues,
+  type OnboardingStatusValue,
+  type TierValue,
+  type UserStatusValue,
+} from "@purposemint/contracts";
 import Link from "next/link";
 import { type FormEvent, useMemo, useState } from "react";
 import {
@@ -16,21 +24,33 @@ import {
 } from "@/lib/admin-format";
 import { useAdminQuery } from "@/lib/use-admin-query";
 import styles from "../dashboard.module.css";
+import usersStyles from "./users.module.css";
 
 const PAGE_SIZE = 20;
+const INACTIVE_DAY_OPTIONS = [3, 7, 30] as const;
 
 export default function UsersPage() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<"" | UserStatusValue>("");
+  const [tier, setTier] = useState<"" | TierValue>("");
+  const [onboardingStatus, setOnboardingStatus] = useState<
+    "" | OnboardingStatusValue
+  >("");
+  const [inactiveDays, setInactiveDays] = useState("");
   const path = useMemo(() => {
     const params = new URLSearchParams({
       page: String(page),
       pageSize: String(PAGE_SIZE),
     });
     if (search) params.set("search", search);
+    if (status) params.set("status", status);
+    if (tier) params.set("tier", tier);
+    if (onboardingStatus) params.set("onboardingStatus", onboardingStatus);
+    if (inactiveDays) params.set("inactiveDays", inactiveDays);
     return `/admin/users?${params.toString()}`;
-  }, [page, search]);
+  }, [page, search, status, tier, onboardingStatus, inactiveDays]);
   const query = useAdminQuery(path, adminUsersResponseSchema);
 
   const submitSearch = (event: FormEvent) => {
@@ -60,19 +80,98 @@ export default function UsersPage() {
         </div>
       </div>
       <section className={styles["crud-card"]}>
-        <form className={styles.filters} onSubmit={submitSearch}>
-          <label className={styles["search-field"]}>
-            <span className="sr-only">Search users</span>
-            <SearchIcon />
-            <input
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search name or email"
-            />
-          </label>
-          <button type="submit" className={styles["btn-toolbar-primary"]}>
-            Search
-          </button>
+        <form
+          className={`${styles.filters} ${usersStyles["filters-wrap"]}`}
+          onSubmit={submitSearch}
+        >
+          <div
+            className={`${styles["page-actions-group"]} ${usersStyles["search-group"]}`}
+          >
+            <label className={styles["search-field"]}>
+              <span className="sr-only">Search users</span>
+              <SearchIcon />
+              <input
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Search name or email"
+              />
+            </label>
+            <button type="submit" className={styles["btn-toolbar-primary"]}>
+              Search
+            </button>
+          </div>
+          <div className={styles["page-actions-group"]}>
+            <label className={styles["filter-field"]}>
+              <span>Status</span>
+              <select
+                value={status}
+                onChange={(event) => {
+                  setStatus(event.target.value as "" | UserStatusValue);
+                  setPage(1);
+                }}
+              >
+                <option value="">All statuses</option>
+                {userStatusValues.map((value) => (
+                  <option key={value} value={value}>
+                    {formatEnum(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles["filter-field"]}>
+              <span>Membership</span>
+              <select
+                value={tier}
+                onChange={(event) => {
+                  setTier(event.target.value as "" | TierValue);
+                  setPage(1);
+                }}
+              >
+                <option value="">All memberships</option>
+                {tierValues.map((value) => (
+                  <option key={value} value={value}>
+                    {formatTier(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles["filter-field"]}>
+              <span>Onboarding</span>
+              <select
+                value={onboardingStatus}
+                onChange={(event) => {
+                  setOnboardingStatus(
+                    event.target.value as "" | OnboardingStatusValue,
+                  );
+                  setPage(1);
+                }}
+              >
+                <option value="">All onboarding</option>
+                {onboardingStatusValues.map((value) => (
+                  <option key={value} value={value}>
+                    {formatEnum(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles["filter-field"]}>
+              <span>Activity</span>
+              <select
+                value={inactiveDays}
+                onChange={(event) => {
+                  setInactiveDays(event.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">Any activity</option>
+                {INACTIVE_DAY_OPTIONS.map((days) => (
+                  <option key={days} value={String(days)}>
+                    Inactive {days}+ days
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </form>
         <div className={styles["table-wrap"]}>
           <table className={styles["data-table"]}>
@@ -84,6 +183,7 @@ export default function UsersPage() {
                 <th>Onboarding</th>
                 <th>Email</th>
                 <th>Joined</th>
+                <th>Last seen</th>
                 <th>
                   <span className="sr-only">Actions</span>
                 </th>
@@ -114,6 +214,11 @@ export default function UsersPage() {
                   <td>{user.emailVerifiedAt ? "Verified" : "Not verified"}</td>
                   <td>{formatAdminDate(user.createdAt, user.timeZone)}</td>
                   <td>
+                    {user.lastSeenAt
+                      ? formatAdminDate(user.lastSeenAt, user.timeZone)
+                      : "Never"}
+                  </td>
+                  <td>
                     <Link
                       className={styles["table-link"]}
                       href={`/dashboard/users/${user.id}`}
@@ -125,8 +230,8 @@ export default function UsersPage() {
               ))}
               {data.items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className={styles.empty}>
-                    No users match the current search.
+                  <td colSpan={8} className={styles.empty}>
+                    No users match the current search or filters.
                   </td>
                 </tr>
               ) : null}

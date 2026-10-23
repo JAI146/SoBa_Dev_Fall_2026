@@ -41,6 +41,7 @@ import {
   type AdminCustomRoleCreateInput,
   type AdminCustomRoleUpdateInput,
   type AdminCustomRolesResponse,
+  type AdminMyPermissionsResponse,
   type AdminRolePermissionProfile,
   type AdminRolePermissionProfilesResponse,
   type AdminRolePermissionsUpdateInput,
@@ -57,8 +58,10 @@ import {
   type AdminUserListItem,
   type AdminUsersQuery,
   type AdminUsersResponse,
+  type AdminUserStatusUpdateInput,
   type AdminSavingsCustomersResponse,
   type AdminSavingsCustomerDetail,
+  type AdminSavingsEntry,
   type AdminProgressLevelsResponse,
   type AdminProgressLevelUsersResponse,
   type PaginationQuery,
@@ -66,7 +69,10 @@ import {
 } from '@purposemint/contracts';
 import { In, MoreThanOrEqual, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { toUserGoalPublic } from '../common/mappers/onboarding.mapper';
+import {
+  toOnboardingProgress,
+  toUserGoalPublic,
+} from '../common/mappers/onboarding.mapper';
 import { AuditService } from '../audit/audit.service';
 import { loadHabitLifecycle } from '../audit/audit.service';
 import { AuditEvent } from '../entities/audit-event.entity';
@@ -88,12 +94,22 @@ import { UserGoal } from '../entities/user-goal.entity';
 import { UserHabit } from '../entities/user-habit.entity';
 import { UserValue } from '../entities/user-value.entity';
 import { User } from '../entities/user.entity';
+import { UserSession } from '../entities/user-session.entity';
 import { Value } from '../entities/value.entity';
 import { CustomRole } from '../entities/custom-role.entity';
 import { AdminRolePermission } from '../entities/admin-role-permission.entity';
 import { AdminUserPermission } from '../entities/admin-user-permission.entity';
 
 const ACTIVE_WINDOW_DAYS = 30;
+/**
+ * "Last seen" in SQL against the `user` alias: the later of password login
+ * and the newest session row (every /auth/refresh mints one). NULL when the
+ * customer has never signed in. Mirrors lastSeenAtByUser.
+ */
+const LAST_SEEN_SQL =
+  'GREATEST(user.lastLoginAt, (SELECT MAX(s.created_at) FROM user_sessions s WHERE s.user_id = user.id))';
+/** Newest entries shown on the user detail; the Savings area keeps all. */
+const USER_DETAIL_SAVINGS_ENTRY_LIMIT = 100;
 const TIER_LABELS: Record<TierValue, string> = {
   [Tier.FREE]: 'Starter',
   [Tier.GROWTH]: 'Momentum',
@@ -136,6 +152,8 @@ export class AdminService {
     private readonly upgradeIntents: Repository<UpgradeIntent>,
     @InjectRepository(SubscriptionPlan)
     private readonly plans: Repository<SubscriptionPlan>,
+    @InjectRepository(UserSession)
+    private readonly userSessions: Repository<UserSession>,
     private readonly audit: AuditService,
     private readonly sessions: SessionService,
     private readonly config: ConfigService<Env, true>,
@@ -144,6 +162,35 @@ export class AdminService {
   }
 
   private readonly bcryptRounds: number;
+
+  /**
+   * Resolved the same way as PermissionsGuard: a per-staff override wins,
+   * then an assigned custom role, then a per-role override, then the built-in
+   * role's defaults. A custom role that no longer exists grants nothing.
+   */
+  async myPermissions(
+    principal: AuthPrincipal,
+  ): Promise<AdminMyPermissionsResponse> {
+    const userOverride = await this.userPermissionOverrides.findOne({
+      where: { userId: principal.userId },
+    });
+    if (userOverride) return { permissions: userOverride.permissions };
+    if (principal.customRoleId) {
+      const customRole = await this.customRoles.findOne({
+        where: { id: principal.customRoleId },
+      });
+      return { permissions: customRole?.permissions ?? [] };
+    }
+    if (!principal.adminRole) return { permissions: [] };
+    const roleOverride = await this.rolePermissionOverrides.findOne({
+      where: { roleKey: principal.adminRole },
+    });
+    return {
+      permissions: roleOverride
+        ? roleOverride.permissions
+        : [...rolePermissions[principal.adminRole]],
+    };
+  }
 
   async listRolePermissionProfiles(
     principal: AuthPrincipal,
@@ -657,12 +704,11 @@ export class AdminService {
       this.applications.count({
         where: { status: PathwayApplicationStatus.SUBMITTED },
       }),
-      this.users.count({
-        where: {
-          userType: UserType.CUSTOMER,
-          lastLoginAt: MoreThanOrEqual(activeSince),
-        },
-      }),
+      this.users
+        .createQueryBuilder('user')
+        .where('user.userType = :userType', { userType: UserType.CUSTOMER })
+        .andWhere(`${LAST_SEEN_SQL} >= :activeSince`, { activeSince })
+        .getCount(),
       this.users.count({
         where: {
           userType: UserType.CUSTOMER,
@@ -756,6 +802,28 @@ export class AdminService {
         { search: `%${search}%` },
       );
     }
+    if (query.status) {
+      builder.andWhere('user.status = :status', { status: query.status });
+    }
+    if (query.tier) {
+      builder.andWhere('user.tier = :tier', { tier: query.tier });
+    }
+    if (query.onboardingStatus) {
+      builder.andWhere('user.onboardingStatus = :onboardingStatus', {
+        onboardingStatus: query.onboardingStatus,
+      });
+    }
+    if (query.inactiveDays) {
+      // Never-seen accounts count from when they joined.
+      builder.andWhere(
+        `COALESCE(${LAST_SEEN_SQL}, user.createdAt) < :inactiveSince`,
+        {
+          inactiveSince: new Date(
+            Date.now() - query.inactiveDays * 24 * 60 * 60 * 1000,
+          ),
+        },
+      );
+    }
     const [users, total] = await builder
       .orderBy('user.createdAt', 'DESC')
       .skip((query.page - 1) * query.pageSize)
@@ -768,10 +836,17 @@ export class AdminService {
         page: query.page,
         pageSize: query.pageSize,
         searched: Boolean(search),
+        status: query.status ?? null,
+        tier: query.tier ?? null,
+        onboardingStatus: query.onboardingStatus ?? null,
+        inactiveDays: query.inactiveDays ?? null,
       },
     });
+    const lastSeenAt = await this.lastSeenAtByUser(users);
     return {
-      items: users.map((user) => this.toUserListItem(user)),
+      items: users.map((user) =>
+        this.toUserListItem(user, lastSeenAt.get(user.id) ?? null),
+      ),
       ...this.pagination(query.page, query.pageSize, total),
     };
   }
@@ -908,12 +983,7 @@ export class AdminService {
         order: { createdAt: 'ASC', id: 'ASC' },
       }),
     ]);
-    const entriesByGoal = new Map<string, SavingsEntry[]>();
-    for (const entry of entries) {
-      const existing = entriesByGoal.get(entry.userGoalId) ?? [];
-      existing.push(entry);
-      entriesByGoal.set(entry.userGoalId, existing);
-    }
+    const entriesByGoal = this.groupEntriesByGoal(entries);
 
     await this.record(principal, context, AuditAction.ADMIN_USER_VIEWED, {
       entityType: 'savings_customer',
@@ -931,11 +1001,7 @@ export class AdminService {
         isPathwayEligible: goal.isPathwayEligible,
         isFocus: goal.isFocus,
         isActive: goal.isActive,
-        entries: (entriesByGoal.get(goal.id) ?? []).map((entry) => ({
-          id: entry.id,
-          amount: entry.amount,
-          createdAt: entry.createdAt.toISOString(),
-        })),
+        entries: entriesByGoal.get(goal.id) ?? [],
       })),
     };
   }
@@ -950,39 +1016,59 @@ export class AdminService {
     });
     if (!user) throw new NotFoundException('Customer account not found.');
 
-    const [goals, habits, pathwayApplications, userValues, activityCounts] =
-      await Promise.all([
-        this.goals.find({
-          where: { userId: id },
-          order: { createdAt: 'DESC' },
-        }),
-        this.habits.find({
-          where: { userId: id },
-          relations: { sourceTemplate: true },
-          order: { createdAt: 'DESC' },
-        }),
-        this.applications.find({
-          where: { userId: id },
-          relations: {
-            user: true,
-            pathway: true,
-            applicationPartners: { partner: true },
-            checklistItems: true,
-          },
-          order: { submittedAt: 'DESC', createdAt: 'DESC' },
-        }),
-        this.userValues.find({
-          where: { userId: id },
-          relations: { value: true },
-        }),
-        this.userActivityCounts(id),
-      ]);
+    const [
+      goals,
+      habits,
+      pathwayApplications,
+      userValues,
+      activityCounts,
+      savingsEntries,
+      lastSeenAt,
+    ] = await Promise.all([
+      this.goals.find({
+        where: { userId: id },
+        order: { createdAt: 'DESC' },
+      }),
+      this.habits.find({
+        where: { userId: id },
+        relations: { sourceTemplate: true },
+        order: { createdAt: 'DESC' },
+      }),
+      this.applications.find({
+        where: { userId: id },
+        relations: {
+          user: true,
+          pathway: true,
+          applicationPartners: { partner: true },
+          checklistItems: true,
+        },
+        order: { submittedAt: 'DESC', createdAt: 'DESC' },
+      }),
+      this.userValues.find({
+        where: { userId: id },
+        relations: { value: true },
+      }),
+      this.userActivityCounts(id),
+      this.savingsEntries.find({
+        where: { userId: id },
+        order: { createdAt: 'DESC', id: 'DESC' },
+        take: USER_DETAIL_SAVINGS_ENTRY_LIMIT,
+      }),
+      this.lastSeenAtByUser([user]),
+    ]);
+    const entriesByGoal = this.groupEntriesByGoal(savingsEntries);
 
-    const values = userValues
+    const selectedValues = userValues
       .map((row) => row.value)
       .filter((value): value is Value => Boolean(value))
-      .sort((a, b) => a.sortOrder - b.sortOrder)
-      .map(toValuePublic);
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+    // Same inputs the customer onboarding endpoint uses, from rows already loaded.
+    const onboardingProgress = toOnboardingProgress(
+      user,
+      selectedValues,
+      goals.find((goal) => goal.isFocus && goal.isActive) ?? null,
+      habits.filter((habit) => habit.isActive),
+    );
 
     const goalIds = goals.map((goal) => goal.id);
     const [completions, lifecycle, goalEvents, savingsRecords] =
@@ -1117,11 +1203,12 @@ export class AdminService {
       entityId: id,
     });
     return {
-      ...this.toUserListItem(user),
+      ...this.toUserListItem(user, lastSeenAt.get(user.id) ?? null),
       country: user.country,
       state: user.state,
       city: user.city,
       lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+      currentLevel: user.currentLevel,
       goalHistory,
       goalHistoryTruncated: goalEvents.length > 100,
       savingsProgress,
@@ -1139,15 +1226,62 @@ export class AdminService {
           isFocus: goal.isFocus,
           isPathwayEligible: goal.isPathwayEligible,
           createdAt: goal.createdAt.toISOString(),
+          entries: entriesByGoal.get(goal.id) ?? [],
         };
       }),
       habits: habitDetails,
       pathwayApplications: pathwayApplications.map((application) =>
         this.toApplicationListItem(application),
       ),
-      values,
+      values: selectedValues.map(toValuePublic),
+      onboardingProgress,
       activityCounts,
     };
+  }
+
+  async updateUserStatus(
+    principal: AuthPrincipal,
+    id: string,
+    input: AdminUserStatusUpdateInput,
+    context: RequestContext,
+  ): Promise<AdminUserListItem> {
+    const user = await this.users.findOne({
+      where: { id, userType: UserType.CUSTOMER },
+    });
+    if (!user) throw new NotFoundException('Customer account not found.');
+
+    // Reactivating a customer who never confirmed their email puts them back
+    // in the verification flow instead of skipping it.
+    const nextStatus =
+      input.status === UserStatus.ACTIVE && !user.emailVerifiedAt
+        ? UserStatus.PENDING_EMAIL
+        : input.status;
+    if (nextStatus === user.status)
+      return this.toUserListItemWithLastSeen(user);
+
+    const previousStatus = user.status;
+    user.status = nextStatus;
+    await this.users.save(user);
+
+    if (user.status === UserStatus.SUSPENDED) {
+      await this.sessions.revokeAllForUser(
+        user.id,
+        SessionRevokedReason.LOGOUT_ALL,
+      );
+    }
+    await this.record(
+      principal,
+      context,
+      user.status === UserStatus.SUSPENDED
+        ? AuditAction.ADMIN_USER_SUSPENDED
+        : AuditAction.ADMIN_USER_REACTIVATED,
+      {
+        entityType: 'user',
+        entityId: user.id,
+        metadata: { previousStatus, status: user.status },
+      },
+    );
+    return this.toUserListItemWithLastSeen(user);
   }
 
   async listPathwayApplications(
@@ -1454,7 +1588,66 @@ export class AdminService {
     };
   }
 
-  private toUserListItem(user: User): AdminUserListItem {
+  private groupEntriesByGoal(entries: SavingsEntry[]) {
+    const entriesByGoal = new Map<string, AdminSavingsEntry[]>();
+    for (const entry of entries) {
+      const existing = entriesByGoal.get(entry.userGoalId) ?? [];
+      existing.push({
+        id: entry.id,
+        amount: entry.amount,
+        createdAt: entry.createdAt.toISOString(),
+      });
+      entriesByGoal.set(entry.userGoalId, existing);
+    }
+    return entriesByGoal;
+  }
+
+  /**
+   * Latest of password login and newest session row per user. Every
+   * /auth/refresh mints a session row, so this tracks ongoing app use that
+   * lastLoginAt misses. One grouped query for the whole page.
+   */
+  private async lastSeenAtByUser(
+    users: User[],
+  ): Promise<Map<string, string | null>> {
+    const ids = users.map((user) => user.id);
+    const rows =
+      ids.length === 0
+        ? []
+        : await this.userSessions
+            .createQueryBuilder('session')
+            .select('session.userId', 'userId')
+            .addSelect('MAX(session.createdAt)', 'lastSessionAt')
+            .where('session.userId IN (:...ids)', { ids })
+            .groupBy('session.userId')
+            .getRawMany<{ userId: string; lastSessionAt: Date }>();
+    const lastSessionAt = new Map(
+      rows.map((row) => [row.userId, new Date(row.lastSessionAt)]),
+    );
+    return new Map(
+      users.map((user) => {
+        const times = [user.lastLoginAt, lastSessionAt.get(user.id)]
+          .filter((time): time is Date => Boolean(time))
+          .map((time) => time.getTime());
+        return [
+          user.id,
+          times.length ? new Date(Math.max(...times)).toISOString() : null,
+        ];
+      }),
+    );
+  }
+
+  private async toUserListItemWithLastSeen(
+    user: User,
+  ): Promise<AdminUserListItem> {
+    const lastSeenAt = await this.lastSeenAtByUser([user]);
+    return this.toUserListItem(user, lastSeenAt.get(user.id) ?? null);
+  }
+
+  private toUserListItem(
+    user: User,
+    lastSeenAt: string | null,
+  ): AdminUserListItem {
     return {
       id: user.id,
       firstName: user.firstName,
@@ -1467,6 +1660,7 @@ export class AdminService {
       emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
       createdAt: user.createdAt.toISOString(),
       timeZone: user.timeZone,
+      lastSeenAt,
     };
   }
 

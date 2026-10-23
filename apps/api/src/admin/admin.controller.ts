@@ -41,6 +41,7 @@ import {
   AdminUpgradeIntentsQueryDto,
   AdminUsersQueryDto,
   AdminLevelUsersQueryDto,
+  AdminUserStatusUpdateDto,
 } from './dto/admin.dto';
 
 @ApiTags('admin')
@@ -134,6 +135,14 @@ export class AdminController {
     return this.admin.overview(principal, requestContext(request));
   }
 
+  // No permission requirement: every admin may read their own permissions.
+  @Get('me/permissions')
+  @Roles(UserType.ADMIN)
+  @ApiOperation({ summary: "The signed-in admin's effective permissions" })
+  myPermissions(@CurrentUser() principal: AuthPrincipal) {
+    return this.admin.myPermissions(principal);
+  }
+
   @Get('users')
   @Roles(UserType.ADMIN)
   @RequirePermission(AdminPermission.USER_MANAGEMENT_VIEW)
@@ -179,6 +188,7 @@ export class AdminController {
 
   @Get('savings/customers')
   @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.FINANCIAL_DATA_LIMITED)
   @ApiOperation({ summary: 'List customer savings aggregated across goals' })
   savingsCustomers(
     @CurrentUser() principal: AuthPrincipal,
@@ -189,6 +199,7 @@ export class AdminController {
 
   @Get('savings/customers/:id')
   @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.FINANCIAL_DATA_LIMITED)
   @ApiOperation({
     summary: 'View a customer’s goals and dated savings entries',
   })
@@ -214,6 +225,24 @@ export class AdminController {
     @Req() request: Request,
   ) {
     return this.admin.getUser(principal, id, requestContext(request));
+  }
+
+  @Patch('users/:id/status')
+  @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.USER_MANAGEMENT_EDIT)
+  @ApiOperation({ summary: 'Suspend or reactivate a customer account' })
+  updateUserStatus(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: AdminUserStatusUpdateDto,
+    @Req() request: Request,
+  ) {
+    return this.admin.updateUserStatus(
+      principal,
+      id,
+      body,
+      requestContext(request),
+    );
   }
 
   @Get('staff')

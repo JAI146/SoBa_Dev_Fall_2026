@@ -52,6 +52,11 @@ export function formatTier(value: string): string {
   return formatEnum(value);
 }
 
+/** Onboarding steps are kebab-case (`purpose-map`), unlike other enums. */
+export function formatOnboardingStep(value: string): string {
+  return formatEnum(value.replace(/-/g, "_"));
+}
+
 const STATUS_BADGE_CLASS: Record<string, string> = {
   active: "badge-active",
   pending_email: "badge-invited",

@@ -7,6 +7,8 @@ import {
   AdminRole,
   userPublicSchema,
   subscriptionAdminAccessSchema,
+  adminAnalyticsAccessSchema,
+  DEFAULT_ANALYTICS_WINDOW_DAYS,
   type MessageResponse,
   type UserPublic,
 } from "@purposemint/contracts";
@@ -18,6 +20,7 @@ import { clearAuth, getToken } from "@/lib/auth";
 import { ApiError, apiRequest } from "@/lib/api-client";
 import { SIGNED_OUT_EVENT } from "@/lib/session-activity";
 import { SessionMonitor } from "@/components/auth/session-monitor";
+import { analyticsReportOptions } from "./analytics/analytics-shared";
 import styles from "./dashboard.module.css";
 
 export default function DashboardLayout({
@@ -40,6 +43,7 @@ export default function DashboardLayout({
     return () => window.removeEventListener(SIGNED_OUT_EVENT, signedOut);
   }, [router]);
   const [canViewSubscriptions, setCanViewSubscriptions] = useState(false);
+  const [canViewReports, setCanViewReports] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +83,18 @@ export default function DashboardLayout({
           if (!cancelled) setCanViewSubscriptions(true);
         } catch {
           if (!cancelled) setCanViewSubscriptions(false);
+        }
+        try {
+          // Open to every admin, so hiding the reports never costs a 403.
+          const reportAccess = await apiRequest(
+            "/admin/analytics/access",
+            {},
+            token,
+            adminAnalyticsAccessSchema,
+          );
+          if (!cancelled) setCanViewReports(reportAccess.canView);
+        } catch {
+          if (!cancelled) setCanViewReports(false);
         }
       } catch (error) {
         if (!cancelled) {
@@ -153,6 +169,21 @@ export default function DashboardLayout({
       label: "Dashboard",
       icon: "overview",
       active: pathname === "/dashboard",
+      // Reports are listed under Dashboard, for staff who can view them.
+      ...(canViewReports
+        ? {
+            group: {
+              label: "Reports",
+              links: analyticsReportOptions.map((report) => ({
+                href: report.value,
+                label: report.label,
+              })),
+              sectionPath: "/dashboard/analytics",
+              keepQueryKeys: ["days", "from", "to"],
+              defaultQuery: `days=${DEFAULT_ANALYTICS_WINDOW_DAYS}`,
+            },
+          }
+        : {}),
     },
     {
       href: "/dashboard/users",
@@ -202,6 +233,12 @@ export default function DashboardLayout({
       label: "Manage roles",
       icon: "roles",
       active: pathname.startsWith("/dashboard/manage-roles"),
+    },
+    {
+      href: "/dashboard/support-cases",
+      label: "Support cases",
+      icon: "support",
+      active: pathname.startsWith("/dashboard/support-cases"),
     },
     {
       href: "/dashboard/coaching",

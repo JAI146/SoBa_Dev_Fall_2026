@@ -15,6 +15,7 @@ import {
   adminStaffUpdateSchema,
   adminCustomRoleCreateSchema,
   adminCustomRoleUpdateSchema,
+  adminUserStatusUpdateSchema,
   adminRolePermissionsUpdateSchema,
   adminStaffPermissionsUpdateSchema,
 } from '@purposemint/contracts';
@@ -55,4 +56,7 @@ export class AdminKycSettingsUpdateDto extends zodDto(
 export class AdminKycResolveDto extends zodDto(adminKycResolveSchema) {}
 export class AdminChecklistUpdateDto extends zodDto(
   adminChecklistUpdateSchema,
+) {}
+export class AdminUserStatusUpdateDto extends zodDto(
+  adminUserStatusUpdateSchema,
 ) {}

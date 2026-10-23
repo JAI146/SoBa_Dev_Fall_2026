@@ -12,7 +12,8 @@ export type SidebarNavIconName =
   | "progress"
   | "roles"
   | "kyc"
-  | "incentives";
+  | "incentives"
+  | "support";
 
 function Svg({
   children,
@@ -34,6 +35,15 @@ function Svg({
     >
       {children}
     </svg>
+  );
+}
+
+/** Rotated by CSS when its group is open. */
+export function SidebarChevron({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path d="m6 9 6 6 6-6" />
+    </Svg>
   );
 }
 
@@ -76,6 +86,19 @@ export function SidebarNavIcon({
       <Svg className={className}>
         <rect x="3" y="8" width="18" height="4" rx="1" />
         <path d="M5 12v9h14v-9M12 8v13M12 8H8a3 3 0 1 1 3-3zM12 8h4a3 3 0 1 0-3-3z" />
+      </Svg>
+    );
+  }
+  if (name === "support") {
+    // Lifebuoy: ring, hub, and four ties.
+    return (
+      <Svg className={className}>
+        <circle cx="12" cy="12" r="9" />
+        <circle cx="12" cy="12" r="3.5" />
+        <path d="m5.6 5.6 3.9 3.9" />
+        <path d="m14.5 14.5 3.9 3.9" />
+        <path d="m18.4 5.6-3.9 3.9" />
+        <path d="m9.5 14.5-3.9 3.9" />
       </Svg>
     );
   }
