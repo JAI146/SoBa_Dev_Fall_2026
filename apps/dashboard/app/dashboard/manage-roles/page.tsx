@@ -27,6 +27,8 @@ import { getToken } from "@/lib/auth";
 import { PlusIcon, SearchIcon } from "@/components/dashboard/action-icons";
 import styles from "../dashboard.module.css";
 
+const USER_PAGE_SIZE = 20;
+
 const roleLabels: Record<AdminRoleValue, string> = {
   [AdminRole.SUPER_ADMIN]: "Super Admin",
   [AdminRole.MANAGER]: "Manager",
@@ -112,6 +114,7 @@ export default function ManageRolesPage() {
     "all" | "staff" | "customer"
   >("all");
   const [userRoleFilter, setUserRoleFilter] = useState("");
+  const [userPage, setUserPage] = useState(1);
 
   async function createCustomRole(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -370,6 +373,15 @@ export default function ManageRolesPage() {
   });
   const filtersActive =
     !!searchTerm || userTypeFilter !== "all" || !!userRoleFilter;
+  const userTotalPages = Math.max(
+    1,
+    Math.ceil(filteredUsers.length / USER_PAGE_SIZE),
+  );
+  const currentUserPage = Math.min(userPage, userTotalPages);
+  const pagedUsers = filteredUsers.slice(
+    (currentUserPage - 1) * USER_PAGE_SIZE,
+    currentUserPage * USER_PAGE_SIZE,
+  );
 
   return (
     <main className={styles["dashboard-page"]}>
@@ -521,7 +533,10 @@ export default function ManageRolesPage() {
             <SearchIcon />
             <input
               value={userSearch}
-              onChange={(event) => setUserSearch(event.target.value)}
+              onChange={(event) => {
+                setUserSearch(event.target.value);
+                setUserPage(1);
+              }}
               placeholder="Search name, email or role"
             />
           </label>
@@ -529,9 +544,10 @@ export default function ManageRolesPage() {
             Account type
             <select
               value={userTypeFilter}
-              onChange={(event) =>
-                setUserTypeFilter(event.target.value as typeof userTypeFilter)
-              }
+              onChange={(event) => {
+                setUserTypeFilter(event.target.value as typeof userTypeFilter);
+                setUserPage(1);
+              }}
             >
               <option value="all">Staff and customers</option>
               <option value="staff">Staff only</option>
@@ -542,7 +558,10 @@ export default function ManageRolesPage() {
             Role
             <select
               value={userRoleFilter}
-              onChange={(event) => setUserRoleFilter(event.target.value)}
+              onChange={(event) => {
+                setUserRoleFilter(event.target.value);
+                setUserPage(1);
+              }}
             >
               <option value="">All roles</option>
               {roleProfiles.map((role) => (
@@ -560,6 +579,7 @@ export default function ManageRolesPage() {
                 setUserSearch("");
                 setUserTypeFilter("all");
                 setUserRoleFilter("");
+                setUserPage(1);
               }}
             >
               Clear
@@ -575,11 +595,14 @@ export default function ManageRolesPage() {
                 <th style={{ width: "40%" }}>User</th>
                 <th style={{ width: "20%" }}>Current status</th>
                 <th style={{ width: "20%" }}>Role</th>
-                <th style={{ width: "20%" }} aria-label="Manage user permissions"></th>
+                <th
+                  style={{ width: "20%" }}
+                  aria-label="Manage user permissions"
+                ></th>
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map((entry) => {
+              {pagedUsers.map((entry) => {
                 const user = entry.user;
                 const roleKey =
                   entry.kind === "staff" ? entry.user.roleKey : entry.roleKey;
@@ -624,6 +647,25 @@ export default function ManageRolesPage() {
             ({data.total.toLocaleString()} staff,{" "}
             {customersData.total.toLocaleString()} customers)
           </span>
+          <div>
+            <button
+              type="button"
+              disabled={currentUserPage <= 1}
+              onClick={() => setUserPage(currentUserPage - 1)}
+            >
+              Previous
+            </button>
+            <span>
+              Page {currentUserPage} of {userTotalPages}
+            </span>
+            <button
+              type="button"
+              disabled={currentUserPage >= userTotalPages}
+              onClick={() => setUserPage(currentUserPage + 1)}
+            >
+              Next
+            </button>
+          </div>
         </div>
       </section>
 
