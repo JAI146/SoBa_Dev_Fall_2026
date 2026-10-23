@@ -337,7 +337,8 @@
   justify-content: flex-start;
 }
 .role-user-filters .search-field {
-  flex: 1 1 260px;
+  flex: 1 1 auto;
+  min-width: min(260px, 100%);
 }
 .role-user-actions {
   text-align: left;
