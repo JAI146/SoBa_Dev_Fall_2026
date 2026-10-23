@@ -571,20 +571,19 @@ export default function ManageRolesPage() {
               ))}
             </select>
           </label>
-          {filtersActive ? (
-            <button
-              type="button"
-              className={styles["secondary-button"]}
-              onClick={() => {
-                setUserSearch("");
-                setUserTypeFilter("all");
-                setUserRoleFilter("");
-                setUserPage(1);
-              }}
-            >
-              Clear
-            </button>
-          ) : null}
+          <button
+            type="button"
+            className={styles["secondary-button"]}
+            disabled={!filtersActive}
+            onClick={() => {
+              setUserSearch("");
+              setUserTypeFilter("all");
+              setUserRoleFilter("");
+              setUserPage(1);
+            }}
+          >
+            Clear
+          </button>
         </form>
         <div className={styles["table-wrap"]}>
           <table
