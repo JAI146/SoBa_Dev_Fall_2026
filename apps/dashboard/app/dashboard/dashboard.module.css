@@ -338,7 +338,8 @@
 }
 .role-user-filters .search-field {
   flex: 1 1 auto;
-  min-width: min(260px, 100%);
+  min-width: min(180px, 100%);
+  max-width: 320px;
 }
 .role-user-actions {
   text-align: left;
@@ -1221,6 +1222,11 @@
   }
   .filters {
     align-items: stretch;
+  }
+  .filters.role-user-filters {
+    width: auto;
+    align-items: flex-end;
+    flex-direction: row;
   }
   .pagination {
     align-items: flex-start;
