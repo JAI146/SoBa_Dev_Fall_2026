@@ -60,6 +60,26 @@ export const onboardingStatusValues = [
 export type OnboardingStatusValue =
   (typeof OnboardingStatus)[keyof typeof OnboardingStatus];
 
+export const KycStatus = {
+  NOT_STARTED: "not_started",
+  IN_PROGRESS: "in_progress",
+  VERIFIED: "verified",
+  FAILED: "failed",
+  REQUIRES_ACTION: "requires_action",
+  UNDER_REVIEW: "under_review",
+} as const;
+
+export const kycStatusValues = [
+  KycStatus.NOT_STARTED,
+  KycStatus.IN_PROGRESS,
+  KycStatus.VERIFIED,
+  KycStatus.FAILED,
+  KycStatus.REQUIRES_ACTION,
+  KycStatus.UNDER_REVIEW,
+] as const;
+
+export type KycStatusValue = (typeof KycStatus)[keyof typeof KycStatus];
+
 /**
  * Subscription tier. Written only by the subscription module (Phase 3).
  * Never read to make an authorization decision.
@@ -270,6 +290,11 @@ export const AuditAction = {
   ADMIN_PLAN_UPDATED: "admin.plan_updated",
   ADMIN_SUBSCRIPTION_CHANGED: "admin.subscription_changed",
   ADMIN_SUBSCRIPTION_PAYMENT_RECORDED: "admin.subscription_payment_recorded",
+  ADMIN_KYC_LISTED: "admin.kyc_listed",
+  ADMIN_KYC_RETRIED: "admin.kyc_retried",
+  ADMIN_KYC_ESCALATED: "admin.kyc_escalated",
+  ADMIN_KYC_RESOLVED: "admin.kyc_resolved",
+  ADMIN_KYC_SETTINGS_UPDATED: "admin.kyc_settings_updated",
 } as const;
 
 export type AuditActionValue = (typeof AuditAction)[keyof typeof AuditAction];

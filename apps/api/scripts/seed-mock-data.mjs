@@ -347,6 +347,32 @@ try {
         [uuid('8200', number), userId, planKey, index + 1],
       );
     }
+
+    // Cycle through every verification state, including stuck and escalated cases.
+    const kycCase = [
+      null,
+      ['in_progress', 1, null, null, 1],
+      ['verified', 2, null, null, 12],
+      ['failed', 1, 'document_unreadable', 'The submitted ID image could not be read.', 2],
+      ['requires_action', 2, 'address_mismatch', 'The address does not match the document provided.', 6],
+      ['under_review', 1, null, null, 5],
+      ['in_progress', 1, null, null, 8],
+      ['verified', 1, null, null, 20],
+    ][index % 8];
+    if (kycCase) {
+      const [kycStatus, attempts, failureCode, failureReason, daysAgo] = kycCase;
+      await client.query(
+        `INSERT INTO kyc_verifications (
+           user_id, status, provider, attempt_count, failure_code, failure_reason,
+           status_changed_at, updated_at
+         ) VALUES ($1, $2, 'manual', $3, $4, $5, now() - ($6 * interval '1 day'), now())
+         ON CONFLICT (user_id) DO UPDATE SET
+           status = EXCLUDED.status, attempt_count = EXCLUDED.attempt_count,
+           failure_code = EXCLUDED.failure_code, failure_reason = EXCLUDED.failure_reason,
+           status_changed_at = EXCLUDED.status_changed_at, updated_at = now()`,
+        [userId, kycStatus, attempts, failureCode, failureReason, daysAgo],
+      );
+    }
   }
   // Commercial events for subscription analytics. History and billing rows are
   // append-only, so each event is keyed by a fixed id, applied to the

@@ -21,7 +21,13 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { requestContext } from '../common/request-context';
 import { AdminService } from './admin.service';
+import { AdminKycService } from './admin-kyc.service';
 import {
+  AdminKycEscalateDto,
+  AdminKycQueryDto,
+  AdminKycResolveDto,
+  AdminKycRetryDto,
+  AdminKycSettingsUpdateDto,
   AdminChecklistUpdateDto,
   AdminCustomRoleCreateDto,
   AdminCustomRoleUpdateDto,
@@ -42,7 +48,84 @@ import {
 @ApiBearerAuth()
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly kyc: AdminKycService,
+  ) {}
+
+  @Get('kyc')
+  @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.USER_MANAGEMENT_VIEW)
+  @ApiOperation({ summary: 'View customer onboarding and KYC status' })
+  listKyc(
+    @CurrentUser() principal: AuthPrincipal,
+    @Query() query: AdminKycQueryDto,
+    @Req() request: Request,
+  ) {
+    return this.kyc.list(principal, query, requestContext(request));
+  }
+
+  @Get('kyc/:userId/history')
+  @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.USER_MANAGEMENT_VIEW)
+  @ApiOperation({ summary: 'View the action history of a verification case' })
+  kycHistory(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ) {
+    return this.kyc.history(principal, userId);
+  }
+
+  @Patch('kyc/settings')
+  @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.USER_MANAGEMENT_EDIT)
+  @ApiOperation({ summary: 'Change the KYC retry limit' })
+  updateKycSettings(
+    @CurrentUser() principal: AuthPrincipal,
+    @Body() body: AdminKycSettingsUpdateDto,
+    @Req() request: Request,
+  ) {
+    return this.kyc.updateSettings(principal, body, requestContext(request));
+  }
+
+  @Post('kyc/:userId/retry')
+  @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.USER_MANAGEMENT_EDIT)
+  @ApiOperation({ summary: 'Retry a customer verification' })
+  retryKyc(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() body: AdminKycRetryDto,
+    @Req() request: Request,
+  ) {
+    return this.kyc.retry(principal, userId, body, requestContext(request));
+  }
+
+  @Post('kyc/:userId/escalate')
+  @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.USER_MANAGEMENT_EDIT)
+  @ApiOperation({ summary: 'Escalate a customer verification case' })
+  escalateKyc(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() body: AdminKycEscalateDto,
+    @Req() request: Request,
+  ) {
+    return this.kyc.escalate(principal, userId, body, requestContext(request));
+  }
+
+  @Post('kyc/:userId/resolve')
+  @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.USER_MANAGEMENT_EDIT)
+  @ApiOperation({ summary: 'Resolve an escalated verification case' })
+  resolveKyc(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() body: AdminKycResolveDto,
+    @Req() request: Request,
+  ) {
+    return this.kyc.resolve(principal, userId, body, requestContext(request));
+  }
 
   @Get('overview')
   @Roles(UserType.ADMIN)

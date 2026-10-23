@@ -1,5 +1,10 @@
 import {
   adminChecklistUpdateSchema,
+  adminKycEscalateSchema,
+  adminKycQuerySchema,
+  adminKycRetrySchema,
+  adminKycSettingsUpdateSchema,
+  adminKycResolveSchema,
   adminPathwayApplicationsQuerySchema,
   adminUpgradeIntentsQuerySchema,
   adminUsersQuerySchema,
@@ -42,6 +47,13 @@ export class AdminPathwayApplicationsQueryDto extends zodDto(
 export class AdminUpgradeIntentsQueryDto extends zodDto(
   adminUpgradeIntentsQuerySchema,
 ) {}
+export class AdminKycQueryDto extends zodDto(adminKycQuerySchema) {}
+export class AdminKycEscalateDto extends zodDto(adminKycEscalateSchema) {}
+export class AdminKycRetryDto extends zodDto(adminKycRetrySchema) {}
+export class AdminKycSettingsUpdateDto extends zodDto(
+  adminKycSettingsUpdateSchema,
+) {}
+export class AdminKycResolveDto extends zodDto(adminKycResolveSchema) {}
 export class AdminChecklistUpdateDto extends zodDto(
   adminChecklistUpdateSchema,
 ) {}

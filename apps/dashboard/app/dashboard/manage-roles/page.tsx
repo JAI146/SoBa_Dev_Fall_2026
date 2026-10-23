@@ -24,8 +24,10 @@ import { formatAdminDate, formatEnum } from "@/lib/admin-format";
 import { useAdminQuery } from "@/lib/use-admin-query";
 import { apiRequest } from "@/lib/api-client";
 import { getToken } from "@/lib/auth";
-import { PlusIcon } from "@/components/dashboard/action-icons";
+import { PlusIcon, SearchIcon } from "@/components/dashboard/action-icons";
 import styles from "../dashboard.module.css";
+
+const USER_PAGE_SIZE = 20;
 
 const roleLabels: Record<AdminRoleValue, string> = {
   [AdminRole.SUPER_ADMIN]: "Super Admin",
@@ -103,12 +105,16 @@ export default function ManageRolesPage() {
     string | null
   >(null);
   const [userPermissionSaving, setUserPermissionSaving] = useState(false);
-  const [roleUpdatingUserId, setRoleUpdatingUserId] = useState<string | null>(
-    null,
-  );
+  const [editingUserRoleKey, setEditingUserRoleKey] = useState("");
   const [customerPreviews, setCustomerPreviews] = useState<
     Record<string, { roleKey: string; permissions: AdminPermissionValue[] }>
   >({});
+  const [userSearch, setUserSearch] = useState("");
+  const [userTypeFilter, setUserTypeFilter] = useState<
+    "all" | "staff" | "customer"
+  >("all");
+  const [userRoleFilter, setUserRoleFilter] = useState("");
+  const [userPage, setUserPage] = useState(1);
 
   async function createCustomRole(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -204,39 +210,26 @@ export default function ManageRolesPage() {
     }
   }
 
-  async function updateStaffRole(userId: string, roleKey: string) {
-    setRoleUpdatingUserId(userId);
-    setRoleListMessage(null);
-    try {
-      await apiRequest(
-        `/admin/staff/${encodeURIComponent(userId)}/role`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({ roleKey }),
-        },
-        getToken(),
-      );
-      await query.reload();
-      setRoleListMessage("Staff role updated.");
-    } catch (cause) {
-      setRoleListMessage(
-        cause instanceof Error
-          ? cause.message
-          : "The staff role could not be updated.",
-      );
-    } finally {
-      setRoleUpdatingUserId(null);
-    }
+  function roleDefaultPermissions(roleKey: string) {
+    return roleProfiles.find((role) => role.key === roleKey)?.permissions ?? [];
   }
 
   function openUserPermissionEditor(user: EditableUser) {
     setEditingUser(user);
+    setEditingUserRoleKey(
+      user.kind === "staff" ? user.user.roleKey : user.roleKey,
+    );
     setEditingUserPermissions(
       user.kind === "staff"
         ? [...user.user.permissions]
         : [...user.permissions],
     );
     setUserPermissionMessage(null);
+  }
+
+  function changeEditingUserRole(roleKey: string) {
+    setEditingUserRoleKey(roleKey);
+    setEditingUserPermissions([...roleDefaultPermissions(roleKey)]);
   }
 
   async function saveUserPermissions(event: FormEvent<HTMLFormElement>) {
@@ -249,71 +242,53 @@ export default function ManageRolesPage() {
         setCustomerPreviews((current) => ({
           ...current,
           [editingUser.user.id]: {
-            roleKey: editingUser.roleKey,
+            roleKey: editingUserRoleKey,
             permissions: [...editingUserPermissions],
           },
         }));
         setEditingUser(null);
         return;
       }
-      await apiRequest(
-        `/admin/staff/${encodeURIComponent(editingUser.user.id)}/permissions`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({ permissions: editingUserPermissions }),
-        },
-        getToken(),
-      );
-      await query.reload();
-      setEditingUser(null);
-    } catch (cause) {
-      setUserPermissionMessage(
-        cause instanceof Error
-          ? cause.message
-          : "The individual permissions could not be saved.",
-      );
-    } finally {
-      setUserPermissionSaving(false);
-    }
-  }
-
-  async function resetUserPermissions() {
-    if (!editingUser) return;
-    setUserPermissionSaving(true);
-    setUserPermissionMessage(null);
-    try {
-      if (editingUser.kind === "customer") {
-        setCustomerPreviews((current) => {
-          const assignedPermissions =
-            roleProfiles.find((role) => role.key === editingUser.roleKey)
-              ?.permissions ?? [];
-          return {
-            ...current,
-            [editingUser.user.id]: {
-              roleKey: editingUser.roleKey,
-              permissions: [...assignedPermissions],
-            },
-          };
-        });
-        setEditingUser(null);
-        return;
+      const userPath = `/admin/staff/${encodeURIComponent(editingUser.user.id)}`;
+      const roleChanged = editingUserRoleKey !== editingUser.user.roleKey;
+      const defaults = roleDefaultPermissions(editingUserRoleKey);
+      const matchesRole =
+        editingUserPermissions.length === defaults.length &&
+        editingUserPermissions.every((permission) =>
+          defaults.includes(permission),
+        );
+      if (roleChanged) {
+        await apiRequest(
+          `${userPath}/role`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ roleKey: editingUserRoleKey }),
+          },
+          getToken(),
+        );
       }
-      await apiRequest(
-        `/admin/staff/${encodeURIComponent(editingUser.user.id)}/permissions`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({ permissions: null }),
-        },
-        getToken(),
-      );
+      // A matching permission set means the account simply inherits its role.
+      if (!matchesRole || editingUser.user.hasPermissionOverride) {
+        await apiRequest(
+          `${userPath}/permissions`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({
+              permissions: matchesRole ? null : editingUserPermissions,
+            }),
+          },
+          getToken(),
+        );
+      }
       await query.reload();
       setEditingUser(null);
     } catch (cause) {
       setUserPermissionMessage(
         cause instanceof Error
           ? cause.message
-          : "The role permissions could not be restored.",
+          : "The role and permissions could not be saved.",
       );
+      await query.reload();
     } finally {
       setUserPermissionSaving(false);
     }
@@ -353,6 +328,14 @@ export default function ManageRolesPage() {
   const data = query.data;
   const customersData = customersQuery.data;
   const roleProfiles = roleProfilesQuery.data.items;
+  function roleLabelFor(roleKey: string) {
+    if (roleKey === "customer") return "Customer";
+    return (
+      roleProfiles.find((role) => role.key === roleKey)?.name ??
+      roleLabels[roleKey as AdminRoleValue] ??
+      roleKey
+    );
+  }
   const permissionGroups = Array.from(
     adminPermissionValues.reduce((groups, permission) => {
       const group = permission.split(".")[0];
@@ -377,6 +360,29 @@ export default function ManageRolesPage() {
     }),
   ];
 
+  const searchTerm = userSearch.trim().toLowerCase();
+  const filteredUsers = allUsers.filter((entry) => {
+    if (userTypeFilter !== "all" && entry.kind !== userTypeFilter) return false;
+    const roleKey = entry.kind === "staff" ? entry.user.roleKey : entry.roleKey;
+    if (userRoleFilter && roleKey !== userRoleFilter) return false;
+    if (!searchTerm) return true;
+    const { firstName, lastName, email } = entry.user;
+    return `${firstName} ${lastName} ${email} ${roleLabelFor(roleKey)}`
+      .toLowerCase()
+      .includes(searchTerm);
+  });
+  const filtersActive =
+    !!searchTerm || userTypeFilter !== "all" || !!userRoleFilter;
+  const userTotalPages = Math.max(
+    1,
+    Math.ceil(filteredUsers.length / USER_PAGE_SIZE),
+  );
+  const currentUserPage = Math.min(userPage, userTotalPages);
+  const pagedUsers = filteredUsers.slice(
+    (currentUserPage - 1) * USER_PAGE_SIZE,
+    currentUserPage * USER_PAGE_SIZE,
+  );
+
   return (
     <main className={styles["dashboard-page"]}>
       <div className={styles["page-header"]}>
@@ -390,22 +396,16 @@ export default function ManageRolesPage() {
         </div>
       </div>
 
-      <div className={styles["notice-banner"]} role="status">
-        Staff role and permission changes are saved and affect access. Customer
-        role and permission changes are previews only and are not saved.
-      </div>
-
       <section className={styles["crud-card"]}>
         <div
           className={`${styles["card-heading"]} ${styles["role-profile-heading"]}`}
         >
           <div>
-            <p className={styles.eyebrow}>Access control</p>
             <h2>Existing roles</h2>
           </div>
           <button
             type="button"
-            className={styles["role-create-button"]}
+            className={`${styles["secondary-button"]} ${styles["role-create-button"]}`}
             onClick={() => {
               setRoleMessage(null);
               setCreateRoleOpen(true);
@@ -523,20 +523,86 @@ export default function ManageRolesPage() {
       </Dialog>
 
       <section className={`${styles["crud-card"]} ${styles["role-user-list"]}`}>
+        <form
+          className={`${styles.filters} ${styles["role-user-filters"]}`}
+          onSubmit={(event) => event.preventDefault()}
+          role="search"
+        >
+          <label className={styles["search-field"]}>
+            <span className="sr-only">Search users</span>
+            <SearchIcon />
+            <input
+              value={userSearch}
+              onChange={(event) => {
+                setUserSearch(event.target.value);
+                setUserPage(1);
+              }}
+              placeholder="Search name, email or role"
+            />
+          </label>
+          <label className={styles["filter-field"]}>
+            Account type
+            <select
+              value={userTypeFilter}
+              onChange={(event) => {
+                setUserTypeFilter(event.target.value as typeof userTypeFilter);
+                setUserPage(1);
+              }}
+            >
+              <option value="all">Staff and customers</option>
+              <option value="staff">Staff only</option>
+              <option value="customer">Customers only</option>
+            </select>
+          </label>
+          <label className={styles["filter-field"]}>
+            Role
+            <select
+              value={userRoleFilter}
+              onChange={(event) => {
+                setUserRoleFilter(event.target.value);
+                setUserPage(1);
+              }}
+            >
+              <option value="">All roles</option>
+              {roleProfiles.map((role) => (
+                <option key={role.key} value={role.key}>
+                  {role.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className={styles["secondary-button"]}
+            disabled={!filtersActive}
+            onClick={() => {
+              setUserSearch("");
+              setUserTypeFilter("all");
+              setUserRoleFilter("");
+              setUserPage(1);
+            }}
+          >
+            Clear
+          </button>
+        </form>
         <div className={styles["table-wrap"]}>
-          <table className={styles["data-table"]}>
+          <table
+            className={`${styles["data-table"]} ${styles["role-user-table"]}`}
+          >
             <thead>
               <tr>
-                <th>User</th>
-                <th>Current status</th>
-                <th>Role</th>
-                <th>Individual permissions</th>
+                <th style={{ width: "40%" }}>User</th>
+                <th style={{ width: "20%" }}>Current status</th>
+                <th style={{ width: "20%" }}>Role</th>
+                <th
+                  style={{ width: "20%" }}
+                  aria-label="Manage user permissions"
+                ></th>
               </tr>
             </thead>
             <tbody>
-              {allUsers.map((entry) => {
+              {pagedUsers.map((entry) => {
                 const user = entry.user;
-                const isStaff = entry.kind === "staff";
                 const roleKey =
                   entry.kind === "staff" ? entry.user.roleKey : entry.roleKey;
                 return (
@@ -551,76 +617,54 @@ export default function ManageRolesPage() {
                       </span>
                       <span>{formatAdminDate(user.createdAt, null)}</span>
                     </td>
-                    <td>
-                      <label className={styles["table-select-label"]}>
-                        <span className="sr-only">Role for {user.email}</span>
-                        <select
-                          value={roleKey}
-                          disabled={
-                            entry.kind === "staff" &&
-                            roleUpdatingUserId === user.id
-                          }
-                          onChange={(event) => {
-                            const nextRoleKey = event.target.value;
-                            if (entry.kind === "staff") {
-                              void updateStaffRole(user.id, nextRoleKey);
-                              return;
-                            }
-                            setCustomerPreviews((current) => ({
-                              ...current,
-                              [user.id]: {
-                                roleKey: nextRoleKey,
-                                permissions:
-                                  roleProfiles.find(
-                                    (role) => role.key === nextRoleKey,
-                                  )?.permissions ?? [],
-                              },
-                            }));
-                          }}
-                        >
-                          {!isStaff ? (
-                            <option value="customer">Customer (no role)</option>
-                          ) : null}
-                          {roleOrder.map((role) => (
-                            <option value={role} key={role}>
-                              {roleLabels[role]}
-                            </option>
-                          ))}
-                          {roleProfiles
-                            .filter((role) => role.isCustom)
-                            .map((role) => (
-                              <option value={role.key} key={role.key}>
-                                {role.name}
-                              </option>
-                            ))}
-                        </select>
-                      </label>
-                    </td>
-                    <td>
+                    <td>{roleLabelFor(roleKey)}</td>
+                    <td className={styles["role-user-actions"]}>
                       <button
                         type="button"
                         className={styles["secondary-button"]}
                         onClick={() => openUserPermissionEditor(entry)}
                       >
-                        {entry.kind === "staff"
-                          ? entry.user.hasPermissionOverride
-                            ? "Edit permissions"
-                            : "Customize permissions"
-                          : "Preview permissions"}
+                        Manage
                       </button>
                     </td>
                   </tr>
                 );
               })}
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={4}>No users match your search.</td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
         <div className={styles.pagination}>
           <span>
-            {allUsers.length.toLocaleString()} accounts shown (
-            {data.total.toLocaleString()} staff,{" "}
+            {filtersActive
+              ? `${filteredUsers.length.toLocaleString()} of ${allUsers.length.toLocaleString()} accounts shown`
+              : `${allUsers.length.toLocaleString()} accounts shown`}{" "}
+            ({data.total.toLocaleString()} staff,{" "}
             {customersData.total.toLocaleString()} customers)
           </span>
+          <div>
+            <button
+              type="button"
+              disabled={currentUserPage <= 1}
+              onClick={() => setUserPage(currentUserPage - 1)}
+            >
+              Previous
+            </button>
+            <span>
+              Page {currentUserPage} of {userTotalPages}
+            </span>
+            <button
+              type="button"
+              disabled={currentUserPage >= userTotalPages}
+              onClick={() => setUserPage(currentUserPage + 1)}
+            >
+              Next
+            </button>
+          </div>
         </div>
       </section>
 
@@ -742,6 +786,32 @@ export default function ManageRolesPage() {
               </button>
             </div>
             <form onSubmit={saveUserPermissions}>
+              <label className={styles["role-select-field"]}>
+                Role
+                <select
+                  value={editingUserRoleKey}
+                  disabled={userPermissionSaving}
+                  onChange={(event) =>
+                    changeEditingUserRole(event.target.value)
+                  }
+                >
+                  {editingUser.kind === "customer" ? (
+                    <option value="customer">Customer</option>
+                  ) : null}
+                  {roleOrder.map((role) => (
+                    <option value={role} key={role}>
+                      {roleLabels[role]}
+                    </option>
+                  ))}
+                  {roleProfiles
+                    .filter((role) => role.isCustom)
+                    .map((role) => (
+                      <option value={role.key} key={role.key}>
+                        {role.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
               <div className={styles["permission-matrix"]}>
                 {permissionGroups.map(([group, permissions]) => (
                   <fieldset className={styles["permission-group"]} key={group}>
@@ -749,12 +819,8 @@ export default function ManageRolesPage() {
                       {formatPermission(`${group}.view`).split(" · ")[0]}
                     </legend>
                     {permissions.map((permission) => {
-                      const roleKey =
-                        editingUser.kind === "staff"
-                          ? editingUser.user.roleKey
-                          : editingUser.roleKey;
                       const locked =
-                        roleKey === AdminRole.SUPER_ADMIN &&
+                        editingUserRoleKey === AdminRole.SUPER_ADMIN &&
                         (permission === "settings.full" ||
                           permission === "user_management.view");
                       return (
@@ -782,9 +848,7 @@ export default function ManageRolesPage() {
                   </fieldset>
                 ))}
               </div>
-              {(editingUser.kind === "staff"
-                ? editingUser.user.roleKey
-                : editingUser.roleKey) === AdminRole.SUPER_ADMIN ? (
+              {editingUserRoleKey === AdminRole.SUPER_ADMIN ? (
                 <p className={styles["matrix-note"]}>
                   Super Admin accounts must retain full settings and
                   user-management view access.
@@ -794,27 +858,14 @@ export default function ManageRolesPage() {
                 {userPermissionMessage ? (
                   <span role="alert">{userPermissionMessage}</span>
                 ) : null}
-                {editingUser.kind === "staff" &&
-                editingUser.user.hasPermissionOverride ? (
-                  <button
-                    type="button"
-                    className={styles["secondary-button"]}
-                    disabled={userPermissionSaving}
-                    onClick={() => void resetUserPermissions()}
-                  >
-                    Use role permissions
-                  </button>
-                ) : null}
-                {editingUser.kind === "customer" ? (
-                  <button
-                    type="button"
-                    className={styles["secondary-button"]}
-                    disabled={userPermissionSaving}
-                    onClick={() => void resetUserPermissions()}
-                  >
-                    Use selected role permissions
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  className={styles["secondary-button"]}
+                  disabled={userPermissionSaving}
+                  onClick={() => changeEditingUserRole(editingUserRoleKey)}
+                >
+                  Use role permissions
+                </button>
                 <button
                   type="button"
                   className={styles["secondary-button"]}
