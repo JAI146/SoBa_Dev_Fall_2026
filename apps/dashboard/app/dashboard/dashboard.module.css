@@ -343,13 +343,6 @@
   margin: 0 18px;
   min-width: 0;
 }
-.filters.role-user-filters > :nth-child(3) {
-  grid-column: 4;
-}
-.filters.role-user-filters > :nth-child(4) {
-  grid-column: 3;
-  grid-row: 1;
-}
 .role-user-filters .search-field {
   width: auto;
 }
@@ -1249,11 +1242,6 @@
   .filters.role-user-filters {
     grid-template-columns: 1fr;
     row-gap: 12px;
-  }
-  .filters.role-user-filters > :nth-child(3),
-  .filters.role-user-filters > :nth-child(4) {
-    grid-column: auto;
-    grid-row: auto;
   }
   .pagination {
     align-items: flex-start;
