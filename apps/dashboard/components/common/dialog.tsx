@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useId, useRef } from "react";
 import styles from "@/app/dashboard/dashboard.module.css";
 
 export function Dialog({
@@ -8,16 +8,27 @@ export function Dialog({
   title,
   onClose,
   children,
+  className,
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  className?: string;
 }) {
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      const dialogs = document.querySelectorAll(
+        '[role="dialog"][aria-modal="true"]',
+      );
+      if (
+        event.key === "Escape" &&
+        dialogs.item(dialogs.length - 1) === dialogRef.current
+      )
+        onClose();
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
@@ -28,14 +39,15 @@ export function Dialog({
   return (
     <div className={styles["modal-overlay"]} onClick={onClose}>
       <div
-        className={styles["modal-card"]}
+        ref={dialogRef}
+        className={`${styles["modal-card"]} ${className ?? ""}`}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="dialog-title"
+        aria-labelledby={titleId}
         onClick={(event) => event.stopPropagation()}
       >
         <div className={styles["modal-heading"]}>
-          <h2 id="dialog-title" className={styles["modal-title"]}>
+          <h2 id={titleId} className={styles["modal-title"]}>
             {title}
           </h2>
           <button

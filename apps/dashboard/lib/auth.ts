@@ -1,4 +1,9 @@
 import type { AuthResponse } from "@purposemint/contracts";
+import {
+  activityKey,
+  SIGNED_OUT_EVENT,
+  SIGNED_OUT_KEY,
+} from "./session-activity";
 
 const TOKEN_KEY = "purposemint_access_token";
 const USER_KEY = "purposemint_user";
@@ -10,7 +15,7 @@ export type StoredUser = AuthResponse["user"];
 /** The subset of the account the chrome actually renders. */
 export type DashboardUser = Pick<
   StoredUser,
-  "firstName" | "lastName" | "email" | "profileImageUrl"
+  "id" | "firstName" | "lastName" | "email" | "profileImageUrl"
 >;
 
 function readStorageValue(key: string): string | null {
@@ -39,17 +44,39 @@ export function saveAuth(
   rememberSession: boolean,
 ): void {
   if (typeof window === "undefined") return;
-  clearAuth();
+  for (const storage of [localStorage, sessionStorage]) {
+    storage.removeItem(TOKEN_KEY);
+    storage.removeItem(USER_KEY);
+  }
   const storage = rememberSession ? localStorage : sessionStorage;
   storage.setItem(TOKEN_KEY, data.accessToken);
   storage.setItem(USER_KEY, JSON.stringify(data.user));
+  localStorage.setItem(activityKey(data.user.id), String(Date.now()));
+}
+
+export function updateAuth(
+  data: Pick<AuthResponse, "user" | "accessToken">,
+  previousToken: string,
+): boolean {
+  if (getToken() !== previousToken) return false;
+  const storage = localStorage.getItem(TOKEN_KEY)
+    ? localStorage
+    : sessionStorage;
+  storage.setItem(TOKEN_KEY, data.accessToken);
+  storage.setItem(USER_KEY, JSON.stringify(data.user));
+  return true;
 }
 
 export function clearAuth(): void {
   if (typeof window === "undefined") return;
+  const hadToken = Boolean(getToken());
   for (const storage of [localStorage, sessionStorage]) {
     storage.removeItem(TOKEN_KEY);
     storage.removeItem(USER_KEY);
+  }
+  if (hadToken) {
+    localStorage.setItem(SIGNED_OUT_KEY, String(Date.now()));
+    window.dispatchEvent(new Event(SIGNED_OUT_EVENT));
   }
 }
 

@@ -114,7 +114,10 @@ export class UsersService {
     return this.usersRepo.save(user);
   }
 
-  async updatePasswordHash(userId: string, passwordHash: string): Promise<void> {
+  async updatePasswordHash(
+    userId: string,
+    passwordHash: string,
+  ): Promise<void> {
     await this.usersRepo.update(userId, { passwordHash });
   }
 
@@ -154,13 +157,42 @@ export class UsersService {
     userId: string,
     input: UpdateNotificationPreferencesInput,
   ): Promise<UserPublic> {
-    const user = await this.getByIdOrFail(userId);
-    user.notificationPreferences = {
-      ...DEFAULT_NOTIFICATION_PREFERENCES,
-      ...user.notificationPreferences,
-      ...input,
-    };
-    return toPublicUser(await this.usersRepo.save(user));
+    return this.usersRepo.manager.transaction(async (manager) => {
+      const user = await manager.findOne(User, {
+        where: { id: userId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!user) throw new NotFoundException('User not found.');
+      const storage = user.notificationPreferences as unknown as Record<
+        string,
+        unknown
+      >;
+      const settings = storage.categorySettings as
+        | { categories?: Record<string, { push: boolean; email: boolean }> }
+        | undefined;
+      const mapping: Record<string, string> = {
+        productUpdates: 'product_communications',
+        goalReminders: 'goals',
+        weeklyCheckIn: 'weekly_savings',
+      };
+      if (settings?.categories)
+        for (const [key, value] of Object.entries(input)) {
+          if (mapping[key])
+            settings.categories[mapping[key]] = { push: value, email: value };
+        }
+      user.notificationPreferences = {
+        ...DEFAULT_NOTIFICATION_PREFERENCES,
+        ...user.notificationPreferences,
+        ...input,
+        securityAlerts: true,
+      };
+      await manager.update(
+        User,
+        { id: userId },
+        { notificationPreferences: user.notificationPreferences },
+      );
+      return toPublicUser(user);
+    });
   }
 
   async recordPolicyAgreement(
@@ -213,8 +245,7 @@ export class UsersService {
     });
 
     return {
-      deleteAccountRequestedAt:
-        saved.deleteAccountRequestedAt!.toISOString(),
+      deleteAccountRequestedAt: saved.deleteAccountRequestedAt!.toISOString(),
       message:
         "We've noted your request. Your account stays as it is until we finish it, and you can cancel any time before then.",
     };
@@ -238,7 +269,7 @@ export class UsersService {
 
     return {
       deleteAccountRequestedAt: null,
-      message: "Good to have you staying. Nothing has changed on your account.",
+      message: 'Good to have you staying. Nothing has changed on your account.',
     };
   }
 }

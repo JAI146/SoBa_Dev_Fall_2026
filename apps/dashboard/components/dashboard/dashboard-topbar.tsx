@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import type { DashboardUser } from "@/lib/auth";
 import styles from "../../app/dashboard/dashboard.module.css";

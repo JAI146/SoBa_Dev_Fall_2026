@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { planKeySchema } from "./subscription-management";
 import {
   checklistCategoryValues,
   adminRoleValues,
@@ -14,6 +15,12 @@ import {
 import { adminPermissionValues } from "./permissions";
 import { paginationQuerySchema } from "./api-error";
 import { onboardingProgressSchema, valuePublicSchema } from "./onboarding";
+import {
+  goalHistoryEntrySchema,
+  habitProgressSchema,
+  goalSavingsProgressSchema,
+  overallUserProgressSchema,
+} from "./progress";
 
 const isoDate = z.string().datetime();
 
@@ -58,6 +65,17 @@ export const adminUserStatusUpdateSchema = z.object({
   status: z.enum([UserStatus.ACTIVE, UserStatus.SUSPENDED] as const),
 });
 
+export const adminStaffRoleUpdateSchema = z.object({
+  roleKey: z.union([
+    z.enum(adminRoleValues),
+    z
+      .string()
+      .regex(
+        /^custom:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      ),
+  ]),
+});
+
 export const adminPathwayApplicationsQuerySchema = paginationQuerySchema.extend(
   {
     pathwayKey: z.string().trim().max(100).optional(),
@@ -86,7 +104,7 @@ export const adminOverviewResponseSchema = z.object({
   submittedPathwayApplications: z.number().int().min(0),
   pathwayApplicationsByPathway: z.array(adminCountGroupSchema),
   upgradeIntentsByPlan: z.array(
-    adminCountGroupSchema.extend({ key: z.enum(tierValues) }),
+    adminCountGroupSchema.extend({ key: planKeySchema }),
   ),
   activeUsers: z.object({
     count: z.number().int().min(0),
@@ -132,6 +150,16 @@ export const adminStaffListItemSchema = z.object({
   lastName: z.string(),
   email: z.string().email(),
   adminRole: z.enum(adminRoleValues),
+  roleKey: z.union([
+    z.enum(adminRoleValues),
+    z
+      .string()
+      .regex(
+        /^custom:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      ),
+  ]),
+  permissions: z.array(z.enum(adminPermissionValues)),
+  hasPermissionOverride: z.boolean(),
   status: z.enum(["active", "suspended"] as const),
   emailVerifiedAt: isoDate.nullable(),
   createdAt: isoDate,
@@ -149,7 +177,8 @@ export const adminCustomRoleCreateSchema = z.object({
   permissions: z.array(z.enum(adminPermissionValues)).min(1),
 });
 
-export const adminCustomRoleUpdateSchema = adminCustomRoleCreateSchema.partial();
+export const adminCustomRoleUpdateSchema =
+  adminCustomRoleCreateSchema.partial();
 
 export const adminCustomRoleSchema = z.object({
   id: z.string().uuid(),
@@ -167,6 +196,26 @@ export const adminCustomRolesResponseSchema = z.object({
 /** The signed-in admin's effective permissions (custom role or built-in). */
 export const adminMyPermissionsResponseSchema = z.object({
   permissions: z.array(z.enum(adminPermissionValues)),
+});
+
+export const adminRolePermissionProfileSchema = z.object({
+  key: z.string(),
+  name: z.string(),
+  description: z.string(),
+  isCustom: z.boolean(),
+  permissions: z.array(z.enum(adminPermissionValues)),
+});
+
+export const adminRolePermissionProfilesResponseSchema = z.object({
+  items: z.array(adminRolePermissionProfileSchema),
+});
+
+export const adminRolePermissionsUpdateSchema = z.object({
+  permissions: z.array(z.enum(adminPermissionValues)),
+});
+
+export const adminStaffPermissionsUpdateSchema = z.object({
+  permissions: z.array(z.enum(adminPermissionValues)).nullable(),
 });
 
 export const adminUsersResponseSchema = z.object({
@@ -257,6 +306,7 @@ export const adminUserHabitSchema = z.object({
   category: z.enum(habitCategoryValues),
   isActive: z.boolean(),
   createdAt: isoDate,
+  progress: habitProgressSchema,
 });
 
 export const adminApplicantSchema = z.object({
@@ -302,6 +352,10 @@ export const adminUserDetailResponseSchema = adminUserListItemSchema.extend({
   currentLevel: z.number().int().nullable(),
   goals: z.array(adminUserGoalSchema),
   habits: z.array(adminUserHabitSchema),
+  goalHistory: z.array(goalHistoryEntrySchema),
+  goalHistoryTruncated: z.boolean(),
+  savingsProgress: z.array(goalSavingsProgressSchema),
+  overallProgress: overallUserProgressSchema,
   pathwayApplications: z.array(adminPathwayApplicationListItemSchema),
   values: z.array(valuePublicSchema),
   onboardingProgress: onboardingProgressSchema,
@@ -342,6 +396,10 @@ export const adminChecklistItemSchema = z.object({
 });
 
 export const adminPathwayApplicationDetailResponseSchema = z.object({
+  canManage: z.boolean(),
+  membershipEligible: z.boolean(),
+  savingsEligible: z.boolean(),
+  pathwayActive: z.boolean(),
   id: z.string().uuid(),
   applicant: adminApplicantSchema,
   pathway: adminPathwaySummarySchema,
@@ -359,13 +417,13 @@ export const adminPathwayApplicationDetailResponseSchema = z.object({
 export const adminUpgradeIntentSchema = z.object({
   id: z.string().uuid(),
   user: adminApplicantSchema,
-  planKey: z.enum(tierValues),
+  planKey: planKeySchema,
   planName: z.string(),
   createdAt: isoDate,
 });
 
 export const adminUpgradeIntentsResponseSchema = z.object({
-  groups: z.array(adminCountGroupSchema.extend({ key: z.enum(tierValues) })),
+  groups: z.array(adminCountGroupSchema.extend({ key: planKeySchema })),
   items: z.array(adminUpgradeIntentSchema),
   ...paginationFields,
 });
@@ -377,12 +435,33 @@ export type AdminStaffUpdateInput = z.infer<typeof adminStaffUpdateSchema>;
 export type AdminUserStatusUpdateInput = z.infer<
   typeof adminUserStatusUpdateSchema
 >;
+export type AdminStaffRoleUpdateInput = z.infer<
+  typeof adminStaffRoleUpdateSchema
+>;
+export type AdminStaffPermissionsUpdateInput = z.infer<
+  typeof adminStaffPermissionsUpdateSchema
+>;
 export type AdminStaffListItem = z.infer<typeof adminStaffListItemSchema>;
 export type AdminStaffResponse = z.infer<typeof adminStaffResponseSchema>;
-export type AdminCustomRoleCreateInput = z.infer<typeof adminCustomRoleCreateSchema>;
-export type AdminCustomRoleUpdateInput = z.infer<typeof adminCustomRoleUpdateSchema>;
+export type AdminCustomRoleCreateInput = z.infer<
+  typeof adminCustomRoleCreateSchema
+>;
+export type AdminCustomRoleUpdateInput = z.infer<
+  typeof adminCustomRoleUpdateSchema
+>;
 export type AdminCustomRole = z.infer<typeof adminCustomRoleSchema>;
-export type AdminCustomRolesResponse = z.infer<typeof adminCustomRolesResponseSchema>;
+export type AdminCustomRolesResponse = z.infer<
+  typeof adminCustomRolesResponseSchema
+>;
+export type AdminRolePermissionProfile = z.infer<
+  typeof adminRolePermissionProfileSchema
+>;
+export type AdminRolePermissionProfilesResponse = z.infer<
+  typeof adminRolePermissionProfilesResponseSchema
+>;
+export type AdminRolePermissionsUpdateInput = z.infer<
+  typeof adminRolePermissionsUpdateSchema
+>;
 export type AdminMyPermissionsResponse = z.infer<
   typeof adminMyPermissionsResponseSchema
 >;

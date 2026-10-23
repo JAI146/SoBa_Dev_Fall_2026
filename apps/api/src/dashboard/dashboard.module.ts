@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuditModule } from '../audit/audit.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HabitCompletion } from '../entities/habit-completion.entity';
 import { GoalTemplate } from '../entities/goal-template.entity';
@@ -20,9 +21,11 @@ import { ReflectionsModule } from '../reflections/reflections.module';
 import { Pathway } from '../entities/pathway.entity';
 import { PathwayApplication } from '../entities/pathway-application.entity';
 import { CommunityChallengesModule } from '../community-challenges/community-challenges.module';
+import { BadgesModule } from '../badges/badges.module';
 
 @Module({
   imports: [
+    AuditModule,
     TypeOrmModule.forFeature([
       UserValue,
       GoalTemplate,
@@ -38,6 +41,7 @@ import { CommunityChallengesModule } from '../community-challenges/community-cha
     UsersModule,
     ReflectionsModule,
     CommunityChallengesModule,
+    BadgesModule,
   ],
   controllers: [
     DashboardController,

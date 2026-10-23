@@ -76,6 +76,77 @@
   width: 19px;
   height: 19px;
 }
+/* A sidebar item with pages under it: the link and a chevron toggle share a
+   row, and the pages sit indented below. */
+.sidebar-group {
+  display: grid;
+  gap: 5px;
+}
+.sidebar-group-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sidebar-group-row > a {
+  min-width: 0;
+  flex: 1;
+}
+/* One of the group's pages is open: quieter than the active style. */
+.sidebar-nav a.sidebar-section-active {
+  color: #047857;
+}
+.sidebar-group-toggle {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+.sidebar-group-toggle:hover:not(:disabled) {
+  background: #f3f4f6;
+  color: #111827;
+}
+.sidebar-group-toggle:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
+}
+.sidebar-group-toggle:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.sidebar-nav-chevron {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.15s ease;
+}
+.sidebar-group-toggle[aria-expanded="true"] .sidebar-nav-chevron {
+  transform: rotate(180deg);
+}
+.sidebar-subnav {
+  display: grid;
+  gap: 2px;
+  margin-left: 21px;
+  border-left: 1px solid #e5e7eb;
+  padding-left: 10px;
+}
+.sidebar-subnav[hidden] {
+  display: none;
+}
+.sidebar-nav .sidebar-subnav a {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.sidebar-nav a:focus-visible,
+.sidebar-logout:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
+}
 .sidebar-footer {
   margin-top: auto;
   border-top: 1px solid #f0f1f3;
@@ -220,7 +291,7 @@
 }
 .overview-grid {
   display: grid;
-  grid-template-columns: 1.25fr 1fr;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
   gap: 16px;
   margin-top: 16px;
 }
@@ -240,6 +311,216 @@
 .card-heading h2 {
   margin-top: 4px;
   font-size: 20px;
+}
+.role-profile-list {
+  display: grid;
+}
+.role-profile-heading {
+  align-items: flex-end;
+  padding: 0 36px 0 18px;
+}
+.role-create-button {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #047857;
+  border-radius: 8px;
+  background: #047857;
+  padding: 8px 12px;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.role-create-button:hover {
+  background: #065f46;
+}
+.role-profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-top: 1px solid #f0f1f3;
+  padding: 14px 18px;
+}
+.role-profile-row > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+.role-profile-row strong {
+  color: #111827;
+  font-size: 14px;
+}
+.role-profile-row span,
+.role-profile-row small {
+  color: #6b7280;
+  font-size: 12px;
+}
+.secondary-button,
+.dialog-actions button[type="submit"] {
+  min-height: 38px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px 12px;
+  color: #374151;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.role-profile-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.role-delete-button {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #6b7280;
+  cursor: pointer;
+}
+.role-delete-button:hover {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+}
+.role-delete-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.role-delete-button svg {
+  width: 16px;
+  height: 16px;
+}
+.role-list-message {
+  border-top: 1px solid #f0f1f3;
+  padding: 12px 18px;
+  color: #6b7280;
+  font-size: 12px;
+}
+.role-user-list {
+  margin-top: 20px;
+}
+.role-user-status > span {
+  display: block;
+}
+.role-user-status > .badge {
+  margin-left: -9px;
+}
+.role-user-status > span + span {
+  margin-top: 4px;
+}
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  background: rgba(17, 24, 39, 0.48);
+  padding: 24px;
+}
+.role-permission-dialog {
+  width: min(900px, 100%);
+  max-height: min(850px, calc(100vh - 48px));
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  padding: 24px;
+  box-shadow: 0 24px 70px rgba(17, 24, 39, 0.24);
+}
+.role-permission-dialog .card-heading {
+  align-items: flex-start;
+}
+.role-permission-dialog .card-heading p:not(.eyebrow) {
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 13px;
+}
+.icon-button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #4b5563;
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+}
+.permission-matrix {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.permission-group {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-width: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+  padding: 12px;
+}
+.permission-group legend {
+  padding: 0 4px;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 750;
+}
+.permission-group label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #4b5563;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.permission-group input {
+  margin: 2px 0 0;
+  accent-color: #047857;
+}
+.matrix-note {
+  margin-top: 12px;
+  color: #6b7280;
+  font-size: 12px;
+}
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+.dialog-actions > span {
+  flex: 1 1 100%;
+  color: #b91c1c;
+  font-size: 12px;
+}
+.dialog-actions button[type="submit"] {
+  border-color: #047857;
+  background: #047857;
+  color: #fff;
+}
+.dialog-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 .role-form {
   display: grid;
@@ -955,6 +1236,18 @@
 }
 
 @media (max-width: 720px) {
+  .permission-matrix {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .role-permission-dialog {
+    padding: 18px;
+  }
+  .role-profile-row {
+    align-items: flex-start;
+  }
+  .role-profile-actions {
+    flex: 0 0 auto;
+  }
   .sidebar {
     position: static;
     width: 100%;
@@ -972,6 +1265,9 @@
   }
   .sidebar-nav {
     grid-template-columns: 1fr 1fr;
+  }
+  .sidebar-group {
+    grid-column: 1 / -1;
   }
   .main-content {
     margin-left: 0;
@@ -1006,5 +1302,31 @@
   .detail-grid,
   .record-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Keep wide tables inside their grid cards instead of widening the page. */
+.main-content, .dashboard-page, .panel, .table-wrap, .stacked-panels { min-width: 0; }
+.stacked-panels { grid-template-columns: minmax(0, 1fr); }
+.overview-grid > *, .stacked-panels > * { min-width: 0; }
+.table-wrap { max-width: 100%; }
+@media (max-width: 480px) {
+  .dialog-backdrop {
+    place-items: start center;
+    padding: 10px;
+  }
+  .role-permission-dialog {
+    max-height: calc(100vh - 20px);
+    padding: 14px;
+  }
+  .permission-matrix {
+    grid-template-columns: 1fr;
+  }
+  .role-profile-row {
+    flex-direction: column;
+  }
+  .role-profile-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 }

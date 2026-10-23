@@ -36,6 +36,7 @@ export const userHabitPublicSchema = z.object({
   iconEmoji: z.string(),
   isActive: z.boolean(),
   completedToday: z.boolean(),
+  // isPaused: z.boolean().default(false),
 });
 
 export type UserHabitPublic = z.infer<typeof userHabitPublicSchema>;

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { OnboardingStatus, Tier } from '@purposemint/contracts';
+import { OnboardingStatus } from '@purposemint/contracts';
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -27,6 +27,7 @@ import { QueryErrorState } from '@/components/QueryErrorState';
 import { theme } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDashboard } from '@/hooks/use-dashboard';
+import { useSubscriptionPlans } from '@/hooks/use-subscriptions';
 import { postAuthHref } from '@/lib/auth/post-auth-href';
 import { formatUsdExact } from '@/lib/format/money';
 
@@ -36,7 +37,7 @@ const TOOLS: {
   title: string;
   sub: string;
   state: 'display' | 'functional' | 'locked';
-  requires: 'none' | 'momentum' | 'elevation';
+  requires: 'none' | 'unsupported' | 'pathways';
   icon: IoniconName;
 }[] = [
   {
@@ -69,16 +70,16 @@ const TOOLS: {
   },
   {
     title: 'Open an account',
-    sub: 'Momentum opens a partner-bank account',
+    sub: 'Not available yet',
     state: 'locked',
-    requires: 'momentum',
+    requires: 'unsupported',
     icon: 'wallet-outline',
   },
   {
     title: 'Level 5: Pathways',
-    sub: 'Elevation unlocks car, home, or training',
+    sub: 'Car, home, or training',
     state: 'locked',
-    requires: 'elevation',
+    requires: 'pathways',
     icon: 'map-outline',
   },
   {
@@ -92,6 +93,7 @@ const TOOLS: {
 
 export default function DashboardScreen() {
   const { session } = useAuth();
+  const membership = useSubscriptionPlans();
   const {
     completeHabit,
     createGoal,
@@ -110,22 +112,31 @@ export default function DashboardScreen() {
   const [changeOpen, setChangeOpen] = useState(false);
   const [moodOpen, setMoodOpen] = useState(false);
 
-  if (!session || session.user.onboardingStatus !== OnboardingStatus.COMPLETED) {
+  if (
+    !session ||
+    session.user.onboardingStatus !== OnboardingStatus.COMPLETED
+  ) {
     return <Redirect href={postAuthHref(session?.user)} />;
   }
 
-  if (isError) {
+  if (isError || membership.isError) {
     return (
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <QueryErrorState
-          message={error instanceof Error ? error.message : 'Please try again.'}
-          onRetry={() => void refetch()}
+          message={
+            membership.error?.message ??
+            (error instanceof Error ? error.message : 'Please try again.')
+          }
+          onRetry={() => {
+            void refetch();
+            void membership.refetch();
+          }}
         />
       </SafeAreaView>
     );
   }
 
-  if (isLoading || !data) {
+  if (isLoading || !data || membership.isLoading || !membership.data) {
     return (
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <View style={styles.loading}>
@@ -137,12 +148,14 @@ export default function DashboardScreen() {
 
   const focus = data.focusGoal;
   const headline = data.primaryValue?.headlineWord;
+  const hasPathways = membership.data.currentSubscription.entitlements.pathways;
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.heading}>{data.displayName}'s Dashboard</Text>
         <Text style={styles.sub}>
           You're building toward{' '}
@@ -156,8 +169,14 @@ export default function DashboardScreen() {
 
         <View style={styles.pills}>
           <QuickPill label="Update Goals" onPress={() => setChangeOpen(true)} />
-          <QuickPill label="Update Habits" onPress={() => router.push('/manage-habits')} />
-          <QuickPill label="Edit Values" onPress={() => router.push('/edit-values')} />
+          <QuickPill
+            label="Update Habits"
+            onPress={() => router.push('/manage-habits')}
+          />
+          <QuickPill
+            label="Edit Values"
+            onPress={() => router.push('/edit-values')}
+          />
         </View>
 
         <View style={styles.card}>
@@ -165,18 +184,22 @@ export default function DashboardScreen() {
             <>
               <View style={styles.rowBetween}>
                 <Text style={styles.sectionTitle}>
-                  Progress: {focus.progressPercent}% towards {formatUsdExact(focus.targetAmount)}
+                  Progress: {focus.progressPercent}% towards{' '}
+                  {formatUsdExact(focus.targetAmount)}
                 </Text>
-                <Text style={styles.savedHero}>{formatUsdExact(focus.savedAmount)}</Text>
+                <Text style={styles.savedHero}>
+                  {formatUsdExact(focus.savedAmount)}
+                </Text>
               </View>
               <AnimatedProgressBar progress={focus.progressPercent / 100} />
               <Text style={styles.muted}>
-                {formatUsdExact(focus.savedAmount)} saved · {formatUsdExact(focus.remainingAmount)} left to
-                reach your {formatUsdExact(focus.targetAmount)} goal
+                {formatUsdExact(focus.savedAmount)} saved ·{' '}
+                {formatUsdExact(focus.remainingAmount)} left to reach your{' '}
+                {formatUsdExact(focus.targetAmount)} goal
               </Text>
               <Text style={styles.italic}>
-                You log these amounts yourself on Starter. Nothing is withdrawn from a bank
-                account.
+                You log these amounts yourself. Nothing is withdrawn
+                from a bank account.
               </Text>
               <View style={styles.currentGoal}>
                 <Text style={styles.goalEmoji}>{focus.iconEmoji}</Text>
@@ -188,25 +211,40 @@ export default function DashboardScreen() {
                   accessibilityLabel="Change"
                   accessibilityRole="button"
                   onPress={() => setChangeOpen(true)}
-                  style={styles.changeButton}>
+                  style={styles.changeButton}
+                >
                   <Text style={styles.changeText}>Change</Text>
                 </Pressable>
               </View>
             </>
           ) : (
             <>
-              <Text style={styles.sectionTitle}>Progress: start when you're ready</Text>
+              <Text style={styles.sectionTitle}>
+                Progress: start when you're ready
+              </Text>
               <AnimatedProgressBar progress={0} />
               <Text style={styles.italic}>
-                Start with habits for now. When you're ready, pick a savings goal and log what you
-                set aside.
+                Start with habits for now. When you're ready, pick a savings
+                goal and log what you set aside.
               </Text>
             </>
           )}
         </View>
 
         <CommunityChallengeCard
-          challenge={data.communityChallenge}
+          challenge={
+            data.communityChallenge
+              ? {
+                  ...data.communityChallenge,
+                  viewerState: data.communityChallenge.joinedAt
+                    ? 'joined'
+                    : membership.data.currentSubscription.entitlements
+                          .communityChallenges
+                      ? 'eligible'
+                      : 'read_only',
+                }
+              : null
+          }
           joining={joiningChallenge}
           onJoin={joinChallenge}
           onViewPlans={() => router.push('/pricing')}
@@ -215,7 +253,14 @@ export default function DashboardScreen() {
         <View style={styles.card}>
           <View style={styles.rowBetween}>
             <Text style={styles.sectionTitle}>Today's Habits</Text>
-            <Pressable accessibilityLabel="Edit Habits" accessibilityRole="button" onPress={() => router.push('/manage-habits')} style={styles.changeButton}><Text style={styles.changeText}>Edit Habits</Text></Pressable>
+            <Pressable
+              accessibilityLabel="Edit Habits"
+              accessibilityRole="button"
+              onPress={() => router.push('/manage-habits')}
+              style={styles.changeButton}
+            >
+              <Text style={styles.changeText}>Edit Habits</Text>
+            </Pressable>
           </View>
           {data.habits.map((habit) => (
             <HabitCheckCard
@@ -231,7 +276,8 @@ export default function DashboardScreen() {
             accessibilityLabel="Log $5 you saved"
             accessibilityRole="button"
             onPress={() => setLogOpen(true)}
-            style={styles.logSavings}>
+            style={styles.logSavings}
+          >
             <Text style={styles.logSavingsTitle}>Log $5 you saved</Text>
             <Text style={styles.logSavingsSub}>
               Manual entry — no money moves in or out of any bank
@@ -258,7 +304,7 @@ export default function DashboardScreen() {
         <ReflectionJourneyCard reflection={data.reflection} />
         <WaysToSaveCard onViewPlans={() => router.push('/pricing')} />
         <PathwayProgressCard
-          isElevation={data.user.tier === Tier.ELEVATE}
+          hasPathways={hasPathways}
           items={data.pathwayProgress}
           onOpenPathways={() => router.push('/(pathways)')}
           onViewPlans={() => router.push('/pricing')}
@@ -267,18 +313,13 @@ export default function DashboardScreen() {
         <View style={styles.card}>
           <Text style={styles.toolsEyebrow}>YOUR TOOLS</Text>
           <Text style={styles.muted}>
-            You're on Starter (free): build the habit and log what you save by hand. Momentum opens
-            your PurposeMint account so saving happens automatically. Elevation unlocks Level 5
-            Pathways.
+            Your plan: {membership.data.currentSubscription.planName}.
           </Text>
           <View style={styles.toolsGrid}>
             {TOOLS.map((tool) => {
-              const hasMomentum =
-                data.user.tier === Tier.GROWTH || data.user.tier === Tier.ELEVATE;
-              const hasElevation = data.user.tier === Tier.ELEVATE;
               const locked =
-                (tool.requires === 'momentum' && !hasMomentum) ||
-                (tool.requires === 'elevation' && !hasElevation);
+                tool.requires === 'unsupported' ||
+                (tool.requires === 'pathways' && !hasPathways);
               const onPress =
                 tool.title === 'Daily check-in'
                   ? () => setMoodOpen(true)
@@ -286,12 +327,10 @@ export default function DashboardScreen() {
                     ? () => setLogOpen(true)
                     : tool.title === 'Level 5: Pathways'
                       ? () =>
-                          hasElevation
+                          hasPathways
                             ? router.push('/(pathways)')
                             : router.push('/pricing')
-                      : tool.title === 'Open an account' && locked
-                        ? () => router.push('/pricing')
-                    : undefined;
+                      : undefined;
               return (
                 <Pressable
                   accessibilityLabel={
@@ -301,11 +340,20 @@ export default function DashboardScreen() {
                   disabled={!onPress}
                   key={tool.title}
                   onPress={onPress}
-                  style={[styles.toolCard, locked && styles.toolLocked]}>
+                  style={[styles.toolCard, locked && styles.toolLocked]}
+                >
                   <View style={styles.toolHeader}>
-                    <Ionicons color={theme.colors.deepGreen} name={tool.icon} size={18} />
+                    <Ionicons
+                      color={theme.colors.deepGreen}
+                      name={tool.icon}
+                      size={18}
+                    />
                     {locked ? (
-                      <Ionicons color={theme.colors.deepGreen} name="lock-closed" size={14} />
+                      <Ionicons
+                        color={theme.colors.deepGreen}
+                        name="lock-closed"
+                        size={14}
+                      />
                     ) : null}
                   </View>
                   <Text style={styles.toolTitle}>{tool.title}</Text>
@@ -317,15 +365,21 @@ export default function DashboardScreen() {
           <View
             accessibilityLabel="See More Tools. Monthly reflections, planners, coaching & more"
             accessibilityRole="text"
-            style={styles.moreTools}>
+            style={styles.moreTools}
+          >
             <Text style={styles.moreToolsTitle}>See More Tools</Text>
-            <Text style={styles.muted}>Monthly reflections, planners, coaching & more</Text>
+            <Text style={styles.muted}>
+              Monthly reflections, planners, coaching & more
+            </Text>
           </View>
           <View
             accessibilityLabel="Lead Challenges for Your Community. Open the Community Challenge Board and save alongside your group"
             accessibilityRole="text"
-            style={styles.leadChallenges}>
-            <Text style={styles.leadTitle}>Lead Challenges for Your Community</Text>
+            style={styles.leadChallenges}
+          >
+            <Text style={styles.leadTitle}>
+              Lead Challenges for Your Community
+            </Text>
             <Text style={styles.muted}>
               Open the Community Challenge Board and save alongside your group
             </Text>
@@ -341,12 +395,19 @@ export default function DashboardScreen() {
           </Text>
         </View>
         <Pressable
-          accessibilityLabel={data.user.tier === Tier.ELEVATE ? 'Unlock Pathways' : 'Unlock Pathways. Requires Elevation'}
+          accessibilityLabel={
+            hasPathways ? 'Open Pathways' : 'View plans with Pathways'
+          }
           accessibilityRole="button"
-          onPress={() => data.user.tier === Tier.ELEVATE ? router.push('/(pathways)') : router.push('/pricing')}
-          style={styles.unlockButton}>
+          onPress={() =>
+            hasPathways ? router.push('/(pathways)') : router.push('/pricing')
+          }
+          style={styles.unlockButton}
+        >
           <Ionicons color={theme.colors.white} name="lock-closed" size={14} />
-          <Text style={styles.unlockText}>Unlock Pathways</Text>
+          <Text style={styles.unlockText}>
+            {hasPathways ? 'Open Pathways' : 'View plans'}
+          </Text>
         </Pressable>
       </View>
 
@@ -379,7 +440,8 @@ function QuickPill({ label, onPress }: { label: string; onPress: () => void }) {
       accessibilityLabel={label}
       accessibilityRole="button"
       onPress={onPress}
-      style={styles.pill}>
+      style={styles.pill}
+    >
       <Text style={styles.pillText}>{label}</Text>
     </Pressable>
   );

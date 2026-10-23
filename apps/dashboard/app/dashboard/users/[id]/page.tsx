@@ -1,4 +1,6 @@
 "use client";
+import detail from "@/components/dashboard/user-detail.module.css";
+import { UserSavingsProgress } from "@/components/dashboard/user-savings-progress";
 
 import {
   AdminPermission,
@@ -36,6 +38,8 @@ import {
 import { apiRequest } from "@/lib/api-client";
 import { useAdminQuery } from "@/lib/use-admin-query";
 import styles from "../../dashboard.module.css";
+import { UserBehaviorProgress } from "@/components/dashboard/user-behavior-progress";
+import { UserGoalHistory } from "@/components/dashboard/user-goal-history";
 import { UserIncentives } from "@/features/incentives/user-incentives";
 import { getStoredUser, getToken } from "@/lib/auth";
 import { AdminRole } from "@purposemint/contracts";
@@ -104,7 +108,7 @@ export default function UserDetailPage() {
   };
 
   return (
-    <main className={styles["dashboard-page"]}>
+    <main className={`${styles["dashboard-page"]} ${detail.page}`}>
       <Link className={styles["back-link"]} href="/dashboard/users">
         Back to users
       </Link>
@@ -143,8 +147,11 @@ export default function UserDetailPage() {
       </section>
 
       <UserGoalSummary goals={user.goals} />
+      <section className={styles["stacked-panels"]}>
+        <UserSavingsProgress user={user} />
+      </section>
 
-      <section className={styles["overview-grid"]}>
+      <section className={`${styles["overview-grid"]} ${detail.accountGrid}`}>
         <article className={styles.panel}>
           <div className={styles["panel-heading"]}>
             <div>
@@ -229,7 +236,9 @@ export default function UserDetailPage() {
               <dt>Purpose</dt>
               <dd>
                 {user.values.length ? (
-                  <span className={styles["badge-list"]}>
+                  <span
+                    className={`${styles["badge-list"]} ${detail.purposeValues}`}
+                  >
                     {user.values.map((value) => (
                       <span key={value.key} className={styles.badge}>
                         {value.label}
@@ -280,7 +289,7 @@ export default function UserDetailPage() {
             </div>
           ) : null}
         </article>
-        <article className={styles.panel}>
+        <article className={`${styles.panel} ${detail.activity}`}>
           <div className={styles["panel-heading"]}>
             <div>
               <h2>Activity summary</h2>
@@ -293,7 +302,7 @@ export default function UserDetailPage() {
               <dd>{user.activityCounts.activeGoals}</dd>
             </div>
             <div>
-              <dt>Active habits</dt>
+              <dt>Selected habits</dt>
               <dd>{user.activityCounts.activeHabits}</dd>
             </div>
             <div>
@@ -314,7 +323,9 @@ export default function UserDetailPage() {
 
       <section className={styles["stacked-panels"]}>
         {/* Fetch benefits separately so this profile does not depend on the incentives API. */}
-        {getStoredUser()?.adminRole === AdminRole.SUPER_ADMIN ? <UserIncentives userId={id} /> : null}
+        {getStoredUser()?.adminRole === AdminRole.SUPER_ADMIN ? (
+          <UserIncentives userId={id} />
+        ) : null}
         <article className={styles.panel}>
           <div className={styles["panel-heading"]}>
             <div>
@@ -412,47 +423,8 @@ export default function UserDetailPage() {
             </table>
           </div>
         </article>
-        <article className={styles.panel}>
-          <div className={styles["panel-heading"]}>
-            <div>
-              <h2>Habits</h2>
-              <p>Selected habit templates</p>
-            </div>
-          </div>
-          <div className={styles["table-wrap"]}>
-            <table className={styles["data-table"]}>
-              <thead>
-                <tr>
-                  <th>Habit</th>
-                  <th>Frequency</th>
-                  <th>Category</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {user.habits.map((habit) => (
-                  <tr key={habit.id}>
-                    <td>
-                      <strong>{habit.title}</strong>
-                    </td>
-                    <td>{formatEnum(habit.frequency)}</td>
-                    <td>{formatEnum(habit.category)}</td>
-                    <td>{habit.isActive ? "Active" : "Inactive"}</td>
-                    <td>{formatAdminDate(habit.createdAt, user.timeZone)}</td>
-                  </tr>
-                ))}
-                {user.habits.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className={styles.empty}>
-                      No habits recorded.
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-        </article>
+        <UserGoalHistory user={user} />
+        <UserBehaviorProgress habits={user.habits} timeZone={user.timeZone} />
         <article className={styles.panel}>
           <div className={styles["panel-heading"]}>
             <div>
@@ -479,7 +451,9 @@ export default function UserDetailPage() {
                     </td>
                     <td>
                       {formatMoney(application.attestedAmount)}
-                      <span>{formatEnum(application.verificationMethod)}</span>
+                      <span className={detail.secondary}>
+                        {formatEnum(application.verificationMethod)}
+                      </span>
                     </td>
                     <td>
                       {application.checklistProgress.completed} of{" "}

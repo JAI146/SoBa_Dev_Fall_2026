@@ -25,6 +25,9 @@ import {
   AdminChecklistUpdateDto,
   AdminCustomRoleCreateDto,
   AdminCustomRoleUpdateDto,
+  AdminRolePermissionsUpdateDto,
+  AdminStaffPermissionsUpdateDto,
+  AdminStaffRoleUpdateDto,
   AdminStaffCreateDto,
   AdminStaffQueryDto,
   AdminStaffUpdateDto,
@@ -198,6 +201,39 @@ export class AdminController {
     return this.admin.updateStaff(principal, id, body, requestContext(request));
   }
 
+  @Patch('staff/:id/role')
+  @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.SETTINGS_FULL)
+  @ApiOperation({ summary: 'Assign a built-in or custom role to staff' })
+  updateStaffRole(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: AdminStaffRoleUpdateDto,
+    @Req() request: Request,
+  ) {
+    return this.admin.updateStaff(principal, id, body, requestContext(request));
+  }
+
+  @Patch('staff/:id/permissions')
+  @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.SETTINGS_FULL)
+  @ApiOperation({
+    summary: 'Set or reset an individual staff member’s permissions',
+  })
+  updateStaffPermissions(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: AdminStaffPermissionsUpdateDto,
+    @Req() request: Request,
+  ) {
+    return this.admin.updateStaffPermissions(
+      principal,
+      id,
+      body,
+      requestContext(request),
+    );
+  }
+
   @Get('roles')
   @Roles(UserType.ADMIN)
   @RequirePermission(AdminPermission.SETTINGS_FULL)
@@ -251,6 +287,38 @@ export class AdminController {
     @Req() request: Request,
   ) {
     return this.admin.deleteCustomRole(principal, id, requestContext(request));
+  }
+
+  @Get('role-permissions')
+  @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.SETTINGS_FULL)
+  @ApiOperation({ summary: 'List built-in and custom role permissions' })
+  rolePermissions(
+    @CurrentUser() principal: AuthPrincipal,
+    @Req() request: Request,
+  ) {
+    return this.admin.listRolePermissionProfiles(
+      principal,
+      requestContext(request),
+    );
+  }
+
+  @Patch('role-permissions/:roleKey')
+  @Roles(UserType.ADMIN)
+  @RequirePermission(AdminPermission.SETTINGS_FULL)
+  @ApiOperation({ summary: 'Update permissions for a built-in or custom role' })
+  updateRolePermissions(
+    @CurrentUser() principal: AuthPrincipal,
+    @Param('roleKey') roleKey: string,
+    @Body() body: AdminRolePermissionsUpdateDto,
+    @Req() request: Request,
+  ) {
+    return this.admin.updateRolePermissions(
+      principal,
+      roleKey,
+      body,
+      requestContext(request),
+    );
   }
 
   @Get('pathway-applications')

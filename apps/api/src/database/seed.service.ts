@@ -70,6 +70,7 @@ export class SeedService implements OnModuleInit {
 
   async onModuleInit() {
     await this.seedAdmin();
+    await this.seedSupportDashboardUser();
     await this.seedS3Config();
     await this.seedSmtpConfig();
     await this.seedOnboardingContent();
@@ -123,6 +124,56 @@ export class SeedService implements OnModuleInit {
       }),
     );
     this.logger.log('Seeded the configured admin account.');
+  }
+
+  private async seedSupportDashboardUser() {
+    if (this.config.get('NODE_ENV', { infer: true }) !== 'development') return;
+
+    const email = this.config
+      .get('INITIAL_SUPPORT_ADMIN_EMAIL', { infer: true })
+      ?.trim()
+      .toLowerCase();
+    const password = this.config.get('INITIAL_SUPPORT_ADMIN_PASSWORD', {
+      infer: true,
+    });
+    if (!email && !password) return;
+    if (!email || !password) {
+      this.logger.warn(
+        'Set both INITIAL_SUPPORT_ADMIN_EMAIL and INITIAL_SUPPORT_ADMIN_PASSWORD to seed the support test account.',
+      );
+      return;
+    }
+
+    const existing = await this.usersRepo.findOne({ where: { email } });
+    if (existing) {
+      if (
+        existing.userType !== UserType.ADMIN ||
+        existing.adminRole !== AdminRole.SUPPORT
+      ) {
+        this.logger.warn(
+          `The configured support test account email ${email} is already used by an account with a different role; leaving it unchanged.`,
+        );
+      }
+      return;
+    }
+
+    const rounds = this.config.get('BCRYPT_ROUNDS', { infer: true });
+    await this.usersRepo.save(
+      this.usersRepo.create({
+        email,
+        passwordHash: await bcrypt.hash(password, rounds),
+        firstName: 'QA',
+        lastName: 'Support',
+        userType: UserType.ADMIN,
+        adminRole: AdminRole.SUPPORT,
+        status: UserStatus.ACTIVE,
+        emailVerifiedAt: new Date(),
+        notificationPreferences: { ...DEFAULT_NOTIFICATION_PREFERENCES },
+        policyAgreements: {},
+        profileImageUrl: null,
+      }),
+    );
+    this.logger.log('Seeded the development Support dashboard test account.');
   }
 
   private async seedS3Config() {
@@ -216,7 +267,8 @@ export class SeedService implements OnModuleInit {
   }
 
   private async seedPathways() {
-    await this.pathwaysRepo.upsert(SEEDED_PATHWAYS.map((row) => this.pathwaysRepo.create(row)), ['key']);
+    // Catalog edits belong to administrators; startup must not overwrite them.
+    await this.pathwaysRepo.createQueryBuilder().insert().values(SEEDED_PATHWAYS).orIgnore().execute();
     if ((await this.partnersRepo.count()) === 0) await this.partnersRepo.save(SEEDED_PARTNERS.map((row) => this.partnersRepo.create(row)));
     if ((await this.checklistTemplatesRepo.count()) === 0) await this.checklistTemplatesRepo.save(SEEDED_CHECKLIST_TEMPLATES.map((row) => this.checklistTemplatesRepo.create(row)));
   }
@@ -231,12 +283,13 @@ export class SeedService implements OnModuleInit {
   }
 
   private async seedMembership() {
-    await this.subscriptionPlansRepo.upsert(
-      SEEDED_SUBSCRIPTION_PLANS.map((plan) =>
-        this.subscriptionPlansRepo.create(plan),
-      ),
-      ['key'],
-    );
+    // Insert missing starter offers only: never overwrite administrator configuration.
+    await this.subscriptionPlansRepo
+      .createQueryBuilder()
+      .insert()
+      .values(SEEDED_SUBSCRIPTION_PLANS)
+      .orIgnore()
+      .execute();
     await this.communityChallengesRepo.upsert(
       SEEDED_COMMUNITY_CHALLENGES.map((challenge) =>
         this.communityChallengesRepo.create(challenge),

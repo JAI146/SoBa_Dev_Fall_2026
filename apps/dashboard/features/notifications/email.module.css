@@ -1,0 +1,122 @@
+.composer {
+  max-height: calc(100dvh - 150px);
+  overflow-y: auto;
+  padding: 2px;
+}
+.setup {
+  margin-top: 20px;
+  max-width: 920px;
+}
+.note {
+  color: #111827;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 12px 0;
+}
+.feedback {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  padding: 12px;
+  border-radius: 9px;
+  margin: 12px 0;
+}
+.fields {
+  border: 0;
+  min-width: 0;
+  padding: 0;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.grid input {
+  width: 100%;
+  min-width: 0;
+}
+.check {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0;
+}
+.check input {
+  width: 18px;
+  height: 18px;
+  accent-color: #059669;
+}
+.test {
+  border-top: 1px solid #e5e7eb;
+  margin-top: 24px;
+  padding-top: 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  column-gap: 16px;
+}
+.test h3,
+.test .note {
+  grid-column: 1 / -1;
+}
+.test button {
+  grid-column: 2;
+  grid-row: 2;
+}
+.test button {
+  justify-self: start;
+}
+.message {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  padding: 10px;
+  resize: vertical;
+  font: inherit;
+}
+.recipient {
+  overflow-wrap: anywhere;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+.setup button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.message:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
+}
+.preview {
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f5f7f8;
+}
+.preview summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.brand {
+  display: block;
+  color: #047857;
+  font-size: 22px;
+  margin: 18px 0;
+}
+.previewMessage {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+  font-size: 14px;
+  margin-top: 14px;
+}
+@media (max-width: 720px) {
+  .grid,
+  .test {
+    grid-template-columns: 1fr;
+  }
+  .test button {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
