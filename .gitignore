@@ -49,3 +49,4 @@ docs/claude_project_context
 
 /.pnpm-store/
 .claude/
+/.local

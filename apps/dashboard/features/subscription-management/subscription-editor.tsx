@@ -113,6 +113,7 @@ export function SubscriptionEditor({
   return (
     <Dialog
       open
+      className={styles["subscription-dialog"]}
       title={titles[action]}
       onClose={() => {
         if (!saving) onClose();

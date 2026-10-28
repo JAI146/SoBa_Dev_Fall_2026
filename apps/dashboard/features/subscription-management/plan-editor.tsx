@@ -184,7 +184,7 @@ export function PlanEditor({
                   type="number"
                   min="0"
                   max="999999.99"
-                  step="0.01"
+                  step="1"
                   required
                   defaultValue={plan?.priceMonthly ?? 0}
                 />
@@ -196,7 +196,7 @@ export function PlanEditor({
                   type="number"
                   min="0"
                   max="999999.99"
-                  step="0.01"
+                  step="1"
                   defaultValue={plan?.priceYearly ?? ""}
                 />
               </label>
@@ -352,7 +352,7 @@ export function PlanEditor({
                     name="promoMonthly"
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="1"
                     defaultValue={plan?.promotion?.monthlyPrice ?? ""}
                   />
                 </label>
@@ -362,7 +362,7 @@ export function PlanEditor({
                     name="promoYearly"
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="1"
                     defaultValue={plan?.promotion?.yearlyPrice ?? ""}
                   />
                 </label>

@@ -1,6 +1,8 @@
 .workspace {
   display: grid;
   gap: 20px;
+  color: #000;
+  font-size: 16px;
 }
 .compact-table.compact-table {
   width: 100%;
@@ -11,6 +13,15 @@
   padding: 10px 12px;
   white-space: normal;
   overflow-wrap: anywhere;
+  color: #000;
+  font-size: 15px;
+}
+.compact-table.compact-table th {
+  font-size: 14px;
+}
+.compact-table.compact-table :is(td span, td strong, td a, td button) {
+  color: #000;
+  font-size: 15px;
 }
 .compact-table.compact-table td > span:not([class]) {
   display: block;
@@ -26,11 +37,44 @@
 }
 .compact-table .identifier-cell {
   max-width: 140px;
-  font-size: 11px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 .plan-dialog.plan-dialog {
-  width: min(960px, 100%);
+  width: min(1120px, 100%);
+}
+.subscription-dialog.subscription-dialog {
+  width: min(900px, 100%);
+}
+.plan-dialog.plan-dialog,
+.subscription-dialog.subscription-dialog {
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  font-size: 16px;
+  color: #000;
+}
+.workspace
+  :is(p, span, h1, h2, label, button, dt, dd, a, input, select, textarea),
+.plan-dialog.plan-dialog
+  :is(p, span, h2, label, button, input, select, textarea, legend),
+.subscription-dialog.subscription-dialog
+  :is(p, span, h2, label, button, input, select, textarea, legend) {
+  color: #000;
+}
+.workspace :is(input, textarea)::placeholder,
+.plan-dialog input::placeholder,
+.plan-dialog textarea::placeholder,
+.subscription-dialog input::placeholder,
+.subscription-dialog textarea::placeholder {
+  color: #000;
+  opacity: 1;
+}
+.workspace button:disabled,
+.plan-dialog :is(input, select, textarea, button):disabled,
+.subscription-dialog :is(input, select, textarea, button):disabled {
+  opacity: 1;
+  color: #000;
+  background-color: #f3f4f6;
 }
 .plan-prices {
   display: grid;
@@ -44,17 +88,17 @@
   gap: 12px;
 }
 .plan-prices .price-cycle {
-  font-size: 11px;
-  color: #6b7280;
+  font-size: 14px;
+  color: #000;
 }
 .plan-prices .price-value {
   font-weight: 600;
-  color: #111827;
+  color: #000;
   white-space: nowrap;
 }
 .plan-prices .price-unavailable {
-  color: #9ca3af;
-  font-size: 11px;
+  color: #000;
+  font-size: 14px;
   white-space: nowrap;
 }
 .searchable-select {
@@ -72,7 +116,7 @@
   position: absolute;
   right: 12px;
   top: 8px;
-  color: #6b7280;
+  color: #000;
   pointer-events: none;
 }
 .select-options {
@@ -98,21 +142,21 @@
   border-radius: 6px;
   padding: 10px;
   background: #fff;
-  color: #374151;
+  color: #000;
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
   overflow-wrap: anywhere;
 }
 .select-options button.option-active,
 .select-options button[aria-selected="true"] {
   background: #ecfdf5;
-  color: #047857;
+  color: #000;
 }
 .select-options p {
   padding: 10px;
-  font-size: 12px;
-  color: #6b7280;
+  font-size: 14px;
+  color: #000;
 }
 .tabs,
 .toolbar,
@@ -128,16 +172,17 @@
   background: #fff;
   padding: 10px 16px;
   cursor: pointer;
-  color: #4b5563;
+  color: #000;
 }
 .tabs button[aria-current="page"] {
   background: #ecfdf5;
-  color: #047857;
+  color: #000;
   border-color: #a7f3d0;
 }
 .form {
   display: grid;
   gap: 16px;
+  font-size: 16px;
 }
 .grid {
   display: grid;
@@ -148,8 +193,8 @@
 .toolbar label {
   display: grid;
   gap: 6px;
-  font-size: 12px;
-  color: #4b5563;
+  font-size: 15px;
+  color: #000;
 }
 .form input,
 .form select,
@@ -162,8 +207,8 @@
   background: #fff;
   padding: 10px;
   font: inherit;
-  color: #111827;
-  min-height: 38px;
+  color: #000;
+  min-height: 44px;
 }
 .form textarea {
   min-height: 90px;
@@ -176,7 +221,7 @@
   min-width: 0;
 }
 .form legend {
-  font-size: 12px;
+  font-size: 14px;
   padding: 0 6px;
   font-weight: 700;
 }
@@ -191,13 +236,13 @@
   accent-color: #059669;
 }
 .editor {
-  max-height: 70vh;
+  max-height: calc(100dvh - 230px);
   overflow-y: auto;
   padding: 2px 5px;
 }
 .note {
-  font-size: 12px;
-  color: #6b7280;
+  font-size: 15px;
+  color: #000;
   line-height: 1.65;
 }
 .detail {
@@ -210,32 +255,38 @@
   gap: 16px;
 }
 .details dt {
-  font-size: 10px;
+  font-size: 14px;
   text-transform: uppercase;
-  color: #6b7280;
+  color: #000;
   letter-spacing: 0.07em;
 }
 .details dd {
   margin: 5px 0 0;
-  font-size: 13px;
-  color: #111827;
+  font-size: 16px;
+  color: #000;
   overflow-wrap: anywhere;
 }
 .actions button {
   border: 1px solid #d1d5db;
   background: #fff;
-  color: #047857;
+  color: #000;
   border-radius: 9px;
   padding: 8px 12px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
 }
 .actions .danger {
-  color: #b91c1c;
+  color: #000;
   border-color: #fecaca;
 }
 .toolbar {
   padding: 18px 20px;
+  align-items: flex-end;
+}
+.toolbar > button {
+  min-height: 44px;
+  padding: 10px 18px;
+  font-size: 15px;
 }
 .toolbar label {
   flex: 1;
@@ -258,8 +309,8 @@
   border: 1px solid #a7f3d0;
   border-radius: 12px;
   padding: 14px;
-  color: #047857;
-  font-size: 12px;
+  color: #000;
+  font-size: 14px;
 }
 @media (max-width: 960px) {
   .details {
@@ -274,5 +325,8 @@
   .toolbar {
     align-items: stretch;
     flex-direction: column;
+  }
+  .toolbar label {
+    flex: auto;
   }
 }
