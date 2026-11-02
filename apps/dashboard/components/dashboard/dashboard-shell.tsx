@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense } from "react";
+import { usePathname } from "next/navigation";
+import { Suspense, useState } from "react";
 import type { DashboardUser } from "@/lib/auth";
 import { SidebarNavGroup } from "./sidebar-nav-group";
 import { SidebarNavLink } from "./sidebar-nav-link";
@@ -30,6 +31,16 @@ export type DashboardNavGroup = {
   defaultQuery: string;
 };
 
+// PM_UI_V2: navigation sections; the route and permissions remain owned by layout.tsx.
+type NavCategory = "People" | "Growth" | "Operations" | "Support";
+const categoryOrder: NavCategory[] = ["People", "Growth", "Operations", "Support"];
+function navCategory(href: string): NavCategory | null {
+  if (href === "/dashboard" || href === "/dashboard/settings") return null;
+  if (["/dashboard/users", "/dashboard/manage-roles", "/dashboard/kyc"].some((p) => href === p || href.startsWith(`${p}/`))) return "People";
+  if (["/dashboard/upgrade-intents", "/dashboard/incentives", "/dashboard/subscriptions"].some((p) => href === p || href.startsWith(`${p}/`))) return "Growth";
+  if (["/dashboard/support-cases", "/dashboard/coaching"].some((p) => href === p || href.startsWith(`${p}/`))) return "Support";
+  return "Operations";
+}
 export function DashboardShell({
   navItems,
   user,
@@ -41,6 +52,30 @@ export function DashboardShell({
   onLogout: () => void;
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const [expandedCategories, setExpandedCategories] = useState<Partial<Record<NavCategory, boolean>>>({});
+  const displayLabel = (item: DashboardNavItem) => ({
+    "/dashboard/manage-roles": "Roles",
+    "/dashboard/kyc": "Verification",
+    "/dashboard/upgrade-intents": "Upgrades",
+    "/dashboard/incentives": "Rewards",
+    "/dashboard/subscriptions": "Billing",
+    "/dashboard/audit": "Compliance",
+    "/dashboard/system-health": "Health",
+    "/dashboard/support-cases": "Support Cases",
+  } as Record<string, string>)[item.href] ?? item.label;
+  const renderNavItem = (item: DashboardNavItem) => {
+    const link = (
+      <SidebarNavLink key={item.href} href={item.href} active={item.active} icon={item.icon}>
+        {displayLabel(item)}
+      </SidebarNavLink>
+    );
+    return item.group ? (
+      <Suspense key={item.href} fallback={link}>
+        <SidebarNavGroup item={item} group={item.group} />
+      </Suspense>
+    ) : link;
+  };
   return (
     <div className={styles["dashboard-layout"]}>
       <aside className={styles.sidebar}>
@@ -50,27 +85,29 @@ export function DashboardShell({
           </span>
           <span className={styles["sidebar-brand-text"]}>PurposeMint</span>
         </Link>
-        <p className={styles["sidebar-nav-section-label"]}>Menu</p>
-        <nav className={styles["sidebar-nav"]}>
-          {navItems.map((item) => {
-            const link = (
-              <SidebarNavLink
-                key={item.href}
-                href={item.href}
-                active={item.active}
-                icon={item.icon}
-              >
-                {item.label}
-              </SidebarNavLink>
-            );
-            if (!item.group) return link;
-            // Groups read the URL's query, which needs a Suspense boundary.
+        <nav className={styles["sidebar-nav"]} aria-label="Main navigation">
+          {navItems.filter((item) => item.href === "/dashboard").map(renderNavItem)}
+          {categoryOrder.map((category) => {
+            const items = navItems.filter((item) => navCategory(item.href) === category);
+            if (items.length === 0) return null;
+            const active = items.some((item) => item.active ||
+              (item.group && (pathname === item.group.sectionPath || pathname.startsWith(`${item.group.sectionPath}/`))));
             return (
-              <Suspense key={item.href} fallback={link}>
-                <SidebarNavGroup item={item} group={item.group} />
-              </Suspense>
+              <details key={category} className={styles["sidebar-category"]}
+                open={expandedCategories[category] ?? active}
+                onToggle={(event) => {
+                  const isOpen = event.currentTarget.open;
+                  setExpandedCategories((previous) => previous[category] === isOpen ? previous : { ...previous, [category]: isOpen });
+                }}>
+                <summary className={styles["sidebar-category-title"]}>
+                  <span>{category}</span>
+                  <span className={styles["sidebar-category-indicator"]} aria-hidden="true">⌄</span>
+                </summary>
+                <div className={styles["sidebar-category-links"]}>{items.map(renderNavItem)}</div>
+              </details>
             );
           })}
+          {navItems.filter((item) => item.href === "/dashboard/settings").map(renderNavItem)}
         </nav>
         <div className={styles["sidebar-footer"]}>
           <p className={styles["sidebar-nav-section-label"]}>General</p>

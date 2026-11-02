@@ -330,3 +330,13 @@
     flex: auto;
   }
 }
+
+/* PM_UI_V2: subscription/plan search and filter alignment */
+.workspace .toolbar { gap: 12px 14px; align-items: flex-end; }
+.workspace .toolbar label { flex: 1 1 180px; min-width: min(100%, 180px); font-size: 13px; color: #475569; font-weight: 600; }
+.workspace .toolbar label:first-child { flex: 2 1 260px; }
+.workspace .toolbar :is(input, select) { min-height: 42px; font-size: 14px; color: #1e293b; }
+.workspace .toolbar > button { min-height: 42px; font-size: 14px; }
+.workspace .tabs button { font-size: 14px; color: #334155; }
+.workspace .tabs button[aria-current="page"] { color: #166534; font-weight: 700; }
+@media (max-width: 720px) { .workspace .toolbar label { min-width: 0; width: 100%; } }

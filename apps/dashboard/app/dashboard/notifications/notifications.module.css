@@ -820,3 +820,9 @@
     max-width: 115px;
   }
 }
+
+/* PM_UI_V2: KiroMoney filter/dropdown legibility and alignment */
+.page .filters { gap: 12px 14px; align-items: end; }
+.page .filters label { min-width: 0; color: #475569; font-size: 13px; }
+.page .filters select { width: 100%; min-height: 42px; border-radius: 9px; font-size: 14px; color: #1e293b; background-color: #fff; }
+.page .filters select:focus-visible { border-color: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,.12); }
