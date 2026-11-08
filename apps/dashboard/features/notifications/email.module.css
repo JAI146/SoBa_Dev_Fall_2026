@@ -9,7 +9,7 @@
 }
 .note {
   color: #111827;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
   margin: 12px 0;
 }
@@ -77,7 +77,7 @@
 .recipient {
   overflow-wrap: anywhere;
   margin-bottom: 16px;
-  font-size: 14px;
+  font-size: 15px;
 }
 .setup button:disabled {
   opacity: 0.5;
@@ -107,7 +107,7 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   line-height: 1.7;
-  font-size: 14px;
+  font-size: 15px;
   margin-top: 14px;
 }
 @media (max-width: 720px) {

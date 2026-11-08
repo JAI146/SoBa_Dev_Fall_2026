@@ -136,7 +136,7 @@ export function LevelProgressPanel() {
                       allowDecimals={false}
                       domain={[0, (max: number) => Math.max(2, max + 2)]}
                       width={40}
-                      tick={{ fontSize: 11, fill: "#6b7280" }}
+                      tick={{ fontSize: 12, fill: "#6b7280" }}
                       axisLine={false}
                       tickLine={false}
                     />
@@ -150,7 +150,7 @@ export function LevelProgressPanel() {
                       contentStyle={{
                         borderRadius: 10,
                         borderColor: "#d1d5db",
-                        fontSize: 12,
+                        fontSize: 13,
                       }}
                     />
                     <Bar
@@ -203,7 +203,7 @@ export function LevelProgressPanel() {
                               textAnchor="middle"
                               dominantBaseline="middle"
                               fill={item.level <= 2 ? "#4a044e" : "#fff"}
-                              fontSize={12}
+                              fontSize={13}
                               fontWeight={700}
                               pointerEvents="none"
                               opacity={item.level === hoveredLevel ? 1 : 0}

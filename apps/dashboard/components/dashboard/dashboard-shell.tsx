@@ -85,7 +85,7 @@ export function DashboardShell({
       </aside>
       <div className={styles["main-content"]}>
         <DashboardTopbar user={user} />
-        {children}
+        <div className={styles["dashboard-content"]}>{children}</div>
       </div>
     </div>
   );

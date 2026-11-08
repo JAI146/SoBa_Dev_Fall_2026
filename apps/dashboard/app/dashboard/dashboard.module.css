@@ -36,7 +36,7 @@
 }
 .sidebar-nav-section-label {
   padding: 0 10px 9px;
-  color: #9ca3af;
+  color: #1f5200;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.09em;
@@ -156,6 +156,12 @@
   min-height: 100vh;
   margin-left: 248px;
 }
+.dashboard-content {
+  font-size: 16px;
+}
+.dashboard-content h2 {
+  font-size: 20px;
+}
 .dashboard-topbar {
   display: flex;
   min-height: 72px;
@@ -192,7 +198,7 @@
   font-size: 13px;
 }
 .topbar-user-text span {
-  color: #6b7280;
+  color: #0a1a00;
   font-size: 12px;
 }
 .dashboard-page {
@@ -224,7 +230,7 @@
   background: #eff6ff;
   padding: 12px 14px;
   color: #1d4ed8;
-  font-size: 13px;
+  font-size: 14px;
 }
 .warning-banner {
   margin-bottom: 20px;
@@ -237,7 +243,7 @@
 }
 .eyebrow {
   color: #059669;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 750;
   letter-spacing: 0.11em;
   text-transform: uppercase;
@@ -248,7 +254,7 @@
   background: #ecfdf5;
   padding: 7px 11px;
   color: #047857;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
 }
 .dashboard-stat-grid {
@@ -277,7 +283,7 @@
 }
 .dashboard-stat-card__label {
   color: #6b7280;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 .dashboard-stat-card__icon {
@@ -330,7 +336,7 @@
 }
 .role-profile-heading h2 {
   margin-top: 0;
-  font-size: 16px;
+  font-size: 20px;
 }
 .role-create-button {
   display: flex;
@@ -352,12 +358,12 @@
 }
 .role-profile-row strong {
   color: #111827;
-  font-size: 14px;
+  font-size: 15px;
 }
 .role-profile-row span,
 .role-profile-row small {
-  color: #6b7280;
-  font-size: 12px;
+  color: #1f5200;
+  font-size: 14px;
 }
 .secondary-button,
 .dialog-actions button[type="submit"] {
@@ -369,7 +375,7 @@
   color: #374151;
   cursor: pointer;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
   white-space: nowrap;
 }
@@ -407,7 +413,7 @@
   border-top: 1px solid #f0f1f3;
   padding: 12px 18px;
   color: #6b7280;
-  font-size: 12px;
+  font-size: 14px;
 }
 .role-user-list {
   margin-top: 20px;
@@ -475,7 +481,7 @@
 .role-permission-dialog .card-heading p:not(.eyebrow) {
   margin-top: 6px;
   color: #6b7280;
-  font-size: 13px;
+  font-size: 14px;
 }
 .icon-button {
   display: grid;
@@ -508,7 +514,7 @@
 .permission-group legend {
   padding: 0 4px;
   color: #374151;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 750;
 }
 .permission-group label {
@@ -516,7 +522,7 @@
   align-items: flex-start;
   gap: 8px;
   color: #4b5563;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.4;
 }
 .permission-group input {
@@ -526,7 +532,7 @@
 .matrix-note {
   margin-top: 12px;
   color: #6b7280;
-  font-size: 12px;
+  font-size: 14px;
 }
 .dialog-actions {
   display: flex;
@@ -539,7 +545,7 @@
 .dialog-actions > span {
   flex: 1 1 100%;
   color: #b91c1c;
-  font-size: 12px;
+  font-size: 13px;
 }
 .dialog-actions button[type="submit"] {
   border-color: #047857;
@@ -558,7 +564,7 @@
   display: grid;
   gap: 6px;
   color: #374151;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 650;
 }
 .role-form input:not([type="checkbox"]),
@@ -569,7 +575,7 @@
   padding: 10px 12px;
   color: #111827;
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
 }
 .permission-options {
   display: grid;
@@ -582,7 +588,7 @@
 .permission-options legend {
   padding: 0 5px;
   color: #374151;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
 }
 .permission-options label {
@@ -590,7 +596,7 @@
   align-items: center;
   gap: 7px;
   color: #4b5563;
-  font-size: 12px;
+  font-size: 13px;
 }
 .form-actions {
   display: flex;
@@ -605,7 +611,7 @@
   color: #fff;
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
 }
 .form-actions button:disabled {
@@ -614,7 +620,7 @@
 }
 .form-actions span {
   color: #047857;
-  font-size: 12px;
+  font-size: 13px;
 }
 .custom-role-card {
   display: grid;
@@ -627,7 +633,7 @@
 .custom-role-card span,
 .custom-role-card small {
   color: #6b7280;
-  font-size: 12px;
+  font-size: 14px;
 }
 .panel {
   padding: 22px;
@@ -642,13 +648,13 @@
   gap: 16px;
 }
 .panel-heading h2 {
-  font-size: 16px;
+  font-size: 20px;
 }
 .panel-heading p,
 .panel-heading > span {
   margin-top: 4px;
-  color: #9ca3af;
-  font-size: 12px;
+  color: #1f5200;
+  font-size: 14px;
 }
 .progress-list {
   display: grid;
@@ -657,14 +663,14 @@
 }
 .panel-empty {
   margin-top: 18px;
-  color: #9ca3af;
-  font-size: 13px;
+  color: #1f5200;
+  font-size: 14px;
 }
 .progress-item > div:first-child {
   display: flex;
   justify-content: space-between;
   margin-bottom: 8px;
-  font-size: 13px;
+  font-size: 14px;
 }
 .progress-track {
   height: 8px;
@@ -706,11 +712,11 @@
   gap: 5px;
 }
 .activity-list strong {
-  font-size: 13px;
+  font-size: 14px;
 }
 .activity-list time {
-  color: #9ca3af;
-  font-size: 11px;
+  color: #1f5200;
+  font-size: 14px;
 }
 .page-actions-group {
   display: flex;
@@ -728,7 +734,7 @@
   border-radius: 9px;
   padding: 8px 12px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
 }
 .btn-primary {
@@ -765,7 +771,7 @@
 .back-link {
   display: inline-block;
   margin-bottom: 18px;
-  font-size: 13px;
+  font-size: 14px;
 }
 .crud-card {
   overflow: hidden;
@@ -799,8 +805,8 @@
 .filter-field {
   display: grid;
   gap: 5px;
-  color: #6b7280;
-  font-size: 11px;
+  color: #0a1a00;
+  font-size: 12px;
   font-weight: 650;
 }
 .filter-field select,
@@ -821,6 +827,7 @@
   box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 .table-wrap {
+  position: relative;
   overflow-x: auto;
 }
 .data-table {
@@ -832,7 +839,7 @@
   background: #fafafa;
   padding: 11px 18px;
   color: #6b7280;
-  font-size: 10px;
+  font-size: 13px;
   letter-spacing: 0.07em;
   text-transform: uppercase;
 }
@@ -840,7 +847,7 @@
   border-top: 1px solid #f0f1f3;
   padding: 15px 18px;
   color: #4b5563;
-  font-size: 13px;
+  font-size: 15px;
   white-space: nowrap;
 }
 .data-table td:first-child {
@@ -855,8 +862,8 @@
 }
 .data-table td:first-child span {
   margin-top: 4px;
-  color: #9ca3af;
-  font-size: 11px;
+  color: #1f5200;
+  font-size: 14px;
 }
 .table-select-label {
   display: block;
@@ -870,7 +877,7 @@
   padding: 9px 10px;
   color: #374151;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
 }
 .permission-list {
   display: flex;
@@ -885,7 +892,7 @@
   background: #f0fdf4;
   padding: 5px 9px;
   color: #047857;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
   white-space: nowrap;
 }
@@ -893,7 +900,7 @@
   display: inline-flex;
   border-radius: 999px;
   padding: 5px 9px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
 }
 .badge-list {
@@ -939,7 +946,7 @@
 }
 .empty {
   padding: 44px !important;
-  color: #9ca3af !important;
+  color: #1f5200 !important;
   text-align: center;
 }
 .pagination {
@@ -949,8 +956,8 @@
   gap: 16px;
   border-top: 1px solid #e5e7eb;
   padding: 14px 18px;
-  color: #6b7280;
-  font-size: 11px;
+  color: #0a1a00;
+  font-size: 14px;
 }
 .pagination > div {
   display: flex;
@@ -1008,7 +1015,7 @@
 .modal-message {
   margin-top: 10px;
   color: #6b7280;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
 }
 .modal-actions {
@@ -1046,7 +1053,7 @@
   display: grid;
   gap: 6px;
   color: #4b5563;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
 }
 .form-row {
@@ -1064,12 +1071,12 @@
   gap: 4px;
 }
 .detail-grid span {
-  color: #9ca3af;
-  font-size: 11px;
+  color: #1f5200;
+  font-size: 14px;
 }
 .detail-grid strong {
   color: #1f2937;
-  font-size: 13px;
+  font-size: 14px;
 }
 .detail-grid .modal-actions {
   grid-column: 1 / -1;
@@ -1082,7 +1089,7 @@
   justify-items: center;
   gap: 12px;
   color: #6b7280;
-  font-size: 13px;
+  font-size: 14px;
 }
 .error-state {
   display: grid;
@@ -1097,7 +1104,7 @@
 .error-state p,
 .inline-error {
   color: #b91c1c;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
 }
 .error-state .btn-primary {
@@ -1114,14 +1121,14 @@
   gap: 5px;
 }
 .record-grid dt {
-  color: #9ca3af;
-  font-size: 11px;
+  color: #1f5200;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
 }
 .record-grid dd {
   color: #1f2937;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 .stacked-panels {
@@ -1138,7 +1145,7 @@
   background: #ecfdf5;
   padding: 12px 14px;
   color: #374151;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.6;
 }
 .partner-list {
@@ -1154,11 +1161,11 @@
   padding: 14px;
 }
 .partner-card h3 {
-  font-size: 14px;
+  font-size: 15px;
 }
 .partner-card p {
   color: #6b7280;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
 }
 .tag-list {
@@ -1171,11 +1178,11 @@
   background: #f3f4f6;
   padding: 5px 8px;
   color: #4b5563;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 650;
 }
 .partner-card .data-gap {
-  color: #9ca3af;
+  color: #1f5200;
   font-style: italic;
 }
 .inline-error {
@@ -1196,7 +1203,7 @@
 }
 .checklist-group h3 {
   color: #4b5563;
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.07em;
   text-transform: uppercase;
 }
@@ -1230,16 +1237,16 @@
 }
 .checklist-row strong {
   color: #1f2937;
-  font-size: 13px;
+  font-size: 14px;
 }
 .checklist-row small {
-  color: #6b7280;
-  font-size: 11px;
+  color: #0a1a00;
+  font-size: 14px;
   line-height: 1.5;
 }
 .checklist-row em {
   color: #047857;
-  font-size: 11px;
+  font-size: 14px;
 }
 .loading-spinner {
   width: 28px;
@@ -1401,7 +1408,7 @@
 .kyc-detail {
   display: grid;
   gap: 4px;
-  color: #6b7280;
+  color: #0a1a00;
   font-size: 12px;
 }
 .kyc-detail strong {

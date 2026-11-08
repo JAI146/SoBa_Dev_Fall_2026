@@ -14,7 +14,7 @@
 .counts span,
 .caption {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
 }
 .counts strong {
   color: var(--foreground);
@@ -28,7 +28,7 @@
   margin: 20px 0;
 }
 .toolbar label {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 .toolbar select {
@@ -49,7 +49,7 @@
   padding: 5px 10px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 .active,
@@ -87,7 +87,7 @@
 .rules {
   margin-top: 18px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.7;
 }
 .rules summary {
@@ -113,11 +113,11 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px;
-  font-size: 14px;
+  font-size: 15px;
 }
 .historyHeading time {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
 }
 .changes {
   display: grid;
@@ -127,15 +127,15 @@
 }
 .changes dt {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
 }
 .changes dd {
-  font-size: 14px;
+  font-size: 15px;
   overflow-wrap: anywhere;
 }
 .note {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
   margin-top: 12px;
 }
@@ -160,7 +160,7 @@
 
 .toolbar select {
   font: inherit;
-  font-size: 14px;
+  font-size: 15px;
 }
 .consistency progress {
   appearance: none;
@@ -212,7 +212,7 @@
   min-width: 0;
 }
 .habitTable .caption {
-  font-size: 13px;
+  font-size: 14px;
 }
 @media (max-width: 1000px) {
   .habitTable,
@@ -245,7 +245,7 @@
   .habitTable td[data-label]::before {
     content: attr(data-label);
     display: block;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--muted);
     margin-bottom: 6px;

@@ -63,7 +63,7 @@
 .text-block {
   margin-top: 8px;
   color: #374151;
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -72,7 +72,7 @@
 .sub-heading {
   margin: 18px 0 8px;
   color: #6b7280;
-  font-size: 10px;
+  font-size: 20px;
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -100,19 +100,19 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 6px 12px;
-  font-size: 13px;
+  font-size: 15px;
   color: #111827;
 }
 
 .timeline-meta {
-  color: #9ca3af;
-  font-size: 11px;
+  color: #1f5200;
+  font-size: 14px;
 }
 
 .timeline-body {
   margin-top: 6px;
   color: #4b5563;
-  font-size: 12px;
+  font-size: 16px;
   line-height: 1.55;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -172,7 +172,7 @@
 
 .muted {
   color: #6b7280;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .customer-link {
