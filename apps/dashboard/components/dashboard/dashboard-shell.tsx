@@ -7,9 +7,11 @@ import { SidebarNavGroup } from "./sidebar-nav-group";
 import { SidebarNavLink } from "./sidebar-nav-link";
 import type { SidebarNavIconName } from "./sidebar-nav-icons";
 import { DashboardTopbar } from "./dashboard-topbar";
+import { AssistantLauncher } from "./assistant-launcher";
 import styles from "../../app/dashboard/dashboard.module.css";
 
 export type DashboardNavItem = {
+  count?: number;
   href: string;
   active: boolean;
   icon: SidebarNavIconName;
@@ -59,6 +61,7 @@ export function DashboardShell({
                 href={item.href}
                 active={item.active}
                 icon={item.icon}
+                count={item.count}
               >
                 {item.label}
               </SidebarNavLink>
@@ -87,6 +90,7 @@ export function DashboardShell({
         <DashboardTopbar user={user} />
         {children}
       </div>
+      <AssistantLauncher />
     </div>
   );
 }

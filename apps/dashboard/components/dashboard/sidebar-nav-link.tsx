@@ -7,6 +7,7 @@ export function SidebarNavLink({
   active,
   sectionActive,
   icon,
+  count,
   children,
 }: {
   href: string;
@@ -15,6 +16,7 @@ export function SidebarNavLink({
   sectionActive?: boolean;
   /** Omitted for links nested in a group, which are indented instead. */
   icon?: SidebarNavIconName;
+  count?: number;
   children: React.ReactNode;
 }) {
   return (
@@ -33,6 +35,14 @@ export function SidebarNavLink({
         <SidebarNavIcon name={icon} className={styles["sidebar-nav-icon"]} />
       ) : null}
       <span>{children}</span>
+      {!!count && (
+        <span
+          className={styles["sidebar-count"]}
+          aria-label={count + " pending access requests"}
+        >
+          {count}
+        </span>
+      )}
     </Link>
   );
 }

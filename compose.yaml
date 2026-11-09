@@ -72,7 +72,9 @@ services:
     build:
       context: .
       target: api-dev
-    environment: *api-environment
+    environment:
+      <<: *api-environment
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
     command: sh -c "pnpm --filter @purposemint/contracts build && pnpm --filter @purposemint/api dev"
     ports:
       - "4000:4000"

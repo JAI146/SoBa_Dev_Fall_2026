@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   UserType,
   AdminRole,
+  assistantControlPath,
+  assistantControlChanged,
   userPublicSchema,
   subscriptionAdminAccessSchema,
   adminAnalyticsAccessSchema,
@@ -116,6 +118,44 @@ export default function DashboardLayout({
     };
   }, [router, attempt]);
 
+  const [assistantRequests, setAssistantRequests] = useState<number | null>(
+    null,
+  );
+  const superAdminId =
+    user?.adminRole === AdminRole.SUPER_ADMIN ? user.id : null;
+  useEffect(() => {
+    if (!superAdminId) return;
+    let active = true;
+    let request = 0;
+    const load = async () => {
+      const current = ++request;
+      try {
+        const result = await apiRequest<{ count: number }>(
+          assistantControlPath + "/pending",
+          {},
+          getToken(),
+        );
+        if (active && current === request) setAssistantRequests(result.count);
+      } catch (error) {
+        if (
+          active &&
+          current === request &&
+          error instanceof ApiError &&
+          (error.status === 401 || error.status === 403)
+        )
+          setAssistantRequests(null);
+      }
+    };
+    void load();
+    const timer = window.setInterval(load, 15000);
+    window.addEventListener(assistantControlChanged, load);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener(assistantControlChanged, load);
+    };
+  }, [superAdminId]);
+
   const handleLogout = useCallback(() => {
     const token = getToken();
     setUser(null);
@@ -191,6 +231,17 @@ export default function DashboardLayout({
       icon: "users",
       active: pathname.startsWith("/dashboard/users"),
     },
+    ...(superAdminId && assistantRequests !== null
+      ? [
+          {
+            href: "/dashboard/ai-control",
+            label: "AI Control Panel",
+            icon: "assistant" as const,
+            active: pathname === "/dashboard/ai-control",
+            count: assistantRequests,
+          },
+        ]
+      : []),
     // Show the incentives workspace only to its currently supported staff role.
     ...(user.adminRole === AdminRole.SUPER_ADMIN
       ? [

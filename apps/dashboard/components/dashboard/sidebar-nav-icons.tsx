@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 export type SidebarNavIconName =
+  | "assistant"
   | "settings"
   | "coaching"
   | "notifications"
@@ -55,6 +56,12 @@ export function SidebarNavIcon({
   className?: string;
 }) {
   // Reuse the shared SVG wrapper to match the sidebar’s existing stroke and sizing.
+  if (name === "assistant")
+    return (
+      <Svg className={className}>
+        <path d="M9 3h6m-3 0v3M4 9a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-5l-4 3v-3H7a3 3 0 0 1-3-3zM9 12h.01M15 12h.01" />
+      </Svg>
+    );
   if (name === "settings")
     return (
       <Svg className={className}>

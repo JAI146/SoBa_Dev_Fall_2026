@@ -1477,3 +1477,13 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+.sidebar-count {
+  margin-inline-start: auto;
+  border-radius: 999px;
+  background: #d1fae5;
+  color: #065f46;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}

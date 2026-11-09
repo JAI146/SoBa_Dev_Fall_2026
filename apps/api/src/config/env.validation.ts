@@ -13,6 +13,8 @@ const booleanish = z
  * than a 500 at 3am.
  */
 export const envSchema = z.object({
+  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_MODEL: z.string().min(1).default('gpt-4.1-mini'),
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
     .default('development'),
