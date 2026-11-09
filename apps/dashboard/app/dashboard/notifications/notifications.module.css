@@ -1,6 +1,6 @@
 .page {
   min-width: 0;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
 }
 .page h2 {
@@ -25,7 +25,7 @@
 }
 .muted {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
 }
 .metrics {
@@ -61,7 +61,7 @@
   gap: 6px;
   font-weight: 600;
   min-width: 0;
-  font-size: 13px;
+  font-size: 14px;
 }
 .page input,
 .page select {
@@ -92,7 +92,7 @@
   display: inline-flex;
   padding: 5px 8px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 .blocked,
@@ -148,11 +148,11 @@
   display: block;
   color: var(--muted);
   margin-top: 6px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .userId {
   overflow-wrap: anywhere;
-  font-size: 12px !important;
+  font-size: 14px !important;
 }
 .pagination {
   display: flex;
@@ -217,7 +217,7 @@
   .table td[data-label]::before {
     content: attr(data-label);
     display: block;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--muted);
     margin-bottom: 6px;
@@ -266,7 +266,7 @@
   flex-wrap: wrap;
   align-items: center;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
   padding: 12px 16px;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
@@ -309,14 +309,14 @@
 }
 .ruleGrid span {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
   margin-bottom: 6px;
 }
 .ruleGrid strong {
   font-size: 20px;
 }
 .help {
-  font-size: 13px;
+  font-size: 14px;
   margin: 12px 0;
   color: var(--muted);
 }
@@ -381,7 +381,7 @@
 .searchResults span,
 .selectedCustomer span {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 .selectedCustomer {
@@ -405,7 +405,7 @@
 .idFallback {
   margin-top: 12px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 .idFallback label {
   margin-top: 8px;
@@ -571,7 +571,7 @@
   appearance: none;
   min-height: 38px;
   padding: 8px 32px 8px 12px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
   border-color: #d1d5db;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
@@ -635,13 +635,13 @@
   overflow-wrap: anywhere;
 }
 .customerList span {
-  font-size: 12px;
+  font-size: 13px;
   color: #6b7280;
 }
 .customerList small {
   color: #047857;
   margin-top: 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
 }
 @media (max-width: 960px) {
@@ -669,31 +669,34 @@
 /* Readable text and compact rows, scoped to Notifications. */
 .page {
   color: #111827;
-  font-size: 15px;
+  font-size: 16px;
 }
 .page h2 {
   font-size: 20px;
 }
 .page h3 {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
 }
 .page label,
 .filters select {
-  font-size: 14px;
+  font-size: 15px;
 }
 .muted,
 .metrics span,
-.connectionStrip,
 .ruleGrid span,
 .help,
 .preferenceList span,
 .searchResults span,
 .selectedCustomer span,
-.idFallback,
-.page :global(.workspace-tabs) button {
+.idFallback {
   color: #111827;
   font-size: 14px;
+}
+.connectionStrip,
+.page :global(.workspace-tabs) button {
+  color: #111827;
+  font-size: 15px;
 }
 .page input::placeholder {
   color: #111827;
@@ -710,11 +713,11 @@
 }
 .page .table th {
   padding: 10px 12px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .page .table td {
   padding: 12px;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.45;
 }
 .page .table td:first-child > span,
@@ -743,11 +746,11 @@
 .table button {
   margin: 0 0 6px;
   padding: 8px 10px;
-  font-size: 13px;
+  font-size: 14px;
 }
 .deliveryDetails {
   margin-top: 6px;
-  font-size: 14px;
+  font-size: 15px;
 }
 .deliveryDetails summary {
   cursor: pointer;
@@ -765,7 +768,7 @@
   border: 0;
   border-radius: 0;
   border-bottom: 1px solid #e5e7eb;
-  font-size: 15px;
+  font-size: 16px;
 }
 .customerList li:last-child button {
   border-bottom: 0;
@@ -775,12 +778,12 @@
 }
 .customerList span {
   color: #111827;
-  font-size: 14px;
+  font-size: 15px;
 }
 .customerList small {
   text-align: right;
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
 }
 .customerBrowser {
   margin: 16px 0;

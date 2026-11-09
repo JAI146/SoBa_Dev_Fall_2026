@@ -17,7 +17,7 @@
   font-size: 15px;
 }
 .compact-table.compact-table th {
-  font-size: 14px;
+  font-size: 13px;
 }
 .compact-table.compact-table :is(td span, td strong, td a, td button) {
   color: #000;
@@ -27,15 +27,16 @@
   display: block;
   margin-top: 3px;
 }
-.compact-table .customer-email {
+.compact-table.compact-table .customer-email {
   display: block;
   max-width: 220px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 .compact-table.compact-table td:first-child {
   min-width: 0;
 }
-.compact-table .identifier-cell {
+.compact-table.compact-table .identifier-cell {
   max-width: 140px;
   font-size: 14px;
   overflow-wrap: anywhere;
@@ -87,7 +88,7 @@
   justify-content: space-between;
   gap: 12px;
 }
-.plan-prices .price-cycle {
+.compact-table.compact-table .plan-prices .price-cycle {
   font-size: 14px;
   color: #000;
 }
@@ -96,7 +97,7 @@
   color: #000;
   white-space: nowrap;
 }
-.plan-prices .price-unavailable {
+.compact-table.compact-table .plan-prices .price-unavailable {
   color: #000;
   font-size: 14px;
   white-space: nowrap;
@@ -241,7 +242,7 @@
   padding: 2px 5px;
 }
 .note {
-  font-size: 15px;
+  font-size: 14px;
   color: #000;
   line-height: 1.65;
 }

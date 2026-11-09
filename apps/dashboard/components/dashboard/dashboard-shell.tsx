@@ -145,8 +145,8 @@ export function DashboardShell({ navItems, user, onLogout, children }: {
         </div>
       </aside>
       <div className={styles["main-content"]}>
-        <DashboardTopbar user={user} onLogout={onLogout} />
-        {children}
+<DashboardTopbar user={user} onLogout={onLogout} />
+<div className={styles["dashboard-content"]}>{children}</div>
       </div>
     </div>
   );

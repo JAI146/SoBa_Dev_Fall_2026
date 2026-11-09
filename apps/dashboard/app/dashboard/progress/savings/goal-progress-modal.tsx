@@ -167,7 +167,7 @@ function SavingsChart({
                 domain={xDomain}
                 padding={{ left: 20, right: 20 }}
                 tickFormatter={(value: number) => date.format(new Date(value))}
-                tick={{ fontSize: 11, fill: "#6b7280" }}
+                tick={{ fontSize: 12, fill: "#6b7280" }}
                 axisLine={false}
                 tickLine={false}
                 minTickGap={24}
@@ -175,10 +175,10 @@ function SavingsChart({
               <YAxis
                 domain={[0, upperBound]}
                 tickFormatter={(value: number) => shortMoney.format(value)}
-                tick={{ fontSize: 11, fill: "#6b7280" }}
+                tick={{ fontSize: 12, fill: "#6b7280" }}
                 axisLine={false}
                 tickLine={false}
-                width={66}
+                width={72}
                 allowDecimals={false}
               />
               <Tooltip
@@ -187,7 +187,7 @@ function SavingsChart({
                 contentStyle={{
                   borderRadius: 10,
                   borderColor: "#d1d5db",
-                  fontSize: 12,
+                  fontSize: 13,
                 }}
               />
               {isTotal && goal.targetAmount > 0 && (
@@ -199,7 +199,7 @@ function SavingsChart({
                     value: "Target",
                     position: "insideTopRight",
                     fill: "#92400e",
-                    fontSize: 11,
+                    fontSize: 12,
                   }}
                 />
               )}

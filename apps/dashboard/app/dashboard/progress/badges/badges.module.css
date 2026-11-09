@@ -57,7 +57,7 @@
 .lockNotice {
   margin-bottom: 16px;
   color: #6b7280;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
 }
 .emojiField {
@@ -161,7 +161,7 @@
 }
 .badgeCell > div > span,
 .userLink span {
-  font-size: 12px;
+  font-size: 14px;
   color: #6b7280;
   white-space: normal;
 }
@@ -169,7 +169,7 @@
   display: grid;
   gap: 4px;
   min-width: 160px;
-  font-size: 12px;
+  font-size: 14px;
   white-space: normal;
 }
 .userLink {
