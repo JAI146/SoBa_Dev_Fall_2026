@@ -1625,3 +1625,14 @@
 .sidebar-dashboard-subnav { border-left:0; margin:4px 0 9px 26px; padding-left:0; }
 .dashboard-layout--collapsed .sidebar-dashboard-link { width:100%; }
 .dashboard-layout--collapsed .sidebar-dashboard-row { justify-content:center; }
+
+/* Final sidebar alignment: one icon per main category, account in General. */
+.sidebar-category-links a .sidebar-nav-icon { display:none; }
+.sidebar-category-links a, .sidebar-category-links .sidebar-group-row > a { gap:0; }
+.sidebar-account { display:flex; align-items:center; gap:10px; min-width:0; padding:10px 9px; border-radius:10px; background:#f8faf9; }
+.sidebar-account-avatar { display:grid; flex:0 0 34px; width:34px; height:34px; place-items:center; border-radius:50%; background:#dcfce7; color:#166534; font-size:12px; font-weight:700; }
+.sidebar-account-details { display:flex; flex-direction:column; min-width:0; gap:2px; }
+.sidebar-account-details strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#1f2937; font-size:13px; }
+.sidebar-account-details small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#64748b; font-size:11px; }
+.dashboard-layout--collapsed .sidebar-account { justify-content:center; padding:7px 0; background:transparent; }
+.dashboard-layout--collapsed .sidebar-account-details { display:none; }

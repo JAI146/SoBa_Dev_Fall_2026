@@ -7,7 +7,6 @@ import type { DashboardUser } from "@/lib/auth";
 import { SidebarNavGroup } from "./sidebar-nav-group";
 import { SidebarNavLink } from "./sidebar-nav-link";
 import { SidebarChevron, SidebarNavIcon, type SidebarNavIconName } from "./sidebar-nav-icons";
-import { DashboardTopbar } from "./dashboard-topbar";
 import styles from "../../app/dashboard/dashboard.module.css";
 
 export type DashboardNavItem = {
@@ -32,6 +31,7 @@ const categoryIcons: Record<NavCategory, SidebarNavIconName> = {
 };
 function navCategory(href: string): NavCategory | null {
   if (href === "/dashboard" || href === "/dashboard/settings") return null;
+  if (href === "/dashboard/progress" || href.startsWith("/dashboard/progress/")) return "People";
   if (["/dashboard/users", "/dashboard/manage-roles", "/dashboard/kyc"].some((p) => href === p || href.startsWith(`${p}/`))) return "People";
   if (["/dashboard/upgrade-intents", "/dashboard/incentives", "/dashboard/subscriptions"].some((p) => href === p || href.startsWith(`${p}/`))) return "Growth";
   if (["/dashboard/support-cases", "/dashboard/coaching"].some((p) => href === p || href.startsWith(`${p}/`))) return "Support";
@@ -58,11 +58,11 @@ export function DashboardShell({ navItems, user, onLogout, children }: {
   const displayLabel = (item: DashboardNavItem) => ({
     "/dashboard/manage-roles": "Roles", "/dashboard/kyc": "Verification",
     "/dashboard/upgrade-intents": "Upgrades", "/dashboard/incentives": "Rewards",
-    "/dashboard/subscriptions": "Billing", "/dashboard/audit": "Compliance",
+    "/dashboard/subscriptions": "Subscriptions", "/dashboard/audit": "Compliance",
     "/dashboard/system-health": "Health", "/dashboard/support-cases": "Support Cases",
   } as Record<string, string>)[item.href] ?? item.label;
   const renderNavItem = (item: DashboardNavItem) => {
-    const link = <SidebarNavLink key={item.href} href={item.href} active={item.active} icon={item.icon}>{displayLabel(item)}</SidebarNavLink>;
+    const link = <SidebarNavLink key={item.href} href={item.href} active={item.active}>{displayLabel(item)}</SidebarNavLink>;
     return item.group ? (
       <Suspense key={item.href} fallback={link}>
         <SidebarNavGroup item={item} group={item.group} />
@@ -83,7 +83,7 @@ export function DashboardShell({ navItems, user, onLogout, children }: {
           </Link>
           <button type="button" className={styles["sidebar-collapse-toggle"]} onClick={toggleSidebar}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} title={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
-            <SidebarNavIcon name="menu" className={styles["sidebar-nav-icon"]} />
+            <SidebarNavIcon name="panel" className={styles["sidebar-nav-icon"]} />
           </button>
         </div>
         <nav className={styles["sidebar-nav"]} aria-label="Main navigation">
@@ -136,6 +136,10 @@ export function DashboardShell({ navItems, user, onLogout, children }: {
         </nav>
         <div className={styles["sidebar-footer"]}>
           <p className={styles["sidebar-nav-section-label"]}>General</p>
+          <div className={styles["sidebar-account"]} title={`${user.firstName} ${user.lastName} — ${user.email}`}>
+            <span className={styles["sidebar-account-avatar"]} aria-hidden>{`${user.firstName?.charAt(0) ?? ""}${user.lastName?.charAt(0) ?? ""}`.toUpperCase() || "P"}</span>
+            <span className={styles["sidebar-account-details"]}><strong>{user.firstName} {user.lastName}</strong><small>{user.email}</small></span>
+          </div>
           {navItems.filter((item) => item.href === "/dashboard/settings").map((item) => (
             <div key={item.href} title={collapsed ? "Settings" : undefined}>{renderNavItem(item)}</div>
           ))}
@@ -145,7 +149,6 @@ export function DashboardShell({ navItems, user, onLogout, children }: {
         </div>
       </aside>
       <div className={styles["main-content"]}>
-<DashboardTopbar user={user} onLogout={onLogout} />
 <div className={styles["dashboard-content"]}>{children}</div>
       </div>
     </div>

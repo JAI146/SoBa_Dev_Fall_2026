@@ -51,7 +51,6 @@ export function SidebarNavGroup({
           href={item.href}
           active={item.active}
           sectionActive={inSection}
-          icon={item.icon}
         >
           {item.label}
         </SidebarNavLink>
