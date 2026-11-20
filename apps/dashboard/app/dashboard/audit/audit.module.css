@@ -68,7 +68,7 @@
 }
 .header h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
 }
 .viewTabs {
@@ -100,20 +100,21 @@
   gap: 12px;
 }
 .treeHeading h2 {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
   margin: 0;
 }
 .treeHeading > span {
-  font-size: 12px;
+  font-size: 14px;
   color: #79877f;
 }
 .treeLegend {
   display: flex;
+  align-items: center;
   gap: 18px;
   flex-wrap: wrap;
   margin: 14px 0;
-  font-size: 11px;
+  font-size: 14px;
   color: #6b776f;
 }
 .treeLegend span {
@@ -123,6 +124,7 @@
 }
 .treeLegend i {
   display: inline-block;
+  flex-shrink: 0;
   width: 12px;
   height: 12px;
   border-radius: 3px;
@@ -440,13 +442,13 @@
   margin-bottom: 14px;
 }
 .tableHeading h2 {
-  font-size: 16px;
+  font-size: 20px;
   margin: 0;
   color: #45534b;
   font-weight: 600;
 }
 .tableHeading > span {
-  font-size: 12px;
+  font-size: 14px;
   color: #77817b;
 }
 .tableScroll {
@@ -458,14 +460,14 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 15px;
 }
 .table th {
   text-align: left;
   padding: 14px 16px;
   background: linear-gradient(180deg, #f9fcfa, #edf5f0);
   border-bottom: 1px solid #e0e9e3;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   color: #68796e;
   white-space: nowrap;
@@ -491,7 +493,7 @@
   width: 170px;
 }
 .table td:first-child {
-  font-size: 12px;
+  font-size: 15px;
   white-space: nowrap;
   color: #718078;
 }
@@ -500,13 +502,13 @@
 }
 .table td small {
   display: block;
-  font-size: 11px;
+  font-size: 14px;
   color: #859089;
   margin-top: 5px;
 }
 .actionName {
   display: block;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: #46584d;
 }
@@ -515,7 +517,7 @@
 }
 .recordId {
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 11px;
+  font-size: 14px;
   white-space: nowrap;
 }
 .status {
@@ -546,7 +548,7 @@
 }
 .pagination {
   padding: 18px 0 12px;
-  font-size: 11px;
+  font-size: 14px;
   color: #77817b;
   flex-wrap: wrap;
 }
@@ -557,7 +559,7 @@
   transform: rotate(180deg);
 }
 .note {
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.6;
   color: #879089;
   margin: 4px 0;
@@ -572,7 +574,7 @@
 .empty {
   padding: 32px;
   text-align: center;
-  font-size: 13px;
+  font-size: 14px;
   color: #78857d;
 }
 .detail {
@@ -597,19 +599,19 @@
   margin: 0 0 24px;
 }
 .detailFields dt {
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 600;
   color: #839087;
   margin-bottom: 6px;
 }
 .detailFields dd {
   margin: 0;
-  font-size: 12px;
+  font-size: 16px;
   overflow-wrap: anywhere;
 }
 .detailFields small {
   display: block;
-  font-size: 10px;
+  font-size: 14px;
   color: #839087;
   margin-top: 4px;
 }
@@ -760,12 +762,11 @@
   gap: 10px;
 }
 .treeToolbar .treeHeading h2 {
-  font-size: 14px;
+  font-size: 20px;
 }
 .treeToolbar .treeLegend {
   margin: 0;
   gap: 12px;
-  font-size: 10px;
 }
 .treeViewport {
   height: clamp(360px, calc(100dvh - 270px), 760px);

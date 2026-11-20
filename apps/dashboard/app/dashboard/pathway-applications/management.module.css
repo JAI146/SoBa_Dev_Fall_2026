@@ -29,7 +29,7 @@
   margin-bottom: 24px;
 }
 .page h2 {
-  font-size: 18px;
+  font-size: 20px;
   margin: 0;
 }
 .page h3 {
@@ -82,7 +82,7 @@
 }
 .stats span {
   display: block;
-  font-size: 12px;
+  font-size: 14px;
   color: #6b7280;
 }
 .stats strong {
@@ -158,11 +158,11 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 15px;
 }
 .table th {
   text-align: left;
-  font-size: 11px;
+  font-size: 13px;
   background: linear-gradient(180deg, #fafcfb, #edf3ef);
   color: #4b5563;
   border-bottom: 1px solid #e0e8e3;
@@ -191,7 +191,7 @@
   display: block;
   color: #6b7280;
   margin-top: 4px;
-  font-size: 11px;
+  font-size: 14px;
 }
 .table a,
 .link {
@@ -207,7 +207,7 @@
   margin-top: 6px;
 }
 .pagination {
-  font-size: 12px;
+  font-size: 14px;
   padding: 16px 0;
 }
 .iconButton {
@@ -237,6 +237,9 @@
 .unavailable {
   width: 100%;
   border-collapse: collapse;
+  font-size: 15px;
+}
+.unavailable th {
   font-size: 13px;
 }
 .unavailable td,
@@ -288,7 +291,7 @@
   align-items: end;
 }
 .note {
-  font-size: 12px;
+  font-size: 14px;
   color: #6b7280;
   margin: 0;
   line-height: 1.6;

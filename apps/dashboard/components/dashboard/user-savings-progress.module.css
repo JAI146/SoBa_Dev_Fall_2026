@@ -18,7 +18,7 @@
   min-width: 0;
 }
 .metrics span {
-  font-size: 14px;
+  font-size: 15px;
 }
 .metrics strong {
   font-size: 28px;
@@ -26,14 +26,14 @@
 }
 .metrics small {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
 }
 .badge {
   display: inline-flex;
   border-radius: 999px;
   padding: 6px 10px;
-  font-size: 13px !important;
+  font-size: 14px !important;
   font-weight: 600;
 }
 .green {
@@ -60,7 +60,7 @@
   margin: 26px 0 18px;
 }
 .toolbar label {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 .toolbar select {
@@ -71,7 +71,7 @@
   border-radius: 8px;
   background: var(--card);
   color: var(--foreground);
-  font-size: 14px;
+  font-size: 15px;
 }
 .toolbar select:focus-visible,
 .details summary:focus-visible {
@@ -91,7 +91,7 @@
 }
 .description {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.7;
   margin-top: 14px;
 }
@@ -101,7 +101,7 @@
   color: #78350f;
   padding: 12px 14px;
   margin-top: 16px;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
 }
 .charts {
@@ -117,7 +117,7 @@
   padding: 16px;
 }
 .chart h3 {
-  font-size: 16px;
+  font-size: 17px;
   margin-bottom: 12px;
 }
 .chart svg {
@@ -126,7 +126,7 @@
   display: block;
 }
 .axis {
-  font-size: 13px;
+  font-size: 14px;
   fill: #64748b;
 }
 .gridLine {
@@ -156,7 +156,7 @@
   flex-wrap: wrap;
   gap: 10px 18px;
   margin-top: 14px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
 }
 .details {
@@ -164,7 +164,7 @@
 }
 .details summary {
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 .tableScroll {
@@ -175,7 +175,7 @@
 .tableScroll table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 15px;
 }
 .tableScroll th,
 .tableScroll td {
@@ -186,6 +186,7 @@
 }
 .tableScroll th {
   background: var(--background);
+  font-size: 13px;
 }
 @media (max-width: 1100px) {
   .metrics {

@@ -216,7 +216,7 @@
 
 .sectionTitle {
   margin: 32px 0 12px;
-  font-size: 18px;
+  font-size: 20px;
   letter-spacing: -0.02em;
 }
 
@@ -224,7 +224,7 @@
   display: block;
   margin-top: 4px;
   color: #6b7280;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: 0;
 }
@@ -233,7 +233,7 @@
   display: block;
   margin-top: 6px;
   color: #6b7280;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: 0;
 }
@@ -587,7 +587,7 @@ div:has(> .scaleLegend) {
   gap: 12px;
   border-bottom: 1px solid #f0f2f3;
   padding-bottom: 12px;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .factList div:last-child {
@@ -606,7 +606,7 @@ div:has(> .scaleLegend) {
 .note {
   margin-top: 16px;
   color: #6b7280;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
 }
 

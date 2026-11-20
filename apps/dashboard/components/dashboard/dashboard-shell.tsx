@@ -1,13 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense } from "react";
+import { usePathname } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import type { DashboardUser } from "@/lib/auth";
 import { SidebarNavGroup } from "./sidebar-nav-group";
-import { SidebarNavLink } from "./sidebar-nav-link";
-import type { SidebarNavIconName } from "./sidebar-nav-icons";
-import { DashboardTopbar } from "./dashboard-topbar";
 import { AssistantLauncher } from "./assistant-launcher";
+import { SidebarNavLink } from "./sidebar-nav-link";
+import {
+  SidebarChevron,
+  SidebarNavIcon,
+  type SidebarNavIconName,
+} from "./sidebar-nav-icons";
 import styles from "../../app/dashboard/dashboard.module.css";
 
 export type DashboardNavItem = {
@@ -16,21 +20,55 @@ export type DashboardNavItem = {
   active: boolean;
   icon: SidebarNavIconName;
   label: string;
-  /** Pages listed under this item in an expandable group. */
   group?: DashboardNavGroup;
 };
-
 export type DashboardNavGroup = {
-  /** Names the list and its toggle, e.g. "Reports". */
   label: string;
   links: { href: string; label: string }[];
-  /** Pages under this path keep the list open. */
   sectionPath: string;
-  /** Query keys carried between the group's pages, e.g. the date range. */
   keepQueryKeys: string[];
-  /** Query used when arriving from outside the group. */
   defaultQuery: string;
 };
+
+type NavCategory = "People" | "Growth" | "Operations" | "Support";
+const categoryOrder: NavCategory[] = [
+  "People",
+  "Growth",
+  "Operations",
+  "Support",
+];
+const categoryIcons: Record<NavCategory, SidebarNavIconName> = {
+  People: "users",
+  Growth: "growth",
+  Operations: "operations",
+  Support: "support",
+};
+function navCategory(href: string): NavCategory | null {
+  if (href === "/dashboard" || href === "/dashboard/settings") return null;
+  if (href === "/dashboard/progress" || href.startsWith("/dashboard/progress/"))
+    return "People";
+  if (
+    ["/dashboard/users", "/dashboard/manage-roles", "/dashboard/kyc"].some(
+      (p) => href === p || href.startsWith(`${p}/`),
+    )
+  )
+    return "People";
+  if (
+    [
+      "/dashboard/upgrade-intents",
+      "/dashboard/incentives",
+      "/dashboard/subscriptions",
+    ].some((p) => href === p || href.startsWith(`${p}/`))
+  )
+    return "Growth";
+  if (
+    ["/dashboard/support-cases", "/dashboard/coaching"].some(
+      (p) => href === p || href.startsWith(`${p}/`),
+    )
+  )
+    return "Support";
+  return "Operations";
+}
 
 export function DashboardShell({
   navItems,
@@ -43,52 +81,248 @@ export function DashboardShell({
   onLogout: () => void;
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
+  const [dashboardOpen, setDashboardOpen] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<
+    Partial<Record<NavCategory, boolean>>
+  >({});
+  useEffect(() => {
+    try {
+      setCollapsed(
+        window.localStorage.getItem("purposemint-sidebar-collapsed") === "true",
+      );
+    } catch {
+      /* Storage may be disabled. */
+    }
+  }, []);
+  const toggleSidebar = () =>
+    setCollapsed((current) => {
+      try {
+        window.localStorage.setItem(
+          "purposemint-sidebar-collapsed",
+          String(!current),
+        );
+      } catch {
+        /* Storage may be disabled. */
+      }
+      return !current;
+    });
+  const displayLabel = (item: DashboardNavItem) =>
+    (
+      ({
+        "/dashboard/manage-roles": "Roles",
+        "/dashboard/kyc": "Verification",
+        "/dashboard/upgrade-intents": "Upgrades",
+        "/dashboard/incentives": "Rewards",
+        "/dashboard/subscriptions": "Subscriptions",
+        "/dashboard/audit": "Compliance",
+        "/dashboard/system-health": "Health",
+        "/dashboard/support-cases": "Support Cases",
+      }) as Record<string, string>
+    )[item.href] ?? item.label;
+  const renderNavItem = (item: DashboardNavItem) => {
+    const link = (
+      <SidebarNavLink
+        key={item.href}
+        href={item.href}
+        active={item.active}
+        count={item.count}
+      >
+        {displayLabel(item)}
+      </SidebarNavLink>
+    );
+    return item.group ? (
+      <Suspense key={item.href} fallback={link}>
+        <SidebarNavGroup item={item} group={item.group} />
+      </Suspense>
+    ) : (
+      link
+    );
+  };
+  const expandCategory = (category: NavCategory) => {
+    if (collapsed) setCollapsed(false);
+    setExpandedCategories((previous) => ({
+      ...previous,
+      [category]: !(
+        previous[category] ??
+        navItems.some(
+          (item) => navCategory(item.href) === category && item.active,
+        )
+      ),
+    }));
+  };
   return (
-    <div className={styles["dashboard-layout"]}>
-      <aside className={styles.sidebar}>
-        <Link href="/dashboard" className={styles["sidebar-brand"]}>
-          <span className={styles["sidebar-brand-logo"]} aria-hidden>
-            P
-          </span>
-          <span className={styles["sidebar-brand-text"]}>PurposeMint</span>
-        </Link>
-        <p className={styles["sidebar-nav-section-label"]}>Menu</p>
-        <nav className={styles["sidebar-nav"]}>
-          {navItems.map((item) => {
-            const link = (
-              <SidebarNavLink
-                key={item.href}
-                href={item.href}
-                active={item.active}
-                icon={item.icon}
-                count={item.count}
-              >
-                {item.label}
-              </SidebarNavLink>
+    <div
+      className={`${styles["dashboard-layout"]} ${collapsed ? styles["dashboard-layout--collapsed"] : ""}`}
+    >
+      <aside className={styles.sidebar} aria-label="Sidebar">
+        <div className={styles["sidebar-brand-row"]}>
+          <Link
+            href="/dashboard"
+            className={styles["sidebar-brand"]}
+            title={collapsed ? "PurposeMint dashboard" : undefined}
+          >
+            <span className={styles["sidebar-brand-logo"]} aria-hidden>
+              P
+            </span>
+            <span className={styles["sidebar-brand-text"]}>PurposeMint</span>
+          </Link>
+          <button
+            type="button"
+            className={styles["sidebar-collapse-toggle"]}
+            onClick={toggleSidebar}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <SidebarNavIcon
+              name="panel"
+              className={styles["sidebar-nav-icon"]}
+            />
+          </button>
+        </div>
+        <nav className={styles["sidebar-nav"]} aria-label="Main navigation">
+          <div
+            className={styles["sidebar-dashboard-entry"]}
+            title={collapsed ? "Dashboard" : undefined}
+          >
+            {navItems
+              .filter((item) => item.href === "/dashboard")
+              .map((item) => (
+                <div
+                  key={item.href}
+                  className={styles["sidebar-dashboard-group"]}
+                >
+                  <div className={styles["sidebar-dashboard-row"]}>
+                    <div className={styles["sidebar-dashboard-link"]}>
+                      <SidebarNavLink
+                        href={item.href}
+                        active={pathname === "/dashboard"}
+                        icon={item.icon}
+                      >
+                        Dashboard
+                      </SidebarNavLink>
+                    </div>
+                    {item.group && !collapsed && (
+                      <button
+                        type="button"
+                        className={styles["sidebar-dashboard-toggle"]}
+                        onClick={() => setDashboardOpen((open) => !open)}
+                        aria-label={
+                          dashboardOpen
+                            ? "Collapse Dashboard menu"
+                            : "Expand Dashboard menu"
+                        }
+                        aria-expanded={dashboardOpen}
+                        aria-controls="dashboard-submenu"
+                      >
+                        <SidebarChevron
+                          className={`${styles["sidebar-nav-chevron"]} ${dashboardOpen ? styles["sidebar-chevron-open"] : ""}`}
+                        />
+                      </button>
+                    )}
+                  </div>
+                  {!collapsed && dashboardOpen && item.group && (
+                    <div
+                      id="dashboard-submenu"
+                      className={styles["sidebar-dashboard-subnav"]}
+                    >
+                      {item.group.links.map((link) => (
+                        <SidebarNavLink
+                          key={link.href}
+                          href={`${link.href}?${item.group!.defaultQuery}`}
+                          active={pathname === link.href}
+                        >
+                          {link.label}
+                        </SidebarNavLink>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>
+          {categoryOrder.map((category) => {
+            const items = navItems.filter(
+              (item) => navCategory(item.href) === category,
             );
-            if (!item.group) return link;
-            // Groups read the URL's query, which needs a Suspense boundary.
+            if (!items.length) return null;
+            const active = items.some(
+              (item) =>
+                item.active ||
+                (item.group &&
+                  (pathname === item.group.sectionPath ||
+                    pathname.startsWith(`${item.group.sectionPath}/`))),
+            );
+            const open = expandedCategories[category] ?? active;
             return (
-              <Suspense key={item.href} fallback={link}>
-                <SidebarNavGroup item={item} group={item.group} />
-              </Suspense>
+              <div key={category} className={styles["sidebar-category"]}>
+                <button
+                  type="button"
+                  className={`${styles["sidebar-category-title"]} ${active ? styles["sidebar-category-active"] : ""}`}
+                  onClick={() => expandCategory(category)}
+                  aria-expanded={!collapsed && open}
+                  title={collapsed ? category : undefined}
+                >
+                  <SidebarNavIcon
+                    name={categoryIcons[category]}
+                    className={styles["sidebar-nav-icon"]}
+                  />
+                  <span className={styles["sidebar-category-name"]}>
+                    {category}
+                  </span>
+                  <SidebarChevron
+                    className={`${styles["sidebar-nav-chevron"]} ${open ? styles["sidebar-chevron-open"] : ""}`}
+                  />
+                </button>
+                {!collapsed && open && (
+                  <div className={styles["sidebar-category-links"]}>
+                    {items.map(renderNavItem)}
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>
         <div className={styles["sidebar-footer"]}>
           <p className={styles["sidebar-nav-section-label"]}>General</p>
+          <div
+            className={styles["sidebar-account"]}
+            title={`${user.firstName} ${user.lastName} — ${user.email}`}
+          >
+            <span className={styles["sidebar-account-avatar"]} aria-hidden>
+              {`${user.firstName?.charAt(0) ?? ""}${user.lastName?.charAt(0) ?? ""}`.toUpperCase() ||
+                "P"}
+            </span>
+            <span className={styles["sidebar-account-details"]}>
+              <strong>
+                {user.firstName} {user.lastName}
+              </strong>
+              <small>{user.email}</small>
+            </span>
+          </div>
+          {navItems
+            .filter((item) => item.href === "/dashboard/settings")
+            .map((item) => (
+              <div key={item.href} title={collapsed ? "Settings" : undefined}>
+                {renderNavItem(item)}
+              </div>
+            ))}
           <button
             type="button"
             className={styles["sidebar-logout"]}
             onClick={onLogout}
+            title={collapsed ? "Sign Out" : undefined}
           >
-            Sign Out
+            <SidebarNavIcon
+              name="logout"
+              className={styles["sidebar-nav-icon"]}
+            />
+            <span>Sign Out</span>
           </button>
         </div>
       </aside>
       <div className={styles["main-content"]}>
-        <DashboardTopbar user={user} />
-        {children}
+        <div className={styles["dashboard-content"]}>{children}</div>
       </div>
       <AssistantLauncher />
     </div>
