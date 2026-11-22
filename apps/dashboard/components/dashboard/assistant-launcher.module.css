@@ -574,3 +574,26 @@
   background: #059669;
   transition: width 250ms ease;
 }
+
+.continuationActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.continuationActions button {
+  border: 1px solid #c9e2d4;
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: #eef8f2;
+  color: #24583e;
+  font: inherit;
+  cursor: pointer;
+}
+.continuationActions button:hover {
+  background: #dcefe3;
+}
+.continuationActions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

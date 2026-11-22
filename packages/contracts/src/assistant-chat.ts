@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const assistantChatInputSchema = z
   .object({
+    continuationId: z.string().uuid().optional(),
+    continuationTask: z.string().trim().min(1).max(4000).optional(),
     conversationId: z.string().uuid().optional(),
     messages: z
       .array(
@@ -16,6 +18,10 @@ export const assistantChatInputSchema = z
       .max(12),
   })
   .strict()
+  .refine(
+    (value) => !value.continuationId || !!value.conversationId,
+    "A continuation needs its conversation.",
+  )
   .refine(
     (value) => value.messages.at(-1)?.role === "user",
     "End with a user message.",
@@ -33,6 +39,7 @@ export const assistantChartSchema = z
           .object({
             name: z.string().max(160),
             value: z.number().finite().nullable(),
+            sampleSize: z.number().int().nonnegative().optional(),
           })
           .strict(),
       )
@@ -43,6 +50,9 @@ export const assistantChartSchema = z
 export type AssistantChart = z.infer<typeof assistantChartSchema>;
 
 export const assistantChatResponseSchema = z.object({
+  continuationId: z.string().uuid().optional(),
+  conversationId: z.string().uuid().optional(),
+  continuationRequired: z.boolean().optional(),
   text: z.string().min(1),
   charts: z.array(assistantChartSchema).max(3),
   model: z.string(),

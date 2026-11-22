@@ -6,7 +6,7 @@ const record = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value);
 const privateKey =
   /^(?:.*password.*|.*secret.*|.*access.?key.*|.*api.?key.*|.*token.*|.*credential.*|.*authorization.*|.*cookie.*|ipAddress|ip_address|profileImageUrl|stack|sql|connectionString|databaseUrl)$/i;
-const redact = (text: string) =>
+export const redactAssistantText = (text: string) =>
   text.replace(
     /sk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{16,}|Bearer\s+[A-Za-z0-9._~-]+|(?:postgres(?:ql)?|mysql):\/\/[^\s]+/gi,
     '[redacted credential]',
@@ -22,7 +22,7 @@ export function boundToolData(value: unknown) {
       return '[nested detail omitted]';
     }
     if (typeof item === 'string') {
-      const safe = redact(item);
+      const safe = redactAssistantText(item);
       if (safe.length > 4000)
         truncations.push({ path, available: safe.length, returned: 4000 });
       return safe.slice(0, 4000);

@@ -23,6 +23,7 @@ import {
   type AssistantChart as Chart,
 } from "@purposemint/contracts";
 import { AssistantChart } from "./assistant-chart";
+import { AssistantAnswer } from "./assistant-answer";
 import styles from "./assistant-launcher.module.css";
 type Message = {
   id: number;
@@ -70,6 +71,8 @@ export function AssistantLauncher() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [continuationTask, setContinuationTask] = useState<string | null>(null);
+  const continuationId = useRef<string | undefined>(undefined);
   const [pending, setPending] = useState(false);
   const [size, setSize] = useState<{ width: number; height: number } | null>(
     null,
@@ -164,13 +167,28 @@ export function AssistantLauncher() {
     request.current?.abort();
     setError(null);
     setMessages([]);
+    setContinuationTask(null);
     conversationId.current = null;
     setPending(false);
     setInput("");
     field.current?.focus();
   }
-  async function send() {
-    const text = input.trim();
+  async function send(confirmed = false) {
+    const typed = input.trim();
+    const continueWork =
+      !!continuationTask &&
+      (confirmed || /^(yes|yes please|continue|go ahead)[.!]?$/i.test(typed));
+    if (
+      continuationTask &&
+      /^(no|no thanks|stop)[.!]?$/i.test(typed) &&
+      !confirmed
+    ) {
+      setContinuationTask(null);
+      setInput("");
+      return;
+    }
+    const text = confirmed ? "Yes, continue with the remaining work." : typed;
+    const task = continueWork ? continuationTask! : text;
     if (!text || pending || !canChat) return;
     conversationId.current ??= crypto.randomUUID();
     const controller = new AbortController();
@@ -191,16 +209,21 @@ export function AssistantLauncher() {
           signal: controller.signal,
           body: JSON.stringify({
             conversationId: conversationId.current,
+            ...(continueWork
+              ? continuationId.current
+                ? { continuationId: continuationId.current }
+                : { continuationTask: task }
+              : {}),
             messages: updated.slice(-12).map((message) => ({
               role: message.role,
-              content: message.text,
+              content: message.text.slice(0, 4000),
             })),
           }),
         },
         getToken(),
         assistantChatResponseSchema,
       );
-      if (!controller.signal.aborted)
+      if (!controller.signal.aborted) {
         setMessages((previous) => [
           ...previous,
           {
@@ -210,6 +233,9 @@ export function AssistantLauncher() {
             charts: result.charts,
           },
         ]);
+        setContinuationTask(result.continuationRequired ? task : null);
+        continuationId.current = result.continuationId;
+      }
     } catch (cause) {
       if (!controller.signal.aborted) {
         setError(
@@ -414,6 +440,10 @@ export function AssistantLauncher() {
             </p>
             <h4>Prompts and activity</h4>
             <p>
+              Chat messages and charts are kept for two months, then
+              automatically deleted.
+            </p>
+            <p>
               Your prompts and answers are recorded with your account and the
               time they are submitted. Data lookups are also logged for
               accountability and review by Super Admins. Do not share passwords,
@@ -466,12 +496,35 @@ export function AssistantLauncher() {
               ) : (
                 <article key={message.id} className={styles.reply}>
                   <span className={styles.speaker}>PurposeMint</span>
-                  <p style={{ whiteSpace: "pre-wrap" }}>{message.text}</p>
+                  <AssistantAnswer text={message.text} />
                   {message.charts?.map((chart, index) => (
                     <AssistantChart key={index} chart={chart} />
                   ))}
                 </article>
               ),
+            )}
+            {continuationTask && !pending && (
+              <div className={styles.reply}>
+                <p>
+                  This request reached its work limit. Would you like to
+                  continue? Further work uses your remaining monthly AI budget.
+                </p>
+                <div className={styles.continuationActions}>
+                  <button
+                    type="button"
+                    disabled={!canChat}
+                    onClick={() => void send(true)}
+                  >
+                    Yes, continue
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setContinuationTask(null)}
+                  >
+                    No, stop here
+                  </button>
+                </div>
+              </div>
             )}
             {pending && (
               <div className={styles.pending} role="status">

@@ -24,6 +24,12 @@ describe('buildAssistantChart', () => {
     aggregate: 'sum',
   };
   it('computes numbers from server data and preserves scope', () => {
+    expect(
+      buildAssistantChart(
+        { ...request, title: 'Average savings progress' },
+        datasets,
+      ).title,
+    ).toBe('Total amount by action');
     expect(buildAssistantChart(request, datasets)).toMatchObject({
       data: [
         { name: 'edit', value: 2 },

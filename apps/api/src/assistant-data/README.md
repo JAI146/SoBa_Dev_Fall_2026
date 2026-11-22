@@ -89,3 +89,34 @@ Explicit chart requests retry a prose-only answer with a required create_chart c
 a permitted dataset exists. Per-customer progress uses aggregate value, preserving
 individual percentages instead of summing same-name customers. Bulk savings
 comparisons use the customer-summary endpoint, with pagination coverage disclosed.
+
+Conversation retention uses a rolling two-calendar-month window in UTC for each
+saved turn (prompt, answer, and charts). Expired turns are excluded from transcript
+queries immediately. The API deletes them on startup and every hour, including
+after downtime. Usage totals and audit events without message content are retained.
+Database backups require a separate retention policy.
+
+## Comparisons across dashboard reports
+
+`analyze_dashboard` accepts up to three views. Each view specifies row filters,
+groupings, measures, minimum group size, sort order, and an optional chart.
+The customer source joins authorized savings, subscriptions, badge awards,
+and pathway applications by customer ID. It reads optional sources only when
+their fields are needed. Other report datasets can be analyzed within their
+returned page or summary scope. Historical savings balances are unavailable.
+
+Each customer counts once per group. Pathway and badge membership groups may
+overlap. Progress averages exclude unknowns and report the known count.
+No savings activity means no recorded contribution entries. Both chart values
+and narrative inputs come from the same calculation. The model chooses a
+supported measure and chart type. The server labels the chart from that measure.
+Customer comparisons support up to 2,500 records in each paginated input,
+and each view returns up to 50 groups. A denied source, duplicate page member,
+or invalid chart prevents publication of the multi-view result.
+
+On an approved continuation, the API reruns saved tool steps with the user's
+current credentials, then gives the model the refreshed results. The checkpoint
+belongs to one user, login session and conversation. It contains the original
+question and tool arguments, expires after 15 minutes, and is local to the API
+process. A restart or eviction invalidates it. If a recipe exceeds the size or
+step cap, the client can continue from the original task and conversation.

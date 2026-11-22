@@ -10,7 +10,13 @@ export type ChartDataset = {
   categories: string[];
   metrics: string[];
   scope: string;
+  analysis?: { labels: Record<string, string>; groupedBy: string };
 };
+export const readableField = (field: string) =>
+  field
+    .replace(/[._]/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase();
 export const chartRequestSchema = z
   .object({
     datasetId: z.string(),
@@ -35,6 +41,8 @@ export function buildAssistantChart(
     );
   }
   const dataset = datasets.get(q.datasetId);
+  if (dataset?.analysis && q.aggregate !== 'value')
+    throw new BadRequestException('Plot the calculated group values directly.');
   if (dataset?.metrics.includes('count') && q.aggregate === 'count') {
     throw new BadRequestException(
       'This is an aggregated dataset. Use aggregate sum and metric count to chart event totals; counting summary rows gives incorrect event counts.',
@@ -83,17 +91,32 @@ export function buildAssistantChart(
     throw new BadRequestException(
       'Pie charts cannot show negative values. Choose a bar or line chart.',
     );
+  const valueLabel =
+    dataset.analysis?.labels[q.metric] ??
+    (q.aggregate === 'count'
+      ? 'Record count'
+      : (q.aggregate === 'sum' ? 'Total ' : '') + readableField(q.metric));
+  const grouping = dataset.analysis?.groupedBy ?? readableField(q.category);
+  const title =
+    valueLabel.charAt(0).toUpperCase() +
+    valueLabel.slice(1) +
+    (grouping ? ' by ' + grouping : '');
   const result = assistantChartSchema.safeParse({
     type: q.type,
-    title: q.title,
-    valueLabel: q.aggregate === 'count' ? 'Count' : q.metric,
+    title: title.slice(0, 160),
+    valueLabel: valueLabel.slice(0, 80),
     scope: (data.some((point) => point.value === null)
       ? data.filter((point) => point.value === null).length +
         ' records have no available value; see the data table. ' +
         dataset.scope
       : dataset.scope
     ).slice(0, 500),
-    data,
+    data: dataset.analysis
+      ? data.map((point, i) => ({
+          ...point,
+          sampleSize: dataset.rows[i].rowCount,
+        }))
+      : data,
   });
   if (!result.success)
     throw new BadRequestException(

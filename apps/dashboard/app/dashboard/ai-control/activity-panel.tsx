@@ -9,6 +9,7 @@ import {
   type AssistantTranscript,
 } from "@purposemint/contracts";
 import { AssistantChart } from "@/components/dashboard/assistant-chart";
+import { AssistantAnswer } from "@/components/dashboard/assistant-answer";
 import { apiRequest } from "@/lib/api-client";
 import { getToken } from "@/lib/auth";
 import styles from "./ai-control.module.css";
@@ -200,7 +201,7 @@ function Transcript({
                 {turn.answer !== null && (
                   <div>
                     <strong>Answer</strong>
-                    <p>{turn.answer}</p>
+                    <AssistantAnswer text={turn.answer} />
                     {turn.charts?.map((chart, index) => (
                       <AssistantChart key={index} chart={chart} />
                     ))}
@@ -262,7 +263,10 @@ export function ActivityPanel({
       <div className={styles.cardHeading}>
         <div>
           <h2>Assistant activity</h2>
-          <p>Choose an administrator to review their conversations.</p>
+          <p>
+            Choose an administrator to review their conversations from the last
+            two months. Older messages are automatically deleted.
+          </p>
         </div>
         <button
           type="button"

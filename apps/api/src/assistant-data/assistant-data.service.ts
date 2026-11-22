@@ -241,7 +241,7 @@ export class AssistantDataService {
         const total = await customers.getCount();
         if (query.customerId && !total)
           throw new NotFoundException('Customer account not found.');
-        const rows = await customers
+        const customerPage = customers
           .leftJoin(UserGoal, 'goal', 'goal.user_id = user.id')
           .select('user.id', 'id')
           .addSelect('user.firstName', 'firstName')
@@ -259,17 +259,27 @@ export class AssistantDataService {
           .addOrderBy('user.firstName', 'ASC')
           .addOrderBy('user.id', 'ASC')
           .offset(query.customerId ? 0 : (query.page - 1) * query.pageSize)
-          .limit(query.customerId ? 1 : query.pageSize)
-          .getRawMany<{
-            id: string;
-            firstName: string;
-            lastName: string;
-            email: string;
-            savedAmount: string;
-            targetAmount: string;
-            goalCount: string;
-            pathwayEligible: boolean;
-          }>();
+          .limit(query.customerId ? 1 : query.pageSize);
+        if (query.includeEntryCounts)
+          customerPage.addSelect(
+            (qb) =>
+              qb
+                .select('COUNT(*)')
+                .from(SavingsEntry, 'recorded')
+                .where('recorded.userId = user.id'),
+            'recordedEntryCount',
+          );
+        const rows = await customerPage.getRawMany<{
+          id: string;
+          firstName: string;
+          lastName: string;
+          email: string;
+          savedAmount: string;
+          targetAmount: string;
+          goalCount: string;
+          recordedEntryCount?: string;
+          pathwayEligible: boolean;
+        }>();
         let goals: UserGoal[] = [],
           entries: SavingsEntry[] = [];
         let goalCount = 0,
@@ -334,6 +344,9 @@ export class AssistantDataService {
                 targetAmount,
                 ...progress(savedAmount, targetAmount),
                 goalCount: Number(row.goalCount),
+                ...(row.recordedEntryCount !== undefined && {
+                  recordedEntryCount: Number(row.recordedEntryCount),
+                }),
                 pathwayEligible: row.pathwayEligible,
               };
             }),
@@ -458,13 +471,11 @@ export class AssistantDataService {
               actorId?: string | null;
             }>();
           return {
-            items: rows
-              .slice(0, 50)
-              .map((row) => ({
-                name: row.name ?? 'Unknown',
-                count: Number(row.count),
-                ...(actor ? { actorId: row.actorId ?? null } : {}),
-              })),
+            items: rows.slice(0, 50).map((row) => ({
+              name: row.name ?? 'Unknown',
+              count: Number(row.count),
+              ...(actor ? { actorId: row.actorId ?? null } : {}),
+            })),
             hasMore: rows.length > 50,
           };
         };
@@ -492,7 +503,10 @@ export class AssistantDataService {
           .addOrderBy('event.id', 'ASC')
           .offset((query.page - 1) * query.pageSize)
           .limit(query.pageSize)
-          .getRawMany();
+          .getRawMany<{
+            createdAt: Date | string;
+            metadata: Record<string, unknown> | null;
+          }>();
         return auditReportResponseSchema.parse({
           source: 'audit_events',
           retrievedAt: new Date().toISOString(),

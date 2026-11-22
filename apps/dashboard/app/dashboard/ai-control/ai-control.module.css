@@ -397,6 +397,7 @@
 }
 .transcript article {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   border-top: 1px solid #e5eee9;
   padding: 12px 0;

@@ -21,6 +21,7 @@ import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth-principal';
 import type { Env } from '../config/env.validation';
 
+import { assistantRetentionCutoff } from './assistant-retention.service';
 const monthStart =
   "date_trunc('month', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'";
 const monthEnd =
@@ -55,7 +56,11 @@ type Staff = {
 export type AssistantModelUsage = {
   input_tokens: number;
   output_tokens: number;
-  input_tokens_details?: { cached_tokens?: number };
+  input_tokens_details?: {
+    cached_tokens?: number;
+    cache_write_tokens?: number;
+    cache_write_tokens_details?: { ttl_12h_tokens?: number };
+  };
 };
 
 export function requireAssistantAdmin(principal: AuthPrincipal) {
@@ -77,6 +82,8 @@ export function requireAssistantSupervisor(principal: AuthPrincipal) {
 function modelRates(model: string): [number, number, number] {
   switch (model.replace(/-\d{4}-\d{2}-\d{2}$/, '')) {
     // Nano-USD per token. Standard input, cached input, output.
+    case 'gpt-6-luna':
+      return [100, 10, 500];
     case 'gpt-4.1-mini':
       return [400, 100, 1600];
     default:
@@ -111,7 +118,7 @@ export class AssistantControlService {
   ): Promise<Staff[]> {
     return manager.query(`SELECT u.id, ${name} AS name, ${role} AS role,
       ${builtIn} AS "builtIn", COALESCE(CASE WHEN a.status IN ('approved', 'builtin') THEN a.share END, CASE WHEN s.mode = 'balanced' THEN 0 ELSE 10000 END) AS share,
-      (SELECT max(t.created_at) FROM assistant_turns t WHERE t.user_id = u.id) AS "lastActivity"
+      (SELECT max(t.created_at) FROM assistant_turns t WHERE t.user_id = u.id AND t.created_at >= ${assistantRetentionCutoff}) AS "lastActivity"
       FROM users u CROSS JOIN assistant_settings s
       LEFT JOIN assistant_access a ON a.user_id = u.id
       LEFT JOIN custom_roles r ON r.id = u.custom_role_id
@@ -370,8 +377,13 @@ export class AssistantControlService {
   async reserve(userId: string, model: string, body: object) {
     const [input, cachedInput, output] = modelRates(model);
     // UTF-8 bytes plus framing headroom conservatively bound text input tokens.
-    const estimate =
-      (Buffer.byteLength(JSON.stringify(body)) + 4096) * input + 2000 * output;
+    const luna = model.startsWith('gpt-6-luna');
+    const inputBound = Buffer.byteLength(JSON.stringify(body)) + 4096;
+    const longEstimate = luna && inputBound > 272000;
+    const estimate = Math.ceil(
+      inputBound * input * (luna ? 2.5 : 1) * (longEstimate ? 2 : 1) +
+        2000 * output * (longEstimate ? 1.5 : 1),
+    );
     const id = randomUUID();
     await this.db.transaction(async (manager) => {
       const settings = await this.settings(manager, true);
@@ -402,10 +414,24 @@ export class AssistantControlService {
         usage?.input_tokens ?? 0,
         usage?.input_tokens_details?.cached_tokens ?? 0,
       );
+      const writes = luna
+        ? (usage?.input_tokens_details?.cache_write_tokens ?? 0)
+        : 0;
+      const longWrites = Math.min(
+        writes,
+        usage?.input_tokens_details?.cache_write_tokens_details
+          ?.ttl_12h_tokens ?? 0,
+      );
+      const longContext = luna && (usage?.input_tokens ?? 0) > 272000;
       const cost = usage
-        ? (usage.input_tokens - cached) * input +
-          cached * cachedInput +
-          usage.output_tokens * output
+        ? Math.ceil(
+            ((usage.input_tokens - cached - writes) * input +
+              cached * cachedInput +
+              (writes - longWrites) * input * 1.25 +
+              longWrites * input * 2.5) *
+              (longContext ? 2 : 1) +
+              usage.output_tokens * output * (longContext ? 1.5 : 1),
+          )
         : 0;
       await this.db.query(
         'UPDATE assistant_usage SET nano_usd = $2, settled = true WHERE id = $1',
@@ -432,7 +458,7 @@ export class AssistantControlService {
       CASE WHEN $5 THEN prompt END AS prompt, CASE WHEN $6 THEN answer END AS answer,
       CASE WHEN $6 THEN charts END AS charts
       FROM assistant_turns
-      WHERE user_id = $1 AND ($2::date IS NULL OR created_at >= ($2::date::timestamp AT TIME ZONE 'UTC'))
+      WHERE user_id = $1 AND created_at >= ${assistantRetentionCutoff} AND ($2::date IS NULL OR created_at >= ($2::date::timestamp AT TIME ZONE 'UTC'))
         AND ($3::date IS NULL OR created_at < (($3::date + 1)::timestamp AT TIME ZONE 'UTC'))
         AND ($5 OR answer IS NOT NULL)
         AND ($4 = '' OR ($8 AND strpos(lower(prompt), lower($4)) > 0) OR ($9 AND strpos(lower(answer), lower($4)) > 0))

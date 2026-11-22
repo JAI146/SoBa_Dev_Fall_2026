@@ -43,6 +43,9 @@ export const employeeAuditDataQuerySchema = z
 export const savingsProgressDataQuerySchema = z
   .object({
     customerId: z.string().uuid().optional(),
+    includeEntryCounts: z
+      .union([z.literal(true), z.literal("true")])
+      .optional(),
     ...range,
     ...pagination,
     goalPage: z.coerce.number().int().min(1).max(100000).default(1),
@@ -67,6 +70,7 @@ const pageInfo = z.object({
   hasMore: z.boolean(),
 });
 const savingsCustomer = adminSavingsCustomerSchema.extend({
+  recordedEntryCount: z.number().int().nonnegative().optional(),
   remainingAmount: z.number(),
   progressPercent: z.number().nullable(),
 });

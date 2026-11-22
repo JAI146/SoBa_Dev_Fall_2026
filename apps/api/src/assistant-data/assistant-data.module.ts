@@ -8,6 +8,7 @@ import { AssistantToolsService } from './assistant-tools.service';
 
 import { AssistantControlController } from './assistant-control.controller';
 import { AssistantControlService } from './assistant-control.service';
+import { AssistantRetentionService } from './assistant-retention.service';
 @Module({
   imports: [AuditModule],
   controllers: [
@@ -16,6 +17,7 @@ import { AssistantControlService } from './assistant-control.service';
     AssistantControlController,
   ],
   providers: [
+    AssistantRetentionService,
     AssistantControlService,
     AssistantDataService,
     AssistantChatService,

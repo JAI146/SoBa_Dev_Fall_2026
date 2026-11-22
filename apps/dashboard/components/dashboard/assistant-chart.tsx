@@ -159,6 +159,7 @@ function Plot({
   );
 }
 function DataTable({ chart }: { chart: Chart }) {
+  const grouped = chart.data.some((point) => point.sampleSize !== undefined);
   return (
     <div className={styles.chartTable}>
       <table>
@@ -166,6 +167,7 @@ function DataTable({ chart }: { chart: Chart }) {
           <tr>
             <th>Label</th>
             <th>{chart.valueLabel}</th>
+            {grouped && <th>Group size</th>}
           </tr>
         </thead>
         <tbody>
@@ -177,6 +179,7 @@ function DataTable({ chart }: { chart: Chart }) {
                   maximumFractionDigits: 2,
                 }) ?? "Not available"}
               </td>
+              {grouped && <td>{point.sampleSize ?? "—"}</td>}
             </tr>
           ))}
         </tbody>
@@ -190,6 +193,14 @@ export function AssistantChart({ chart }: { chart: Chart }) {
   const titleId = useId();
   const [visible, setVisible] = useState(false);
   const [zoomKey, setZoomKey] = useState(0);
+  const missingValues = chart.data.filter(
+    (point) => point.value === null,
+  ).length;
+  const coverageNote =
+    "Based on the records retrieved for this request." +
+    (missingValues
+      ? ` Values are unavailable for ${missingValues} chart ${missingValues === 1 ? "entry" : "entries"}.`
+      : "");
   return (
     <>
       <figure className={styles.chartCard}>
@@ -210,7 +221,7 @@ export function AssistantChart({ chart }: { chart: Chart }) {
           </button>
         </figcaption>
         <Plot chart={chart} />
-        <p className={styles.chartScope}>{chart.scope}</p>
+        <p className={styles.chartScope}>{coverageNote}</p>
         <details className={styles.chartDetails}>
           <summary>View chart data</summary>
           <DataTable chart={chart} />
@@ -256,7 +267,7 @@ export function AssistantChart({ chart }: { chart: Chart }) {
               </button>
             </div>
             <Plot key={zoomKey} chart={chart} expanded />
-            <p className={styles.chartScope}>{chart.scope}</p>
+            <p className={styles.chartScope}>{coverageNote}</p>
             <details className={styles.chartDetails}>
               <summary>View all values</summary>
               <DataTable chart={chart} />

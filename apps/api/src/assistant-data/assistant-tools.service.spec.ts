@@ -183,6 +183,26 @@ describe('dashboard tool access boundary', () => {
     expect(mock).toHaveBeenCalledTimes(2);
     expect(String(mock.mock.calls[1][0])).toContain('/admin/notifications');
   });
+  it('uses the signed-in dashboard permission boundary for joined customer analysis', async () => {
+    const mock = jest
+      .fn()
+      .mockResolvedValueOnce(json(actor))
+      .mockResolvedValueOnce(json({}, 403));
+    global.fetch = mock;
+    await expect(
+      execute('analyze_dashboard', {
+        source: 'customers',
+        views: [
+          {
+            plan: { groupBy: ['plan'] },
+            chartMetric: 'rowCount',
+            chartType: 'bar',
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(mock).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('bounded model data and charts', () => {

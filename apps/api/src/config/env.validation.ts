@@ -14,7 +14,7 @@ const booleanish = z
  */
 export const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
-  OPENAI_MODEL: z.string().min(1).default('gpt-4.1-mini'),
+  OPENAI_MODEL: z.string().min(1).default('gpt-6-luna'),
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
     .default('development'),

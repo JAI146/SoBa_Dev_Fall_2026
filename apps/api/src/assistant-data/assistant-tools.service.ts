@@ -16,6 +16,9 @@ import {
 import type { Env } from '../config/env.validation';
 import type { AuthPrincipal } from '../auth/auth-principal';
 import type { ChartDataset } from './assistant-chart';
+import type { AssistantChart } from '@purposemint/contracts';
+import { loadCustomerDataset } from './assistant-customer-dataset';
+import { runAnalysisTool, analysisTool } from './assistant-analysis-tool';
 import {
   assistantToolSpecs,
   toolArguments,
@@ -38,7 +41,17 @@ export class AssistantToolsService {
     authorization: string,
     datasets: Map<string, ChartDataset>,
     callId: string,
+    charts: AssistantChart[] = [],
   ) {
+    if (name === analysisTool.name) {
+      await this.checkActor(principal, authorization);
+      return runAnalysisTool(input, datasets, callId, charts, (fields) =>
+        loadCustomerDataset(
+          (endpoint) => this.read(endpoint, authorization),
+          fields,
+        ),
+      );
+    }
     const spec = assistantToolSpecs.find((tool) => tool.name === name);
     if (!spec) throw new BadRequestException('Unknown read tool.');
     const parsed = (() => {
@@ -60,27 +73,7 @@ export class AssistantToolsService {
       );
     if (parsed.includeCustomerContext && !parsed.caseId)
       throw new BadRequestException('Select caseId for customer context.');
-    if (!/^Bearer [A-Za-z0-9._~-]+$/.test(authorization))
-      throw new UnauthorizedException('Sign in again to use dashboard data.');
-    // Recheck the actor for every tool, not just once when a multi-step answer begins.
-    const actor = (await this.read(
-      { key: 'actor', path: 'users/me', schema: userPublicSchema, query: {} },
-      authorization,
-    )) as {
-      id: string;
-      userType: string;
-      status: string;
-      adminRole: string | null;
-      customRoleId?: string | null;
-    };
-    if (
-      actor.id !== principal.userId ||
-      actor.userType !== UserType.ADMIN ||
-      actor.status !== UserStatus.ACTIVE
-    )
-      throw new ForbiddenException(
-        'Assistant access is currently limited to active administrators.',
-      );
+    await this.checkActor(principal, authorization);
     const sections: Record<string, unknown> = {};
     const endpoints = spec.reads(parsed);
     if (spec.name === 'get_kyc_report' && parsed.customerId) {
@@ -149,6 +142,23 @@ export class AssistantToolsService {
         coverage,
       ),
     };
+  }
+
+  private async checkActor(principal: AuthPrincipal, authorization: string) {
+    if (!/^Bearer [A-Za-z0-9._~-]+$/.test(authorization))
+      throw new UnauthorizedException('Sign in again to use dashboard data.');
+    const actor = (await this.read(
+      { key: 'actor', path: 'users/me', schema: userPublicSchema, query: {} },
+      authorization,
+    )) as { id: string; userType: string; status: string };
+    if (
+      actor.id !== principal.userId ||
+      actor.userType !== UserType.ADMIN ||
+      actor.status !== UserStatus.ACTIVE
+    )
+      throw new ForbiddenException(
+        'Assistant access is currently limited to active administrators.',
+      );
   }
 
   private async read(

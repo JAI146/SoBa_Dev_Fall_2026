@@ -19,7 +19,7 @@ describe('AssistantChatService', () => {
   const originalFetch = global.fetch;
   const config = new ConfigService({
     OPENAI_API_KEY: 'test-key',
-    OPENAI_MODEL: 'gpt-4.1-mini',
+    OPENAI_MODEL: 'gpt-6-luna',
   });
   afterEach(() => {
     global.fetch = originalFetch;
@@ -33,6 +33,93 @@ describe('AssistantChatService', () => {
       }),
     ).rejects.toThrow();
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('pauses at the work limit and renews the allowance for each confirmed continuation', async () => {
+    data.execute.mockResolvedValue({ records: [] });
+    const bodies: { tools: unknown[]; input: unknown }[] = [];
+    const mock = jest
+      .fn()
+      .mockImplementation((_url: unknown, init: RequestInit) => {
+        bodies.push(
+          JSON.parse(init.body as string) as {
+            tools: unknown[];
+            input: unknown;
+          },
+        );
+        const index = mock.mock.calls.length - 1;
+        return new Response(
+          JSON.stringify({
+            output:
+              index % 7 < 6
+                ? [
+                    {
+                      type: 'function_call',
+                      name: 'get_audit_report',
+                      call_id: 'call' + index,
+                      arguments: '{}',
+                    },
+                  ]
+                : [
+                    {
+                      type: 'message',
+                      content: [
+                        {
+                          type: 'output_text',
+                          text: 'Checked the first group. More staff remain.',
+                        },
+                      ],
+                    },
+                  ],
+          }),
+        );
+      });
+    global.fetch = mock;
+    const authorize = jest.fn().mockResolvedValue(undefined);
+    const reserve = jest.fn().mockResolvedValue(undefined);
+    const originalTask = 'Review all staff activity';
+    const chat = service();
+    const conversationId = 'aaaa1111-1111-4111-8111-111111111111';
+    let continuationId: string | undefined;
+    for (let chunk = 0; chunk < 3; chunk++) {
+      const result = await chat.reply(
+        principal,
+        {
+          continuationId,
+          conversationId,
+          messages: [
+            { role: 'user', content: chunk ? 'Yes, continue' : originalTask },
+          ],
+        },
+        '',
+        { authorize, reserve },
+      );
+      expect(result.continuationRequired).toBe(true);
+      expect(result.continuationId).toBeDefined();
+      continuationId = result.continuationId;
+      expect(result.text).toContain('More staff remain');
+      const first = bodies[chunk * 7];
+      const last = bodies[chunk * 7 + 6];
+      expect(first.tools).toHaveLength(20);
+      expect(JSON.stringify(first.input)).toContain(originalTask);
+      expect(last.tools).toEqual([]);
+    }
+    // Six + twelve prior steps were re-read under current permissions.
+    expect(authorize).toHaveBeenCalledTimes(36);
+    expect(reserve).toHaveBeenCalledTimes(21);
+    const next = {
+      continuationId,
+      conversationId,
+      messages: [{ role: 'user', content: 'Continue' }],
+    };
+    await expect(
+      chat.reply({ ...principal, sessionId: 'another session' }, next),
+    ).rejects.toThrow('expired');
+    data.execute.mockRejectedValueOnce(
+      new ForbiddenException('access revoked'),
+    );
+    await expect(chat.reply(principal, next)).rejects.toThrow('access revoked');
+    expect(mock).toHaveBeenCalledTimes(21);
   });
 
   it('sends bounded, non-stored text requests and returns provider text and usage', async () => {
@@ -57,17 +144,19 @@ describe('AssistantChatService', () => {
     ).resolves.toEqual({
       text: 'Hello',
       charts: [],
-      model: 'gpt-4.1-mini',
+      model: 'gpt-6-luna',
       usage: { inputTokens: 20, outputTokens: 2 },
     });
     const body = JSON.parse(mock.mock.calls[0][1].body as string);
+    expect(body.reasoning).toEqual({ effort: 'none' });
+    expect(body.service_tier).toBe('default');
     expect(body.store).toBe(false);
     expect(body.instructions).toContain('SCOPE RULE:');
     expect(body.instructions).toContain(
       'Do not provide any part of the unrelated answer.',
     );
     expect(body.max_output_tokens).toBe(2000);
-    expect(body.tools).toHaveLength(19);
+    expect(body.tools).toHaveLength(20);
     expect(
       body.tools.some(
         (tool: { name: string }) => tool.name === 'get_audit_report',
@@ -132,6 +221,7 @@ describe('AssistantChatService', () => {
         '',
         expect.any(Map),
         'report_1',
+        [],
       );
       const second = JSON.parse(mock.mock.calls[1][1].body as string);
       expect(second.input.at(-1).output).toContain('Access denied');
