@@ -405,7 +405,7 @@ export default function ManageRolesPage() {
           </div>
           <button
             type="button"
-            className={`${styles["secondary-button"]} ${styles["role-create-button"]}`}
+            className={`${styles["btn-primary"]} ${styles["role-create-button"]}`}
             onClick={() => {
               setRoleMessage(null);
               setCreateRoleOpen(true);
