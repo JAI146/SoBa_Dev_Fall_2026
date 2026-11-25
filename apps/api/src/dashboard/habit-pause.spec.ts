@@ -42,6 +42,9 @@ describe('customer habit pause operations', () => {
           timeZone: 'America/Chicago',
         })),
       },
+      badgeEvaluation: {
+        evaluateUser: jest.fn().mockResolvedValue(undefined),
+      },
       audit: new AuditService({} as Repository<AuditEvent>),
     });
     return { service, manager, events };

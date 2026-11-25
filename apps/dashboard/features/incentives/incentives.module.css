@@ -13,7 +13,7 @@
   border: 1px solid var(--brand-gold);
   border-radius: var(--radius);
   background: var(--brand-light-gold);
-  color: var(--secondary);
+  color: #92400e;
   line-height: 1.6;
 }
 .notice p {
@@ -21,7 +21,7 @@
 }
 .muted {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
 }
 .tabs {
@@ -41,9 +41,9 @@
   font: inherit;
 }
 .tabs button[aria-current="page"] {
-  background: var(--primary);
+  background: #047857;
   color: white;
-  border-color: var(--primary);
+  border-color: #047857;
 }
 .form {
   display: grid;
@@ -54,7 +54,7 @@
 .filters label {
   display: grid;
   gap: 6px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--foreground);
 }
 .form input,
@@ -77,6 +77,7 @@
 }
 .form input[type="checkbox"] {
   width: auto;
+  accent-color: #059669;
 }
 .form .check {
   display: flex;
@@ -108,18 +109,18 @@
   padding: 12px;
 }
 .success {
-  color: var(--success-text);
-  background: var(--success-bg);
+  color: #047857;
+  background: #ecfdf5;
   border-radius: 8px;
   padding: 12px;
 }
 .status {
   display: inline-block;
-  background: var(--primary-light);
-  color: var(--secondary);
+  background: #ecfdf5;
+  color: #047857;
   padding: 5px 10px;
   border-radius: 20px;
-  font-size: 12px;
+  font-size: 13px;
   white-space: nowrap;
 }
 .timeline {
@@ -130,7 +131,7 @@
   margin: 16px 0 0;
 }
 .timeline li {
-  border-left: 3px solid var(--primary);
+  border-left: 3px solid #059669;
   padding: 4px 0 4px 18px;
 }
 .timeline p {
@@ -147,7 +148,7 @@
 .buttonLink {
   background: none;
   border: 0;
-  color: var(--primary);
+  color: #047857;
   text-decoration: underline;
   cursor: pointer;
   padding: 0;
@@ -170,14 +171,14 @@
 .bar {
   height: 8px;
   margin: 8px 0 16px;
-  background: var(--primary-light);
+  background: #ecfdf5;
   border-radius: 4px;
   overflow: hidden;
 }
 .bar span {
   display: block;
   height: 100%;
-  background: var(--primary);
+  background: #059669;
 }
 .heading {
   display: flex;
@@ -194,7 +195,7 @@
 .stack input:focus-visible,
 .stack select:focus-visible,
 .stack textarea:focus-visible {
-  outline: 3px solid var(--primary);
+  outline: 3px solid #059669;
   outline-offset: 3px;
 }
 @media (max-width: 900px) {
@@ -222,7 +223,7 @@
   display: block;
   margin-top: 4px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 .dialog {
   width: min(560px, calc(100vw - 32px));
@@ -273,8 +274,8 @@
     background 150ms;
 }
 .benefitLink:hover {
-  border-color: var(--primary);
-  background: var(--primary-light);
+  border-color: #059669;
+  background: #ecfdf5;
 }
 .stackSmall {
   display: grid;
@@ -292,7 +293,7 @@
 }
 .benefitAmount span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 .outlineButton {
   display: inline-flex;
@@ -301,15 +302,15 @@
   padding: 9px 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  color: var(--primary);
+  color: #047857;
   background: var(--card);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   text-decoration: none;
 }
 .outlineButton:hover {
-  border-color: var(--primary);
-  background: var(--primary-light);
+  border-color: #059669;
+  background: #ecfdf5;
 }
 .reviewCards {
   display: grid;
@@ -325,12 +326,12 @@
 }
 .reviewCard h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 .reviewCard p {
   margin: 12px 0 0;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.7;
   white-space: pre-wrap;
   overflow-wrap: anywhere;

@@ -28,3 +28,6 @@ export * from "./coaching-operations";
 export * from "./subscription-management";
 export * from "./analytics";
 export * from "./support-cases";
+export * from "./assistant-data";
+export * from "./assistant-chat";
+export * from "./assistant-control";

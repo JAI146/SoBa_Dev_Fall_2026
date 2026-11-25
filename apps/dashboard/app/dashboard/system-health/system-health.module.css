@@ -1,9 +1,9 @@
 .page {
   min-width: 0;
-  font-size: 14px;
+  font-size: 16px;
 }
 .page h2 {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
 }
 .page > section {
@@ -40,7 +40,7 @@
   display: inline-flex;
   padding: 5px 10px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -68,7 +68,7 @@
 .details dt,
 .muted {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
 }
 .details dd {
@@ -159,7 +159,7 @@
 }
 .userId {
   overflow-wrap: anywhere;
-  font-size: 13px;
+  font-size: 14px;
 }
 @media (max-width: 850px) {
   .services {

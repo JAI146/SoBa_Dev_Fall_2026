@@ -1,4 +1,5 @@
 import { CoachingOperationsModule } from './coaching-operations/coaching-operations.module';
+import { AssistantDataModule } from './assistant-data/assistant-data.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SystemHealthModule } from './system-health/system-health.module';
 import { Module } from '@nestjs/common';
@@ -74,6 +75,7 @@ import { SubscriptionManagementModule } from './subscription-management/subscrip
     CommunityChallengesModule,
     AdminModule,
     AnalyticsModule,
+    AssistantDataModule,
     // Mount incentive endpoints and seed the default program after database initialization.
     IncentivesModule,
     SupportCasesModule,
